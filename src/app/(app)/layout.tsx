@@ -1,17 +1,28 @@
 // app/(app)/layout.tsx
-// ... (imports remain the same) ...
+
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { signOut } from '@/app/actions'
-import Link from 'next/link' // <-- Import Link
+import Link from 'next/link' // Import Link
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // ... (session check logic remains the same) ...
+  // === THIS IS THE MISSING LOGIC ===
+  const supabase = createSupabaseServerClient()
+
+  // Check for an active session
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  // If no session, redirect to the homepage
   if (!session) {
     redirect('/')
   }
+  // === END OF MISSING LOGIC ===
 
   // If we have a session, show the protected app layout
   return (
