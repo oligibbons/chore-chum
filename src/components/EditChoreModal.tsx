@@ -184,4 +184,69 @@ export default function EditChoreModal({
                         id="dueDate"
                         name="dueDate"
                         defaultValue={formatDateForInput(chore.due_date)}
-                        className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-
+                        // This is the line that was cut off.
+                        // Notice the closing quote and bracket.
+                        className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="recurrence_type" className="block font-heading text-sm font-medium text-support-dark">
+                        Repeats
+                      </label>
+                      <select
+                        id="recurrence_type"
+                        name="recurrence_type"
+                        defaultValue={chore.recurrence_type}
+                        className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
+                      >
+                        <option value="none">Never</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row: Instances */}
+                  <div>
+                    <label htmlFor="instances" className="block font-heading text-sm font-medium text-support-dark">
+                      Instances (for multi-step chores)
+                    </label>
+                    <input
+                      type="number"
+                      id="instances"
+                      name="instances"
+                      defaultValue={chore.target_instances}
+                      min="1"
+                      className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
+                    />
+                  </div>
+
+                  {/* Error Message */}
+                  {error && (
+                    <p className="text-sm text-status-overdue">{error}</p>
+                  )}
+
+                  {/* Submit Button */}
+                  <div className="!mt-8 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex items-center justify-center rounded-lg bg-brand-secondary px-5 py-3 font-heading text-base font-semibold text-brand-white shadow-sm transition-all hover:bg-brand-secondary/90 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
+  )
+}
