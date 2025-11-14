@@ -7,8 +7,10 @@ import { HouseholdData, ChoreWithDetails } from '@/types/database'
 import { Plus } from 'lucide-react'
 import AddChoreModal from './AddChoreModal'
 import EditChoreModal from './EditChoreModal'
-import ChoreItem from './ChoreItem' // <-- Import the new component
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
+import ChoreItem from './ChoreItem'
+// --- THIS IS THE FIX ---
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+// --- END OF FIX ---
 import { useRouter } from 'next/navigation'
 
 // --- Main Display Component ---
@@ -24,7 +26,9 @@ export default function ChoreDisplay({ data }: { data: HouseholdData }) {
   // --- SUPABASE REALTIME HOOK ---
   useEffect(() => {
     // Create a Supabase client for the browser
-    const supabase = createBrowserClient(
+    // --- THIS IS THE FIX ---
+    const supabase = createClientComponentClient(
+    // --- END OF FIX ---
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )

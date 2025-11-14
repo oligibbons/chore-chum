@@ -3,7 +3,9 @@
 'use client' // This MUST be a Client Component
 
 import { useState } from 'react'
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
+// --- THIS IS THE FIX ---
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+// --- END OF FIX ---
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 
@@ -11,7 +13,9 @@ export default function AuthForm() {
   // Create a Supabase client (for the browser)
   // We use useState to ensure it's only created once per component load
   const [supabase] = useState(() =>
-    createBrowserClient(
+    // --- THIS IS THE FIX ---
+    createClientComponentClient(
+    // --- END OF FIX ---
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
