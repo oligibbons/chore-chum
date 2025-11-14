@@ -2,7 +2,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { HouseholdData, ChoreWithDetails, DbChore } from '@/types/database'
+import { HouseholdData, ChoreWithDetails, DbChore, DbHousehold } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
 
