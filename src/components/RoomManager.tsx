@@ -89,7 +89,7 @@ function RoomList({ rooms }: { rooms: DbRoom[] }) {
        <h3 className="font-heading text-xl font-semibold text-support-dark">
         Existing Rooms
       </h3>
-      {error && <p className="text-sm text-status-overdue">{error}</sObject>}
+      {error && <p className="text-sm text-status-overdue">{error}</p>}
       
       {rooms.length === 0 ? (
         <p className="rounded-lg border border-dashed border-support-light p-6 text-center text-support-dark/80">

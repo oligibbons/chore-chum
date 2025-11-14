@@ -4,7 +4,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { HouseholdData, ChoreWithDetails, DbChore } from '@/types/database'
 import { revalidatePath } from 'next/cache'
-import { RRule } from 'rrule-js'
+import { RRule } from 'rrule'
 
 type ActionResponse = {
   success: boolean
