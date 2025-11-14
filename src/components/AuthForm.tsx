@@ -3,23 +3,35 @@
 'use client' // This MUST be a Client Component
 
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 
 export default function AuthForm() {
-  // Create a Supabase client (for the browser)
-  // We use useState to ensure it's only created once per component load
   const [supabase] = useState(() =>
-    // This takes no arguments, as it reads from the environment automatically.
-    createClientComponentClient()
+    createSupabaseBrowserClient()
   )
+
+  // Get the origin URL for the redirect
+  const getURL = () => {
+    let url =
+      process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this in Vercel/Cloudflare
+      process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel
+      'http://localhost:3000/'
+    // Make sure to include `https://` when not localhost.
+    url = url.includes('http') ? url : `https://${url}`
+    // Make sure to include a trailing `/`.
+    url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
+    return url
+  }
 
   return (
     <Auth
       supabaseClient={supabase}
       providers={['google', 'apple']}
       magicLink
+      // We need to tell the Auth helper where our callback route is
+      redirectTo={`${getURL()}auth/callback`}
       appearance={{
         theme: ThemeSupa, // Start with the default Supabase theme
         variables: {
@@ -67,7 +79,6 @@ export default function AuthForm() {
             button_label: 'Sign in',
             social_provider_text: 'Sign in with {{provider}}',
             link_text: 'Already have an account? Sign in',
-            // --- THIS LINE WAS REMOVED (THE FIX) ---
           },
           sign_up: {
             email_label: 'Email address',

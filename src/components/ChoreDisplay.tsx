@@ -8,7 +8,7 @@ import { Plus } from 'lucide-react'
 import AddChoreModal from './AddChoreModal'
 import EditChoreModal from './EditChoreModal'
 import ChoreItem from './ChoreItem'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs' // This import is correct
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 // --- Main Display Component ---
@@ -24,10 +24,7 @@ export default function ChoreDisplay({ data }: { data: HouseholdData }) {
   // --- SUPABASE REALTIME HOOK ---
   useEffect(() => {
     // Create a Supabase client for the browser
-    // --- THIS IS THE FIX ---
-    // It takes no arguments, as it reads from the environment automatically.
-    const supabase = createClientComponentClient()
-    // --- END OF FIX ---
+    const supabase = createSupabaseBrowserClient()
 
     // Set up the subscription
     const channel = supabase
@@ -52,7 +49,7 @@ export default function ChoreDisplay({ data }: { data: HouseholdData }) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [household.id, router])
+  }, [household.id, router]) // Removed extra dependencies
   
   // --- Modal Handlers ---
   
