@@ -6,8 +6,8 @@ import { redirect } from 'next/navigation'
 import RoomManager from '@/components/RoomManager'
 
 // --- THIS IS THE FIX ---
-// This tells Cloudflare to run this page on the Edge Runtime
-export const runtime = 'edge'
+// This tells Next.js to server-render this page on every request
+export const dynamic = 'force-dynamic'
 // --- END OF FIX ---
 
 // Helper function to fetch the user's rooms

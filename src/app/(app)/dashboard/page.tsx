@@ -7,8 +7,8 @@ import ChoreDisplay from '@/components/ChoreDisplay'
 import { getHouseholdData } from '@/app/chore-actions'
 
 // --- THIS IS THE FIX ---
-// This tells Cloudflare to run this page on the Edge Runtime
-export const runtime = 'edge'
+// This tells Next.js to server-render this page on every request
+export const dynamic = 'force-dynamic'
 // --- END OF FIX ---
 
 export default async function DashboardPage() {
