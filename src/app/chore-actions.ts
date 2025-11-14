@@ -4,7 +4,7 @@
 // 1. IMPORT THE CORRECT CLIENT and types
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { Database } from '@/types/supabase' // <-- This is key
+import { Database } from '@/types/supabase'
 import {
   HouseholdData,
   ChoreWithDetails,
@@ -18,7 +18,6 @@ import { RRule } from 'rrule'
 type ChoreInsert = Database['public']['Tables']['chores']['Insert']
 
 // 2. CREATE THE CORRECT CLIENT HELPER
-// This client is specifically for Server Actions
 const createSupabaseServerActionClient = () => {
   const cookieStore = cookies()
   return createServerActionClient<Database>({
@@ -67,8 +66,6 @@ function getNextDueDate(
 
 // --- Main Actions ---
 
-// NOTE: This function *still* uses the server component client,
-// because it's called from a Page (a server component), not an action.
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export async function getHouseholdData(
@@ -120,7 +117,7 @@ export async function createChore(formData: FormData) {
     name: formData.get('name') as string,
     household_id: formData.get('householdId') as string,
     assigned_to: (formData.get('assignedTo') as string) || null,
-    room_id: (formData.get('roomId') as string) || null,
+    room_id: (formData.get('roomId') as string) || null, // This is a string
     due_date: (formData.get('dueDate') as string) || null,
     target_instances: Number(formData.get('instances') as string) || 1,
     recurrence_type: (formData.get('recurrence_type') as string) || 'none',
@@ -130,20 +127,21 @@ export async function createChore(formData: FormData) {
     throw new Error('Chore name and household ID are required.')
   }
 
-  // --- THIS IS THE EXPLICIT FIX ---
-  // We explicitly type the object we are inserting
   const newChoreData: ChoreInsert = {
     ...rawData,
     created_by: userId,
     status: 'pending',
     assigned_to: rawData.assigned_to === '' ? null : rawData.assigned_to,
-    room_id: rawData.room_id === '' ? null : rawData.room_id,
+    
+    // --- THIS IS THE FIX ---
+    // Convert the string room_id to a number, or null
+    room_id: rawData.room_id ? Number(rawData.room_id) : null,
+    // --- END OF FIX ---
+
     due_date: rawData.due_date === '' ? null : rawData.due_date,
   }
 
-  // And now we insert the strongly-typed object
   const { error } = await supabase.from('chores').insert(newChoreData)
-  // --- END OF FIX ---
 
   if (error) {
     console.error('Error creating chore:', error)
@@ -151,8 +149,6 @@ export async function createChore(formData: FormData) {
   }
   revalidatePath('/dashboard')
 }
-
-// ... (rest of the file is the same, pasting for completion) ...
 
 export async function toggleChoreStatus(
   chore: DbChore
@@ -249,7 +245,7 @@ export async function updateChore(formData: FormData) {
   const rawData = {
     name: formData.get('name') as string,
     assigned_to: (formData.get('assignedTo') as string) || null,
-    room_id: (formData.get('roomId') as string) || null,
+    room_id: (formData.get('roomId') as string) || null, // This is a string
     due_date: (formData.get('dueDate') as string) || null,
     target_instances: Number(formData.get('instances') as string) || 1,
     recurrence_type: (formData.get('recurrence_type') as string) || 'none',
@@ -264,7 +260,11 @@ export async function updateChore(formData: FormData) {
     .update({
       ...rawData,
       assigned_to: rawData.assigned_to === '' ? null : rawData.assigned_to,
-      room_id: rawData.room_id === '' ? null : rawData.room_id,
+      
+      // --- THIS IS THE SECOND FIX ---
+      room_id: rawData.room_id ? Number(rawData.room_id) : null,
+      // --- END OF FIX ---
+
       due_date: rawData.due_date === '' ? null : rawData.due_date,
     })
     .eq('id', Number(choreId))
