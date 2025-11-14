@@ -1,0 +1,29 @@
+/* app/globals.css */
+
+/* Imports the base styles for Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Set up the base layer defaults.
+  We apply the clean white background and the dark supporting text colour.
+*/
+@layer base {
+  body {
+    @apply bg-brand-white text-support-dark;
+  }
+
+  /* This makes all h1, h2, h3, etc.
+    use your bold 'heading' font by default.
+  */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+
+  /* This makes all other text (p, span, div, etc.)
+    use your light 'sans' font by default.
+  */
+  body, p, span, div, a, button, input, select, textarea {
+    @apply font-sans;
+  }
+}
