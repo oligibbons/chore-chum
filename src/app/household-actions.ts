@@ -31,7 +31,7 @@ export async function createHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
   const householdName = formData.get('householdName') as string
 
   // 1. Get the current user
@@ -109,7 +109,7 @@ export async function joinHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
   const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
 
   // 1. Get the current user

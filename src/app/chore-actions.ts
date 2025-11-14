@@ -12,7 +12,7 @@ import {
 } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
-import { SupabaseClient } from '@supabase/supabase-js' // <-- IMPORT THIS
+import { SupabaseClient } from '@supabase/supabase-js'
 
 // Define the type for a new chore row
 type ChoreInsert = Database['public']['Tables']['chores']['Insert']
@@ -33,8 +33,8 @@ type ActionResponse = {
 
 // Helper to get user ID
 async function getUserId() {
-  // --- APPLY THE FIX (as SupabaseClient<Database>) ---
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database>
+  // --- THIS IS THE FIX ---
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -72,7 +72,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 export async function getHouseholdData(
   householdId: string
 ): Promise<HouseholdData | null> {
-  const supabase = createSupabaseServerClient() // This one is fine (it's a Server Component client)
+  const supabase = createSupabaseServerClient()
   const { data: household } = await supabase
     .from('households')
     .select('id, name, invite_code')
@@ -110,7 +110,7 @@ export async function getHouseholdData(
 // --- All other functions are actions, use the Action client ---
 
 export async function createChore(formData: FormData) {
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
   const userId = await getUserId()
   if (!userId) throw new Error('Not authenticated')
 
@@ -149,7 +149,7 @@ export async function createChore(formData: FormData) {
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
   let updateData: Partial<DbChore> = {}
   let didComplete = false
   if (chore.status === 'complete') {
@@ -181,7 +181,7 @@ export async function incrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
   if (chore.status === 'complete') return { success: false }
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
   const newInstanceCount = chore.completed_instances + 1
   let updateData: Partial<DbChore> = {}
   let didComplete = false
@@ -216,7 +216,7 @@ export async function incrementChoreInstance(
 export async function decrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
   const newInstanceCount = Math.max(0, chore.completed_instances - 1)
   const { error } = await supabase
     .from('chores')
@@ -233,7 +233,7 @@ export async function decrementChoreInstance(
 }
 
 export async function updateChore(formData: FormData) {
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
 
   const choreId = formData.get('choreId') as string
   if (!choreId) throw new Error('Chore ID is missing.')
@@ -270,7 +270,7 @@ export async function updateChore(formData: FormData) {
 }
 
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
-  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database> // <-- APPLY FIX
 
   const { error } = await supabase
     .from('chores')
