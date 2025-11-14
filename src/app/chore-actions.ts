@@ -12,12 +12,12 @@ import {
 } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
-import { SupabaseClient } from '@supabase/supabase-js' // <-- 1. IMPORT THE BASE CLIENT TYPE
+import { SupabaseClient } from '@supabase/supabase-js' // <-- IMPORT THIS
 
 // Define the type for a new chore row
 type ChoreInsert = Database['public']['Tables']['chores']['Insert']
 
-// 2. CREATE THE CORRECT CLIENT HELPER
+// CREATE THE CORRECT CLIENT HELPER
 const createSupabaseServerActionClient = () => {
   const cookieStore = cookies()
   return createServerActionClient<Database>({
@@ -33,8 +33,8 @@ type ActionResponse = {
 
 // Helper to get user ID
 async function getUserId() {
-  // --- 3. APPLY EXPLICIT TYPE (THE FIX) ---
-  const supabase: SupabaseClient<Database> = createSupabaseServerActionClient()
+  // --- APPLY THE FIX (as SupabaseClient<Database>) ---
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database>
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -72,7 +72,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 export async function getHouseholdData(
   householdId: string
 ): Promise<HouseholdData | null> {
-  const supabase = createSupabaseServerClient() // This one is fine, it's used by a server component
+  const supabase = createSupabaseServerClient() // This one is fine (it's a Server Component client)
   const { data: household } = await supabase
     .from('households')
     .select('id, name, invite_code')
@@ -110,7 +110,7 @@ export async function getHouseholdData(
 // --- All other functions are actions, use the Action client ---
 
 export async function createChore(formData: FormData) {
-  const supabase: SupabaseClient<Database> = createSupabaseServerActionClient() // <-- EXPLICIT TYPE
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
   const userId = await getUserId()
   if (!userId) throw new Error('Not authenticated')
 
@@ -137,7 +137,6 @@ export async function createChore(formData: FormData) {
     due_date: rawData.due_date === '' ? null : rawData.due_date,
   }
 
-  // This line will now pass
   const { error } = await supabase.from('chores').insert(newChoreData)
 
   if (error) {
@@ -150,7 +149,7 @@ export async function createChore(formData: FormData) {
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase: SupabaseClient<Database> = createSupabaseServerActionClient() // <-- EXPLICIT TYPE
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
   let updateData: Partial<DbChore> = {}
   let didComplete = false
   if (chore.status === 'complete') {
@@ -182,7 +181,7 @@ export async function incrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
   if (chore.status === 'complete') return { success: false }
-  const supabase: SupabaseClient<Database> = createSupabaseServerActionClient() // <-- EXPLICIT TYPE
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
   const newInstanceCount = chore.completed_instances + 1
   let updateData: Partial<DbChore> = {}
   let didComplete = false
@@ -217,7 +216,7 @@ export async function incrementChoreInstance(
 export async function decrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase: SupabaseClient<Database> = createSupabaseServerActionClient() // <-- EXPLICIT TYPE
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
   const newInstanceCount = Math.max(0, chore.completed_instances - 1)
   const { error } = await supabase
     .from('chores')
@@ -234,7 +233,7 @@ export async function decrementChoreInstance(
 }
 
 export async function updateChore(formData: FormData) {
-  const supabase: SupabaseClient<Database> = createSupabaseServerActionClient() // <-- EXPLICIT TYPE
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
 
   const choreId = formData.get('choreId') as string
   if (!choreId) throw new Error('Chore ID is missing.')
@@ -271,7 +270,7 @@ export async function updateChore(formData: FormData) {
 }
 
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
-  const supabase: SupabaseClient<Database> = createSupabaseServerActionClient() // <-- EXPLICIT TYPE
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
 
   const { error } = await supabase
     .from('chores')

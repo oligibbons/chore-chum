@@ -5,6 +5,7 @@ import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
+import { SupabaseClient } from '@supabase/supabase-js' // <-- IMPORT THIS
 
 // This is the correct client for Server Actions
 const createSupabaseServerActionClient = () => {
@@ -27,10 +28,10 @@ export type FormState = {
 
 // SERVER ACTION: createHousehold
 export async function createHousehold(
-  prevState: FormState, // For useFormState
+  prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() // <-- Use correct client
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
   const householdName = formData.get('householdName') as string
 
   // 1. Get the current user
@@ -105,10 +106,10 @@ export async function createHousehold(
 
 // SERVER ACTION: joinHousehold
 export async function joinHousehold(
-  prevState: FormState, // For useFormState
+  prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() // <-- Use correct client
+  const supabase = createSupabaseServerActionClient() as SupabaseClient<Database> // <-- APPLY FIX
   const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
 
   // 1. Get the current user
@@ -142,7 +143,7 @@ export async function joinHousehold(
   const { error: profileError } = await supabase
     .from('profiles')
     .update({ household_id: householdData.id })
-    .eq('id', user.id) // Update the profile for the current user
+    .eq('id', user.id)
 
   if (profileError) {
     return {
