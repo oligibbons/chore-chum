@@ -60,7 +60,8 @@ export default function ChoreItem({ chore, onEdit }: Props) {
   ) => {
     startTransition(async () => {
       try {
-        const result = await action(chore)
+        // We must pass the raw 'chore' object to the action
+        const result = await action(chore as DbChore)
         if (result.success && result.didComplete) {
           fireConfetti()
         }
@@ -70,7 +71,13 @@ export default function ChoreItem({ chore, onEdit }: Props) {
     })
   }
   
-  const isMultiInstance = chore.target_instances > 1
+  // --- THIS IS THE FIX ---
+  // Use ?? to treat null as 1 before comparing
+  const targetInstances = chore.target_instances ?? 1
+  const completedInstances = chore.completed_instances ?? 0
+  const isMultiInstance = targetInstances > 1
+  // --- END OF FIX ---
+
   const isComplete = chore.status === 'complete'
 
   return (
@@ -85,7 +92,7 @@ export default function ChoreItem({ chore, onEdit }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleAction(decrementChoreInstance)}
-              disabled={isPending || chore.completed_instances === 0}
+              disabled={isPending || completedInstances === 0}
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-support-light text-support-light transition-all hover:border-brand-primary hover:text-brand-primary disabled:opacity-30"
             >
               <Minus className="h-5 w-5" />
@@ -120,7 +127,7 @@ export default function ChoreItem({ chore, onEdit }: Props) {
           </h3>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-support-dark/80">
             {isMultiInstance && (
-              <span className="font-bold text-brand-secondary">{`${chore.completed_instances} / ${chore.target_instances} done`}</span>
+              <span className="font-bold text-brand-secondary">{`${completedInstances} / ${targetInstances} done`}</span>
             )}
             <span className={isOverdue ? 'font-bold text-status-overdue' : ''}>
               {formatDate(chore.due_date)}
