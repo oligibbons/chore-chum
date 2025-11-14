@@ -3,7 +3,7 @@
 'use client' // This MUST be a Client Component
 
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs' // This import is correct
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 
@@ -11,10 +11,8 @@ export default function AuthForm() {
   // Create a Supabase client (for the browser)
   // We use useState to ensure it's only created once per component load
   const [supabase] = useState(() =>
-    // --- THIS IS THE FIX ---
-    // It takes no arguments, as it reads from the environment automatically.
+    // This takes no arguments, as it reads from the environment automatically.
     createClientComponentClient()
-    // --- END OF FIX ---
   )
 
   return (
@@ -23,12 +21,13 @@ export default function AuthForm() {
       providers={['google', 'apple']}
       magicLink
       appearance={{
-        theme: ThemeSupa,
+        theme: ThemeSupa, // Start with the default Supabase theme
         variables: {
+          // ...and override it with your brand colours
           default: {
             colors: {
-              brand: '#b02e46',
-              brandAccent: '#ad8ae1',
+              brand: '#b02e46', // Your brand-primary
+              brandAccent: '#ad8ae1', // Your brand-secondary
               brandButtonText: '#FFFFFF',
               defaultButtonBackground: '#FFFFFF',
               defaultButtonBackgroundHover: '#f9f9f9',
@@ -68,7 +67,7 @@ export default function AuthForm() {
             button_label: 'Sign in',
             social_provider_text: 'Sign in with {{provider}}',
             link_text: 'Already have an account? Sign in',
-            magic_link_text: 'Send magic link',
+            // --- THIS LINE WAS REMOVED (THE FIX) ---
           },
           sign_up: {
             email_label: 'Email address',
