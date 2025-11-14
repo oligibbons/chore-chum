@@ -3,7 +3,12 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { DbRoom } from '@/types/database'
 import { redirect } from 'next/navigation'
-import RoomManager from '@/components/RoomManager' // Our new component
+import RoomManager from '@/components/RoomManager'
+
+// --- THIS IS THE FIX ---
+// This tells Cloudflare to run this page on the Edge Runtime
+export const runtime = 'edge'
+// --- END OF FIX ---
 
 // Helper function to fetch the user's rooms
 async function getRooms() {
@@ -16,8 +21,6 @@ async function getRooms() {
   if (!user) {
     redirect('/')
   }
-
-  // --- THIS IS THE FIX ---
 
   // 1. Define the type we EXPECT from our query
   type ProfileType = {
@@ -37,18 +40,14 @@ async function getRooms() {
   // 4. Handle errors
   if (profileError) {
     console.error('Error fetching profile for rooms page:', profileError)
-    // Send them back, the dashboard will show a better error
     redirect('/dashboard')
   }
 
-  // 5. Check if profile or household exists (using our typed variable)
+  // 5. Check if profile or household exists
   if (!typedProfile || !typedProfile.household_id) {
-    // If they have no household, send them to the dashboard to create one
     redirect('/dashboard')
   }
-  // --- END OF FIX ---
 
-  // At this point, we know we have a valid household ID
   const householdId = typedProfile.household_id
 
   // Fetch all rooms for that household

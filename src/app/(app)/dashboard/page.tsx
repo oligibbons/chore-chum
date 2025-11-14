@@ -6,6 +6,11 @@ import HouseholdManager from '@/components/HouseholdManager'
 import ChoreDisplay from '@/components/ChoreDisplay'
 import { getHouseholdData } from '@/app/chore-actions'
 
+// --- THIS IS THE FIX ---
+// This tells Cloudflare to run this page on the Edge Runtime
+export const runtime = 'edge'
+// --- END OF FIX ---
+
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient()
 
@@ -16,11 +21,7 @@ export default async function DashboardPage() {
     redirect('/')
   }
 
-  // --- THIS IS THE FIX ---
-
   // 1. Define the type we EXPECT from our query
-  // We are selecting 'household_id', which can be a string or null.
-  // The whole 'profile' object itself can also be null if not found.
   type ProfileType = {
     household_id: string | null
   } | null
@@ -32,8 +33,7 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  // 3. Apply our manual type to the 'profile' variable
-  // This forces TypeScript to believe us, fixing the 'never' error.
+  // 3. Apply our manual type
   const typedProfile = profile as ProfileType
 
   // 4. Check for errors
@@ -48,9 +48,8 @@ export default async function DashboardPage() {
     )
   }
 
-  // 5. Check if the profile was found (using our typed variable)
+  // 5. Check if the profile was found
   if (!typedProfile) {
-    // This can happen if the 'handle_new_user' trigger is slow
     console.error('Profile not found (user trigger might be pending).')
     return (
       <div className="text-center">
@@ -59,10 +58,8 @@ export default async function DashboardPage() {
       </div>
     )
   }
-  // --- END OF FIX ---
 
   // === The Core Logic ===
-  // We now use 'typedProfile' which TypeScript understands
   if (!typedProfile.household_id) {
     // 1. User has NO household.
     return <HouseholdManager />

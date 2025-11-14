@@ -2,12 +2,13 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import AuthForm from '@/components/AuthForm' // We'll create this next
-import { ArrowRight } from 'lucide-react' // We'll install lucide-react soon
+import AuthForm from '@/components/AuthForm'
+import { ArrowRight } from 'lucide-react'
 
-/* Note: You'll need to install lucide-react for the icon:
-  npm install lucide-react 
-*/
+// --- THIS IS THE FIX ---
+// This tells Cloudflare to run this page on the Edge Runtime
+export const runtime = 'edge'
+// --- END OF FIX ---
 
 export default async function HomePage() {
   const supabase = createSupabaseServerClient()
@@ -19,7 +20,7 @@ export default async function HomePage() {
 
   // If the user is already logged in, send them to the main app dashboard
   if (session) {
-    return redirect('/dashboard') // We'll create this page in the next batch
+    return redirect('/dashboard')
   }
 
   // If no session, show the landing/login page
