@@ -4,11 +4,12 @@
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { Database } from '@/types/supabase' // <-- 1. IMPORT YOUR TYPES
 
 // This creates a Supabase client for Server Actions
 const createSupabaseServerActionClient = () => {
   const cookieStore = cookies()
-  return createServerActionClient({
+  return createServerActionClient<Database>({ // <-- 2. ADD THE <Database> GENERIC
     cookies: () => cookieStore,
   })
 }
