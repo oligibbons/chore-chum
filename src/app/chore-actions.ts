@@ -1,10 +1,22 @@
 // app/chore-actions.ts
 'use server'
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+// 1. IMPORT THE CORRECT CLIENT and types
+import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { Database } from '@/types/supabase'
 import { HouseholdData, ChoreWithDetails, DbChore, DbHousehold } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
+
+// 2. CREATE THE CORRECT CLIENT HELPER
+// This client is specifically for Server Actions
+const createSupabaseServerActionClient = () => {
+  const cookieStore = cookies()
+  return createServerActionClient<Database>({
+    cookies: () => cookieStore,
+  })
+}
 
 type ActionResponse = {
   success: boolean
@@ -14,8 +26,10 @@ type ActionResponse = {
 
 // Helper to get user ID
 async function getUserId() {
-  const supabase = createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = createSupabaseServerActionClient() // <-- Use new client
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   return user?.id
 }
 
@@ -45,10 +59,15 @@ function getNextDueDate(
 
 // --- Main Actions ---
 
-// (getHouseholdData is unchanged)
+// NOTE: This function *still* uses the server component client,
+// because it's called from a Page (a server component), not an action.
+// We must import the *other* client for this one function.
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+
 export async function getHouseholdData(
   householdId: string
 ): Promise<HouseholdData | null> {
+  // Use the Server Component client here
   const supabase = createSupabaseServerClient()
   const { data: household } = await supabase
     .from('households')
@@ -75,6 +94,7 @@ export async function getHouseholdData(
     )
     .eq('household_id', householdId)
     .order('due_date', { ascending: true, nullsFirst: true })
+
   return {
     household: household as DbHousehold,
     members: members || [],
@@ -83,9 +103,10 @@ export async function getHouseholdData(
   }
 }
 
-// (createChore is unchanged)
+// --- All other functions are actions, use the Action client ---
+
 export async function createChore(formData: FormData) {
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseServerActionClient() // <-- Use new client
   const userId = await getUserId()
   if (!userId) throw new Error('Not authenticated')
   const rawData = {
@@ -100,6 +121,8 @@ export async function createChore(formData: FormData) {
   if (!rawData.name || !rawData.household_id) {
     throw new Error('Chore name and household ID are required.')
   }
+  
+  // This is the line that failed. It will now work.
   const { error } = await supabase.from('chores').insert({
     ...rawData,
     created_by: userId,
@@ -115,11 +138,10 @@ export async function createChore(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
-// (toggleChoreStatus is unchanged)
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseServerActionClient() // <-- Use new client
   let updateData: Partial<DbChore> = {}
   let didComplete = false
   if (chore.status === 'complete') {
@@ -147,12 +169,11 @@ export async function toggleChoreStatus(
   return { success: true, didComplete }
 }
 
-// (incrementChoreInstance is unchanged)
 export async function incrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
   if (chore.status === 'complete') return { success: false }
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseServerActionClient() // <-- Use new client
   const newInstanceCount = chore.completed_instances + 1
   let updateData: Partial<DbChore> = {}
   let didComplete = false
@@ -184,11 +205,10 @@ export async function incrementChoreInstance(
   return { success: true, didComplete }
 }
 
-// (decrementChoreInstance is unchanged)
 export async function decrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseServerActionClient() // <-- Use new client
   const newInstanceCount = Math.max(0, chore.completed_instances - 1)
   const { error } = await supabase
     .from('chores')
@@ -204,10 +224,9 @@ export async function decrementChoreInstance(
   return { success: false }
 }
 
-// --- NEW ACTION: updateChore ---
 export async function updateChore(formData: FormData) {
-  const supabase = createSupabaseServerClient()
-  
+  const supabase = createSupabaseServerActionClient() // <-- Use new client
+
   const choreId = formData.get('choreId') as string
   if (!choreId) throw new Error('Chore ID is missing.')
 
@@ -242,9 +261,8 @@ export async function updateChore(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
-// --- NEW ACTION: deleteChore ---
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseServerActionClient() // <-- Use new client
 
   const { error } = await supabase
     .from('chores')
