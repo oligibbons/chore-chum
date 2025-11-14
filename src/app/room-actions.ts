@@ -1,13 +1,25 @@
-// app/room-actions.ts
+// src/app/room-actions.ts
 'use server'
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
+
+// This is the correct client for Server Actions
+const createSupabaseServerActionClient = () => {
+  const cookieStore = cookies()
+  return createServerActionClient<Database>({
+    cookies: () => cookieStore,
+  })
+}
 
 // Helper function to get the current user and their household
 async function getUserHousehold() {
-  const supabase = createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = createSupabaseServerActionClient() // <-- Use correct client
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
   const { data: profile } = await supabase
@@ -25,6 +37,7 @@ async function getUserHousehold() {
 
 // ACTION: Create a new room
 export async function createRoom(formData: FormData) {
+  const supabase = createSupabaseServerActionClient() // <-- Use correct client
   const roomName = formData.get('roomName') as string
   const { householdId } = await getUserHousehold()
 
@@ -41,7 +54,8 @@ export async function createRoom(formData: FormData) {
 
   if (error) {
     console.error('Error creating room:', error)
-    if (error.code === '23505') { // Unique constraint violation
+    if (error.code === '23505') {
+      // Unique constraint violation
       throw new Error('A room with this name already exists.')
     }
     throw new Error('Could not create room.')
@@ -55,10 +69,9 @@ export async function createRoom(formData: FormData) {
 // ACTION: Delete an existing room
 export async function deleteRoom(roomId: number) {
   const { householdId } = await getUserHousehold()
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseServerActionClient() // <-- Use correct client
 
   // 1. Delete the room
-  // We also check household_id to ensure a user can't delete another household's room
   const { error } = await supabase
     .from('rooms')
     .delete()
@@ -69,7 +82,7 @@ export async function deleteRoom(roomId: number) {
     console.error('Error deleting room:', error)
     throw new Error('Could not delete room.')
   }
-  
+
   // 2. Revalidate paths
   revalidatePath('/rooms')
   revalidatePath('/dashboard')
