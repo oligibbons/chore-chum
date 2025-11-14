@@ -3,8 +3,8 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import HouseholdManager from '@/components/HouseholdManager'
-import ChoreDisplay from '@/components/ChoreDisplay' // <-- Import new component
-import { getHouseholdData } from '@/app/chore-actions' // <-- Import new action
+import ChoreDisplay from '@/components/ChoreDisplay'
+import { getHouseholdData } from '@/app/chore-actions'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient()
@@ -16,27 +16,27 @@ export default async function DashboardPage() {
     redirect('/')
   }
 
+  // --- THIS IS THE FIX ---
+
+  // 1. Define the type we EXPECT from our query
+  // We are selecting 'household_id', which can be a string or null.
+  // The whole 'profile' object itself can also be null if not found.
+  type ProfileType = {
+    household_id: string | null
+  } | null
+
+  // 2. Make the query
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
 
-  // --- THIS IS THE FIX ---
-  // 1. Handle the case where the profile might not exist yet
-  if (!profile) {
-    // This can happen if the 'handle_new_user' trigger is slow
-    // or if there's a database error.
-    console.error('Error fetching profile:', error)
-    return (
-      <div className="text-center">
-        <p>Loading your profile...</p>
-        <p>If this takes a while, please try refreshing.</p>
-      </div>
-    )
-  }
+  // 3. Apply our manual type to the 'profile' variable
+  // This forces TypeScript to believe us, fixing the 'never' error.
+  const typedProfile = profile as ProfileType
 
-  // 2. Handle any other unexpected errors
+  // 4. Check for errors
   if (error) {
     console.error('Error fetching profile:', error)
     return (
@@ -47,17 +47,29 @@ export default async function DashboardPage() {
       </div>
     )
   }
+
+  // 5. Check if the profile was found (using our typed variable)
+  if (!typedProfile) {
+    // This can happen if the 'handle_new_user' trigger is slow
+    console.error('Profile not found (user trigger might be pending).')
+    return (
+      <div className="text-center">
+        <p>Loading your profile...</p>
+        <p>If this takes a while, please try refreshing.</p>
+      </div>
+    )
+  }
   // --- END OF FIX ---
 
   // === The Core Logic ===
-  // At this point, TypeScript knows 'profile' is not null
-  if (!profile.household_id) {
+  // We now use 'typedProfile' which TypeScript understands
+  if (!typedProfile.household_id) {
     // 1. User has NO household.
     return <HouseholdManager />
   } else {
     // 2. User IS in a household.
-    // Fetch all the household data on the server
-    const householdData = await getHouseholdData(profile.household_id)
+    const householdId = typedProfile.household_id
+    const householdData = await getHouseholdData(householdId)
 
     if (!householdData) {
       return (
