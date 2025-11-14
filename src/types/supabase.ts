@@ -14,7 +14,165 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chores: {
+        Row: {
+          assigned_to: string | null
+          completed_instances: number | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          household_id: string
+          id: number
+          name: string
+          recurrence_type: string
+          room_id: number | null
+          status: string
+          target_instances: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_instances?: number | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          household_id: string
+          id?: number
+          name: string
+          recurrence_type?: string
+          room_id?: number | null
+          status?: string
+          target_instances?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_instances?: number | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          household_id?: string
+          id?: number
+          name?: string
+          recurrence_type?: string
+          room_id?: number | null
+          status?: string
+          target_instances?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chores_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chores_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chores_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chores_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      households: {
+        Row: {
+          created_at: string
+          id: string
+          invite_code: string | null
+          name: string
+          owner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_code?: string | null
+          name: string
+          owner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_code?: string | null
+          name?: string
+          owner_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          full_name: string | null
+          household_id: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          full_name?: string | null
+          household_id?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          full_name?: string | null
+          household_id?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: number
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
