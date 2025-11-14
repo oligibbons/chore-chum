@@ -9,11 +9,12 @@ import { DbProfile, DbRoom, ChoreWithDetails } from '@/types/database'
 import { updateChore } from '@/app/chore-actions'
 
 type Props = {
-  // We pass the entire chore object in to pre-fill the form
   chore: ChoreWithDetails | null
   isOpen: boolean
   onClose: () => void
-  members: Pick<DbProfile, 'id', 'full_name', 'avatar_url'>[]
+  // --- THIS IS THE FIX ---
+  members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
+  // --- END OF FIX ---
   rooms: DbRoom[]
 }
 
@@ -38,17 +39,15 @@ export default function EditChoreModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // This `key` is a trick to force React to reset the form
-  // every time a *different* chore is opened.
   const [formKey, setFormKey] = useState(0)
 
   useEffect(() => {
     if (chore) {
-      setFormKey(chore.id) // Change the key when the chore changes
+      setFormKey(chore.id)
     }
   }, [chore])
 
-  if (!chore) return null // Don't render anything if no chore is selected
+  if (!chore) return null
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -56,11 +55,11 @@ export default function EditChoreModal({
     setError(null)
     
     const formData = new FormData(event.currentTarget)
-    formData.set('choreId', chore.id.toString()) // Add the chore ID
+    formData.set('choreId', chore.id.toString())
 
     try {
       await updateChore(formData)
-      onClose() // Close the modal on success
+      onClose()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -111,7 +110,6 @@ export default function EditChoreModal({
                   </button>
                 </div>
 
-                {/* Form - Note the `key` to force reset */}
                 <form
                   key={formKey}
                   onSubmit={handleSubmit}
@@ -184,8 +182,6 @@ export default function EditChoreModal({
                         id="dueDate"
                         name="dueDate"
                         defaultValue={formatDateForInput(chore.due_date)}
-                        // This is the line that was cut off.
-                        // Notice the closing quote and bracket.
                         className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
                       />
                     </div>
@@ -216,7 +212,7 @@ export default function EditChoreModal({
                       type="number"
                       id="instances"
                       name="instances"
-                      defaultValue={chore.target_instances}
+                      defaultValue={chore.target_instances ?? 1}
                       min="1"
                       className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
                     />

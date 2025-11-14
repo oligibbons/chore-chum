@@ -12,7 +12,9 @@ type Props = {
   isOpen: boolean
   onClose: () => void
   householdId: string
+  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
+  // --- END OF FIX ---
   rooms: DbRoom[]
 }
 
