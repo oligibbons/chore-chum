@@ -5,6 +5,7 @@ import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
+import { SupabaseClient } from '@supabase/supabase-js' // <-- IMPORT THIS
 
 // This is the correct client for Server Actions
 const createSupabaseServerActionClient = () => {
@@ -16,7 +17,8 @@ const createSupabaseServerActionClient = () => {
 
 // Helper function to get the current user and their household
 async function getUserHousehold() {
-  const supabase = createSupabaseServerActionClient() // <-- FIX: Removed cast
+  // --- APPLY THE FIX (as unknown as ...) ---
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -37,7 +39,8 @@ async function getUserHousehold() {
 
 // ACTION: Create a new room
 export async function createRoom(formData: FormData) {
-  const supabase = createSupabaseServerActionClient() // <-- FIX: Removed cast
+  // --- APPLY THE FIX (as unknown as ...) ---
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
   const roomName = formData.get('roomName') as string
   const { householdId } = await getUserHousehold()
 
@@ -69,7 +72,8 @@ export async function createRoom(formData: FormData) {
 // ACTION: Delete an existing room
 export async function deleteRoom(roomId: number) {
   const { householdId } = await getUserHousehold()
-  const supabase = createSupabaseServerActionClient() // <-- FIX: Removed cast
+  // --- APPLY THE FIX (as unknown as ...) ---
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
 
   // 1. Delete the room
   const { error } = await supabase

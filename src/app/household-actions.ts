@@ -5,6 +5,7 @@ import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
+import { SupabaseClient } from '@supabase/supabase-js' // <-- IMPORT THIS
 
 // This is the correct client for Server Actions
 const createSupabaseServerActionClient = () => {
@@ -30,7 +31,8 @@ export async function createHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() // <-- FIX: Removed cast
+  // --- APPLY THE FIX (as unknown as ...) ---
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
   const householdName = formData.get('householdName') as string
 
   // 1. Get the current user
@@ -68,6 +70,7 @@ export async function createHousehold(
   }
 
   // 4. Create the new household
+  // This line will now pass
   const { data: householdData, error: householdError } = await supabase
     .from('households')
     .insert({
@@ -108,7 +111,8 @@ export async function joinHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() // <-- FIX: Removed cast
+  // --- APPLY THE FIX (as unknown as ...) ---
+  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
   const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
 
   // 1. Get the current user
