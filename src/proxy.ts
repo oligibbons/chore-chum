@@ -28,10 +28,7 @@ export async function proxy(request: NextRequest) {
           response.cookies.set(name, value, options)
         },
         remove(name: string, options: CookieOptions) {
-          // --- THIS IS THE FIX ---
-          // request.cookies.delete just takes the name as a string
           request.cookies.delete(name)
-          // --- END OF FIX ---
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -59,4 +56,8 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
+  // --- THIS IS THE FIX ---
+  // Add the edge runtime config for Cloudflare
+  runtime: 'edge',
+  // --- END OF FIX ---
 }

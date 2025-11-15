@@ -5,6 +5,11 @@ import type { Database } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic' // Ensure it's not statically built
 
+// --- THIS IS THE FIX ---
+// Add the edge runtime config for Cloudflare
+export const runtime = 'edge'
+// --- END OF FIX ---
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
