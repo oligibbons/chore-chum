@@ -5,13 +5,13 @@ import { createSupabaseClient } from '@/lib/supabase/server'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
 
-// FIX 1: Define the FormState that useFormState expects to return
+// This is still needed for createRoom
 export type FormState = {
   success: boolean
   message: string
 }
 
-// Helper function to get the current user and their household
+// Helper function (no changes)
 async function getUserHousehold() {
   const supabase = await createSupabaseClient() 
   const {
@@ -32,14 +32,14 @@ async function getUserHousehold() {
   return { userId: user.id, householdId: profile.household_id }
 }
 
-// EXPORTED: Used by the dashboard page to get members and rooms
+// getRoomsAndMembers function (no changes)
 export async function getRoomsAndMembers(householdId: string) {
   const supabase = await createSupabaseClient() 
 
   const [roomsData, membersData] = await Promise.all([
     supabase
       .from('rooms')
-      .select('*, chore_count:chores(count)') // Selects rooms and counts associated chores
+      .select('*, chore_count:chores(count)')
       .eq('household_id', householdId)
       .order('created_at', { ascending: true }),
     supabase
@@ -48,10 +48,8 @@ export async function getRoomsAndMembers(householdId: string) {
       .eq('household_id', householdId),
   ])
 
-  // Process the room data to extract the count
   const rooms = (roomsData.data || []).map(room => ({
     ...room,
-    // PROACTIVE FIX: Safely access the count to avoid potential 'undefined' errors
     chore_count: (room.chore_count as any)?.[0]?.count ?? 0
   }))
 
@@ -62,7 +60,7 @@ export async function getRoomsAndMembers(householdId: string) {
 }
 
 
-// FIX 2: Update createRoom to use the (prevState, formData) signature
+// createRoom function (no changes, this is correct)
 export async function createRoom(
   prevState: FormState, 
   formData: FormData
@@ -72,20 +70,16 @@ export async function createRoom(
   
   let householdId: string;
   try {
-    // Get household ID securely
     const userHousehold = await getUserHousehold()
     householdId = userHousehold.householdId
   } catch (error: any) {
     return { success: false, message: error.message }
   }
 
-  // 1. Validate
   if (!roomName || roomName.trim().length < 2) {
-    // Return state instead of throwing
     return { success: false, message: 'Room name must be at least 2 characters.' }
   }
 
-  // 2. Insert into database
   const { error } = await supabase.from('rooms').insert({
     name: roomName.trim(),
     household_id: householdId,
@@ -94,29 +88,28 @@ export async function createRoom(
   if (error) {
     console.error('Error creating room:', error)
     if (error.code === '23505') {
-      // Return state instead of throwing
       return { success: false, message: 'A room with this name already exists.' }
     }
-    // Return state instead of throwing
     return { success: false, message: 'Could not create room.' }
   }
 
-  // 3. Revalidate
   revalidatePath('/rooms')
   revalidatePath('/dashboard')
 
-  // 4. Return success state
   return { success: true, message: 'Room created!' }
 }
 
-// FIX 3: Update deleteRoom to accept FormData from the form action
+// --- THIS IS THE FIX ---
+// Change signature from 'Promise<FormState>' to 'Promise<void>'
+// and remove the 'return' statements (or throw errors).
 export async function deleteRoom(
   formData: FormData
-): Promise<FormState> {
+): Promise<void> { // <-- FIX #1: Return type is void
   
   const roomIdStr = formData.get('roomId') as string
   if (!roomIdStr) {
-    return { success: false, message: 'Room ID not provided.' }
+    // We can't return a FormState, so we throw an error
+    throw new Error('Room ID not provided.')
   }
   const roomId = Number(roomIdStr)
 
@@ -125,27 +118,26 @@ export async function deleteRoom(
     const userHousehold = await getUserHousehold()
     householdId = userHousehold.householdId
   } catch (error: any) {
-    return { success: false, message: error.message }
+    throw error // Re-throw the auth error
   }
   
   const supabase = await createSupabaseClient() 
 
-  // 1. Delete the room
   const { error } = await supabase
     .from('rooms')
     .delete()
-    .eq('id', roomId) // Use parsed ID
+    .eq('id', roomId)
     .eq('household_id', householdId)
 
   if (error) {
     console.error('Error deleting room:', error)
-    return { success: false, message: 'Could not delete room.' }
+    // FIX #2: Throw an error instead of returning state
+    throw new Error('Could not delete room.')
   }
 
   // 2. Revalidate paths
   revalidatePath('/rooms')
   revalidatePath('/dashboard')
   
-  // 3. Return success state
-  return { success: true, message: 'Room deleted.' }
+  // FIX #3: No successful 'return' statement
 }
