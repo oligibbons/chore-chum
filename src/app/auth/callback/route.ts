@@ -9,11 +9,10 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   
-  // This is the URL we will redirect to
-  const next = '/dashboard'
-  const response = NextResponse.redirect(new URL(next, request.url))
+  const response = NextResponse.redirect(new URL('/dashboard', request.url))
 
   if (code) {
+    // Use Vercel-safe env vars
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
       supabaseAnonKey,
       {
         cookies: {
-          // This is the new, correct cookie handling pattern for Route Handlers
+          // FIX: This is the correct cookie syntax for Route Handlers
           get(name: string) {
             return request.cookies.get(name)?.value
           },
@@ -36,14 +35,14 @@ export async function GET(request: NextRequest) {
       }
     )
     
+    // Exchange the code for a session
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       console.error('Auth Callback Error:', error.message)
-      // If error, redirect home
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
-  // Return the response object (with the new auth cookie)
+  // Return the response object (which now has the auth cookie)
   return response
 }

@@ -9,14 +9,13 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   
-  // --- ALL AUTH LOGIC REMOVED ---
-  // The middleware.ts file now handles all route protection.
-  // This layout can now safely assume a user is present.
+  // --- ALL AUTH AND REDIRECT LOGIC REMOVED ---
+  // The middleware now handles this. This layout assumes a user is logged in.
 
   return (
     <div className="flex min-h-screen flex-col">
       
-      {/* App Header: Sticky, Clean Top Bar */}
+      {/* App Header */}
       <header className="sticky top-0 z-20 w-full border-b border-support-light bg-brand-white shadow-sm">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between px-6 py-4 sm:flex-row">
           
@@ -30,8 +29,6 @@ export default async function AppLayout({
 
           {/* Main Navigation */}
           <nav className="mt-4 flex w-full flex-1 items-center justify-center gap-2 sm:mt-0 sm:w-auto sm:justify-end sm:gap-4">
-            
-            {/* Nav Links */}
             <Link
               href="/dashboard"
               className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
@@ -44,8 +41,6 @@ export default async function AppLayout({
             >
               Rooms
             </Link>
-            
-            {/* Sign Out Button (Reversed colors for clean look) */}
             <form action={signOut} className="ml-4">
               <button
                 type="submit"
@@ -58,7 +53,7 @@ export default async function AppLayout({
         </div>
       </header>
 
-      {/* Main content area: Changed from bg-gray-50 to bg-brand-white for guaranteed inclusion */}
+      {/* Main content area */}
       <main className="flex-1 bg-brand-white p-4 sm:p-8">
         {children}
       </main>

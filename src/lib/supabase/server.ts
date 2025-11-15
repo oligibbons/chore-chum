@@ -7,7 +7,7 @@ import { Database } from '@/types/supabase'
 export async function createSupabaseClient() {
   const cookieStore = await cookies()
 
-  // FIX: Use the same logic as middleware.ts
+  // FIX 1: Use Vercel-safe env vars
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
@@ -16,6 +16,7 @@ export async function createSupabaseClient() {
     supabaseAnonKey,
     {
       cookies: {
+        // FIX 2: This is the correct, modern cookie syntax for Server Components
         get(name: string) {
           return cookieStore.get(name)?.value
         },
@@ -23,14 +24,16 @@ export async function createSupabaseClient() {
           try {
             cookieStore.set({ name, value, ...options })
           } catch (error) {
-            // The `set` method can throw an error if called from a Server Component.
+            // Server Components may not be able to set cookies.
+            // This is fine, as the middleware will handle it.
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: '', ...options })
           } catch (error) {
-            // The `delete` method can throw an error if called from a Server Component.
+            // Server Components may not be able to set cookies.
+            // This is fine, as the middleware will handle it.
           }
         },
       },
