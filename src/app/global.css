@@ -7,23 +7,16 @@
 
 @layer base {
   /*
-    FIX: Removed all @apply directives.
-    We will apply bg-background, text-text-secondary, and font-sans
-    in the layout.tsx file where it belongs.
+    FIX: Removed all @apply directives for body, font-sans, etc.
+    This is handled in layout.tsx.
   */
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Set default font families */
-  body, input, textarea, select, button {
-    /* This is fine */
-    @apply font-sans;
-  }
-
+  /* These are OK because they are not on the root body */
   h1, h2, h3, h4, h5, h6 {
-    /* This is fine */
     @apply font-heading text-text-primary;
   }
 }
