@@ -13,8 +13,8 @@
   }
 
   body {
-    /* FIX: Use a custom color (support-light/20) instead of default gray-50 to ensure Tailwind sees the class. */
-    @apply bg-support-light/20 text-support-dark antialiased;
+    /* FIX: Use a custom color (brand-white) which is guaranteed to be included by Tailwind. */
+    @apply bg-brand-white text-support-dark antialiased;
     /* Apply base font for body text */
     font-family: var(--font-inter);
     /* Set color used for text based on support-dark */

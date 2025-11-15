@@ -21,6 +21,13 @@ type ActionResponse = {
   didComplete?: boolean
 }
 
+// NEW TYPE: Used for the Dashboard Page's categorized lists
+type ChoreDisplayData = {
+    overdue: ChoreWithDetails[]
+    dueSoon: ChoreWithDetails[]
+    upcoming: ChoreWithDetails[]
+}
+
 // Helper to get user ID
 async function getUserId() {
   const supabase = await createSupabaseClient() 
@@ -93,6 +100,83 @@ export async function getHouseholdData(
     chores: (chores as any as ChoreWithDetails[]) || [],
   }
 }
+
+// NEW EXPORT: Used by dashboard/page.tsx to get the categorized data
+export async function getChoreDisplayData(householdId: string): Promise<ChoreDisplayData> {
+    const fullData = await getHouseholdData(householdId)
+
+    if (!fullData) {
+        return { overdue: [], dueSoon: [], upcoming: [] }
+    }
+
+    const { chores } = fullData
+    const now = new Date()
+    const twoDaysFromNow = new Date()
+    twoDaysFromNow.setDate(now.getDate() + 2)
+
+    // Helper to determine status
+    const getChoreStatus = (chore: ChoreWithDetails) => {
+        if (chore.status === 'complete') return 'complete'
+        if (!chore.due_date) return 'upcoming'
+        
+        const dueDate = new Date(chore.due_date)
+
+        if (dueDate < now) return 'overdue'
+        if (dueDate <= twoDaysFromNow) return 'due-soon'
+        
+        return 'upcoming'
+    }
+
+    const categorizedData: ChoreDisplayData = {
+        overdue: [],
+        dueSoon: [],
+        upcoming: [],
+    }
+
+    chores.forEach(chore => {
+        const status = getChoreStatus(chore)
+        if (status === 'overdue') {
+            categorizedData.overdue.push(chore)
+        } else if (status === 'due-soon') {
+            categorizedData.dueSoon.push(chore)
+        } else if (status === 'upcoming') {
+            categorizedData.upcoming.push(chore)
+        }
+    })
+
+    return categorizedData
+}
+
+// NEW EXPORT: Wrapper used by ChoreItem for single-instance completion (Increment for multi-step, toggle for single)
+export async function completeChore(choreId: number): Promise<ActionResponse> {
+    const supabase = await createSupabaseClient()
+    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
+    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
+
+    // If it's a multi-instance chore, increment it. Otherwise, toggle status.
+    if (chore.target_instances > 1) {
+        return incrementChoreInstance(chore as DbChore)
+    } else {
+        // Toggle the status to complete (since ChoreItem only calls this when incomplete)
+        return toggleChoreStatus(chore as DbChore)
+    }
+}
+
+// NEW EXPORT: Wrapper used by ChoreItem for uncompletion (Decrement for multi-step, toggle for single)
+export async function uncompleteChore(choreId: number): Promise<ActionResponse> {
+    const supabase = await createSupabaseClient()
+    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
+    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
+
+    // If it's a multi-instance chore, decrement it. Otherwise, toggle status.
+    if (chore.target_instances > 1) {
+        return decrementChoreInstance(chore as DbChore)
+    } else {
+        // Toggle the status to pending (since ChoreItem only calls this when complete)
+        return toggleChoreStatus(chore as DbChore)
+    }
+}
+
 
 // --- All other functions are actions, use the Action client ---
 

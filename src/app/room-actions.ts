@@ -26,6 +26,35 @@ async function getUserHousehold() {
   return { userId: user.id, householdId: profile.household_id }
 }
 
+// NEW EXPORT: Used by the dashboard page to get members and rooms for the AddChoreModal
+export async function getRoomsAndMembers(householdId: string) {
+  const supabase = await createSupabaseClient() 
+
+  const [roomsData, membersData] = await Promise.all([
+    supabase
+      .from('rooms')
+      .select('*, chore_count:chores(count)') // Selects rooms and counts associated chores
+      .eq('household_id', householdId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .eq('household_id', householdId),
+  ])
+
+  // Process the room data to extract the count
+  const rooms = (roomsData.data || []).map(room => ({
+    ...room,
+    chore_count: room.chore_count ? room.chore_count[0].count : 0
+  }))
+
+  return { 
+    rooms: rooms || [], 
+    members: membersData.data || [], 
+  }
+}
+
+
 // ACTION: Create a new room
 export async function createRoom(formData: FormData) {
   const supabase = await createSupabaseClient() 
