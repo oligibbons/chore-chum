@@ -9,22 +9,23 @@ import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
+import EditChoreModal from '@/components/EditChoreModal' // <-- Import EditChoreModal
+import { ChoreWithDetails } from '@/types/database' // <-- Import ChoreWithDetails
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { modal: string }
+  searchParams: { modal: string; choreId?: string } // <-- Add choreId
 }) {
   const supabase = await createSupabaseClient()
   
-  // 1. Get session and profile (PRESERVED)
+  // 1. Get session and profile
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // If no session, redirect. This also fixes the TypeScript error.
   if (!session) {
     redirect('/')
   }
@@ -32,15 +33,14 @@ export default async function DashboardPage({
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
-    .eq('id', session.user.id) // <-- FIX: No longer optional '?'
+    .eq('id', session.user.id)
     .single()
 
-  // If no session, redirect will be handled by layout. If no profile, we can't do anything
   if (!profile) {
     redirect('/')
   }
 
-  // 2. Check if user is in a household (PRESERVED)
+  // 2. Check if user is in a household
   const householdId = profile.household_id
   if (!householdId) {
     return (
@@ -50,11 +50,19 @@ export default async function DashboardPage({
     )
   }
 
-  // 3. Fetch all data for the dashboard (PRESERVED)
+  // 3. Fetch all data for the dashboard
   const [data, roomData] = await Promise.all([
     getChoreDisplayData(householdId),
     getRoomsAndMembers(householdId),
   ])
+
+  // 4. Logic for Edit Modal
+  let editChore: ChoreWithDetails | null = null
+  if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
+    // Find the chore to edit from the data we already fetched
+    const allChores = [...data.overdue, ...data.dueSoon, ...data.upcoming]
+    editChore = allChores.find(c => c.id === Number(searchParams.choreId)) || null
+  }
 
   // --- UI Overhaul: Modern Grid Layout ---
   return (
@@ -110,12 +118,23 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {/* Chore Modal Integration (PRESERVED) */}
+      {/* Add Chore Modal */}
       {searchParams.modal === 'add-chore' && (
         <AddChoreModal
           isOpen={true}
           onClose={() => redirect('/dashboard')}
           householdId={householdId}
+          members={roomData.members}
+          rooms={roomData.rooms}
+        />
+      )}
+
+      {/* Edit Chore Modal (NEW) */}
+      {searchParams.modal === 'edit-chore' && editChore && (
+        <EditChoreModal
+          isOpen={true}
+          onClose={() => redirect('/dashboard')}
+          chore={editChore}
           members={roomData.members}
           rooms={roomData.rooms}
         />

@@ -1,5 +1,4 @@
 // components/ChoreItem.tsx
-
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
@@ -7,13 +6,13 @@ import { Check, Clock, User, Home, Calendar, Plus } from 'lucide-react'
 import { useTransition } from 'react'
 import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
-import Avatar from './Avatar' // New component
+import Avatar from './Avatar'
 
 type Props = {
   chore: ChoreWithDetails
   showActions: boolean
   status: string // Now accepts a string status from the ChoreDisplay
-  onEdit: (chore: ChoreWithDetails) => void // Added back the onEdit handler
+  // onEdit: (chore: ChoreWithDetails) => void // <-- Removed
 }
 
 // Helper to map status to Tailwind classes
@@ -41,7 +40,7 @@ const formatDate = (dateString: string | null | undefined): string => {
 }
 
 
-export default function ChoreItem({ chore, showActions, status, onEdit }: Props) {
+export default function ChoreItem({ chore, showActions, status }: Props) { // <-- Removed onEdit
   const [isPending, startTransition] = useTransition()
   const isCompleted = chore.completed_instances === chore.target_instances
   const classes = getStatusClasses(status, isCompleted)
@@ -144,7 +143,7 @@ export default function ChoreItem({ chore, showActions, status, onEdit }: Props)
 
         {/* Chore Menu */}
         {showActions && (
-          <ChoreMenu chore={chore} onEdit={onEdit} />
+          <ChoreMenu chore={chore} /> // <-- onEdit prop removed
         )}
       </div>
     </div>

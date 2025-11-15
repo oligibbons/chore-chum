@@ -3,8 +3,15 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { createRoom, deleteRoom, FormState, RoomData } from '@/app/room-actions'
+import { createRoom, deleteRoom } from '@/app/room-actions'
 import { Plus, Trash2, Loader2, Home } from 'lucide-react'
+import { RoomWithChoreCount } from '@/types/database' // <-- Import new type
+
+// Define FormState here
+type FormState = {
+  success: boolean
+  message: string
+}
 
 // Initial state for our forms
 const initialState: FormState = {
@@ -40,8 +47,8 @@ function SubmitButton({ text, isDelete }: { text: string, isDelete?: boolean }) 
   )
 }
 
-// Main component
-export default function RoomManager({ data }: { data: RoomData }) {
+// Main component - CHANGED PROPS
+export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) { // <-- CHANGED
   const [createState, createAction] = useFormState(createRoom, initialState)
   
   return (
@@ -81,15 +88,15 @@ export default function RoomManager({ data }: { data: RoomData }) {
       {/* --- Existing Rooms List --- */}
       <div>
         <h3 className="mb-4 font-heading text-2xl font-semibold text-support-dark">
-          Existing Rooms ({data.rooms.length})
+          Existing Rooms ({rooms.length}) {/* <-- CHANGED */}
         </h3>
         <div className="space-y-4">
-          {data.rooms.length === 0 ? (
+          {rooms.length === 0 ? ( /* <-- CHANGED */
             <p className="rounded-xl border border-dashed border-support-light p-6 text-center text-support-dark/60">
               No rooms created yet.
             </p>
           ) : (
-            data.rooms.map((room) => (
+            rooms.map((room) => ( /* <-- CHANGED */
               <div
                 key={room.id}
                 // Sleek room item card
@@ -101,7 +108,7 @@ export default function RoomManager({ data }: { data: RoomData }) {
                         {room.name}
                     </span>
                     <span className="text-sm text-support-dark/60">
-                        ({room.chore_count} chores)
+                        ({room.chore_count} chores) {/* <-- This now works */}
                     </span>
                 </div>
                 

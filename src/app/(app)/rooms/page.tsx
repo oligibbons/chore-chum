@@ -1,7 +1,7 @@
 // app/(app)/rooms/page.tsx
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
-import { DbRoom } from '@/types/database'
+import { RoomWithChoreCount } from '@/types/database' // <-- Import new type
 import { redirect } from 'next/navigation'
 import RoomManager from '@/components/RoomManager'
 
@@ -9,8 +9,8 @@ import RoomManager from '@/components/RoomManager'
 export const dynamic = 'force-dynamic'
 
 
-// Helper function to fetch the user's rooms (PRESERVED LOGIC)
-async function getRooms() {
+// Helper function to fetch the user's rooms (LOGIC MODIFIED)
+async function getRooms(): Promise<RoomWithChoreCount[]> { // <-- Return new type
   const supabase = await createSupabaseClient() 
 
   // Get user
@@ -21,38 +21,30 @@ async function getRooms() {
     redirect('/')
   }
 
-  // 1. Define the type we EXPECT from our query
-  type ProfileType = {
-    household_id: string | null
-  } | null
-
-  // 2. Get user's profile to find their household
+  // 1. Get user's profile to find their household
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
 
-  // 3. Apply our manual type
-  const typedProfile = profile as ProfileType
-
-  // 4. Handle errors
+  // 2. Handle errors
   if (profileError) {
     console.error('Error fetching profile for rooms page:', profileError)
     redirect('/dashboard')
   }
 
-  // 5. Check if profile or household exists
-  if (!typedProfile || !typedProfile.household_id) {
+  // 3. Check if profile or household exists
+  if (!profile || !profile.household_id) {
     redirect('/dashboard')
   }
 
-  const householdId = typedProfile.household_id
+  const householdId = profile.household_id
 
-  // Fetch all rooms for that household
+  // Fetch all rooms for that household AND count chores (FIXED QUERY)
   const { data: rooms, error: roomsError } = await supabase
     .from('rooms')
-    .select('*')
+    .select('*, chore_count:chores(count)') // <-- FIXED
     .eq('household_id', householdId)
     .order('created_at', { ascending: true })
 
@@ -61,7 +53,14 @@ async function getRooms() {
     return [] // Return an empty array on error
   }
 
-  return rooms as DbRoom[]
+  // Process the room data to extract the count (from room-actions.ts)
+  const processedRooms = (rooms || []).map(room => ({
+    ...room,
+    // Ensure chore_count is a number
+    chore_count: (room.chore_count as any)?.[0]?.count ?? 0
+  }))
+
+  return processedRooms as RoomWithChoreCount[] // <-- Return processed data
 }
 
 // The Page component (PRESERVED LOGIC)

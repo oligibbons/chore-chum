@@ -25,3 +25,8 @@ export type HouseholdData = {
   rooms: DbRoom[]
   chores: ChoreWithDetails[]
 }
+
+// NEW TYPE FOR ROOMS PAGE
+export type RoomWithChoreCount = DbRoom & {
+  chore_count: number
+}
