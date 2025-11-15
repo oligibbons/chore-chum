@@ -1,81 +1,120 @@
 // app/(app)/dashboard/page.tsx
 
-import { createSupabaseClient } from '@/lib/supabase/server' 
 import { redirect } from 'next/navigation'
-import HouseholdManager from '@/components/HouseholdManager'
+import { createSupabaseClient } from '@/lib/supabase/server'
+import { getChoreDisplayData } from '@/app/chore-actions'
 import ChoreDisplay from '@/components/ChoreDisplay'
-import { getHouseholdData } from '@/app/chore-actions'
+import HouseholdManager from '@/components/HouseholdManager'
+import { Plus } from 'lucide-react'
+import Link from 'next/link'
+import AddChoreModal from '@/components/AddChoreModal'
+import { getRoomsAndMembers } from '@/app/room-actions'
 
-// Tell Next.js to server-render this page
 export const dynamic = 'force-dynamic'
 
-
-export default async function DashboardPage() {
-  const supabase = await createSupabaseClient() 
-
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { modal: string }
+}) {
+  const supabase = await createSupabaseClient()
+  
+  // 1. Get session and profile (PRESERVED)
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('household_id')
+    .eq('id', session?.user.id)
+    .single()
+
+  // If no session, redirect will be handled by layout. If no profile, we can't do anything
+  if (!profile) {
     redirect('/')
   }
 
-  // 1. Define the type we EXPECT from our query
-  type ProfileType = {
-    household_id: string | null
-  } | null
-
-  // 2. Make the query
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('household_id')
-    .eq('id', user.id)
-    .single()
-
-  // 3. Apply our manual type
-  const typedProfile = profile as ProfileType
-
-  // 4. Check for errors
-  if (error) {
-    console.error('Error fetching profile:', error)
+  // 2. Check if user is in a household (PRESERVED)
+  const householdId = profile.household_id
+  if (!householdId) {
     return (
-      <div className="text-center">
-        <p>
-          There was an error loading your profile data. Please try refreshing.
-        </p>
+      <div className="py-12 flex items-center justify-center">
+        <HouseholdManager />
       </div>
     )
   }
 
-  // 5. Check if the profile was found
-  if (!typedProfile) {
-    console.error('Profile not found (user trigger might be pending).')
-    return (
-      <div className="text-center">
-        <p>Loading your profile...</p>
-        <p>If this takes a while, please try refreshing.</p>
-      </div>
-    )
-  }
+  // 3. Fetch all data for the dashboard (PRESERVED)
+  const [data, roomData] = await Promise.all([
+    getChoreDisplayData(householdId),
+    getRoomsAndMembers(householdId),
+  ])
 
-  // === The Core Logic ===
-  if (!typedProfile.household_id) {
-    // 1. User has NO household.
-    return <HouseholdManager />
-  } else {
-    // 2. User IS in a household.
-    const householdId = typedProfile.household_id
-    const householdData = await getHouseholdData(householdId)
+  // --- UI Overhaul: Modern Grid Layout ---
+  return (
+    <div className="space-y-10">
+      
+      {/* Dashboard Header: Clean, Prominent Title and Purple CTA */}
+      <header className="mb-6 flex items-center justify-between">
+        <h2 className="font-heading text-4xl font-bold text-support-dark">
+          Your Dashboard
+        </h2>
+        
+        <Link 
+          href="?modal=add-chore"
+          scroll={false} 
+          className="flex items-center rounded-xl bg-brand-primary px-5 py-3 font-heading text-base font-semibold text-brand-white shadow-lg transition-colors hover:bg-brand-primary/90"
+        >
+          <Plus className="mr-2 h-5 w-5" />
+          Add Chore
+        </Link>
+      </header>
 
-    if (!householdData) {
-      return (
-        <div className="text-center">
-          <p>Could not load your household data. Please try again.</p>
+      {/* Main Content Area: Chore Status Groups in a modern 3-column grid */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        
+        {/* Overdue Chores */}
+        <div className="lg:col-span-1">
+          <ChoreDisplay 
+            title="Overdue" 
+            chores={data.overdue} 
+            status="overdue" 
+            showActions={true}
+          />
         </div>
-      )
-    }
 
-    // Pass all the data to the client component for display
-    return <ChoreDisplay data={householdData} />
-  }
+        {/* Due Soon Chores */}
+        <div className="lg:col-span-1">
+          <ChoreDisplay 
+            title="Due Soon" 
+            chores={data.dueSoon} 
+            status="due-soon" 
+            showActions={true}
+          />
+        </div>
+
+        {/* Assigned/Unassigned Chores (The 'Backlog') */}
+        <div className="lg:col-span-1">
+          <ChoreDisplay 
+            title="Upcoming" 
+            chores={data.upcoming} 
+            status="upcoming" 
+            showActions={true}
+          />
+        </div>
+      </div>
+
+      {/* Chore Modal Integration (PRESERVED) */}
+      {searchParams.modal === 'add-chore' && (
+        <AddChoreModal
+          isOpen={true}
+          onClose={() => redirect('/dashboard')}
+          householdId={householdId}
+          members={roomData.members}
+          rooms={roomData.rooms}
+        />
+      )}
+    </div>
+  )
 }

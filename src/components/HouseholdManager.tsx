@@ -13,14 +13,15 @@ const initialState: FormState = {
 }
 
 // A helper component to show a loading spinner on the submit button
-function SubmitButton({ text }: { text: string }) {
+function SubmitButton({ text, colorClass }: { text: string, colorClass: string }) {
   const { pending } = useFormStatus() // Hook to check if form is submitting
 
   return (
     <button
       type="submit"
       disabled={pending}
-      className="flex w-full items-center justify-center rounded-lg bg-brand-primary px-5 py-3 font-heading text-base font-semibold text-brand-white shadow-sm transition-all hover:bg-brand-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+      // Apply the color class provided from the outside
+      className={`flex w-full items-center justify-center rounded-xl ${colorClass} px-5 py-3 font-heading text-base font-semibold text-brand-white shadow-sm transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70`}
     >
       {pending ? (
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -41,7 +42,8 @@ export default function HouseholdManager() {
   const [joinState, joinAction] = useFormState(joinHousehold, initialState)
 
   return (
-    <div className="mx-auto w-full max-w-lg rounded-lg border border-support-light bg-brand-white p-6 shadow-lg sm:p-10">
+    // Sleek Card Styling
+    <div className="mx-auto w-full max-w-lg rounded-xl border border-support-light bg-brand-white p-6 shadow-xl ring-1 ring-support-light/50 sm:p-10">
       <h2 className="text-center font-heading text-3xl font-bold text-support-dark">
         One last step!
       </h2>
@@ -54,7 +56,7 @@ export default function HouseholdManager() {
       {/* Divider */}
       <div className="my-8 h-px w-full bg-support-light" />
 
-      {/* --- Create Household Form --- */}
+      {/* --- Create Household Form (Primary Action - PURPLE) --- */}
       <form action={createAction} className="space-y-4">
         <h3 className="font-heading text-xl font-semibold text-brand-primary">
           Create a new household
@@ -72,13 +74,17 @@ export default function HouseholdManager() {
             name="householdName"
             required
             placeholder="e.g. 'The Smith Family' or '42 Wallaby Way'"
+            // Input focus is purple
             className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
           />
         </div>
         {!createState.success && createState.message && (
           <p className="text-sm text-status-overdue">{createState.message}</p>
         )}
-        <SubmitButton text="Create Household" />
+        <SubmitButton 
+          text="Create Household" 
+          colorClass="bg-brand-primary hover:bg-brand-primary/90" 
+        />
       </form>
 
       {/* --- Or Divider --- */}
@@ -90,7 +96,7 @@ export default function HouseholdManager() {
         <div className="flex-grow border-t border-support-light" />
       </div>
 
-      {/* --- Join Household Form --- */}
+      {/* --- Join Household Form (Secondary Action - RED) --- */}
       <form action={joinAction} className="space-y-4">
         <h3 className="font-heading text-xl font-semibold text-brand-secondary">
           Join an existing household
@@ -108,13 +114,17 @@ export default function HouseholdManager() {
             name="inviteCode"
             required
             placeholder="Ask a housemate for the 6-character code"
+            // Input focus is red
             className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-secondary focus:ring-brand-secondary"
           />
         </div>
         {!joinState.success && joinState.message && (
           <p className="text-sm text-status-overdue">{joinState.message}</p>
         )}
-        <SubmitButton text="Join Household" />
+        <SubmitButton 
+          text="Join Household" 
+          colorClass="bg-brand-secondary hover:bg-brand-secondary/90" 
+        />
       </form>
     </div>
   )

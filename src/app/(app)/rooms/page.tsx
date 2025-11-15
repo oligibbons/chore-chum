@@ -9,7 +9,7 @@ import RoomManager from '@/components/RoomManager'
 export const dynamic = 'force-dynamic'
 
 
-// Helper function to fetch the user's rooms
+// Helper function to fetch the user's rooms (PRESERVED LOGIC)
 async function getRooms() {
   const supabase = await createSupabaseClient() 
 
@@ -64,19 +64,23 @@ async function getRooms() {
   return rooms as DbRoom[]
 }
 
-// The Page component
+// The Page component (PRESERVED LOGIC)
 export default async function RoomsPage() {
   const rooms = await getRooms()
 
   return (
-    <div>
-      <h2 className="mb-6 font-heading text-3xl font-bold text-support-dark">
-        Manage Rooms
-      </h2>
-      <p className="mb-8 max-w-2xl text-lg text-support-dark/80">
-        Add or remove rooms for your household. These will appear in the "Add
-        Chore" form, making it easy to assign tasks to a location.
-      </p>
+    <div className="space-y-10">
+      
+      {/* New: Sleek Page Header */}
+      <header className="mb-6">
+        <h2 className="font-heading text-4xl font-bold text-support-dark">
+          Room Management
+        </h2>
+        <p className="mt-1 text-lg max-w-2xl text-support-dark/80">
+          Add or remove rooms for your household. These will appear in the "Add
+          Chore" form, making it easy to assign tasks to a location.
+        </p>
+      </header>
 
       {/* Client component to handle interactivity */}
       <RoomManager rooms={rooms} />

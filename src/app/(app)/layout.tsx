@@ -25,54 +25,53 @@ export default async function AppLayout({
   // If we have a session, show the protected app layout
   return (
     <div className="flex min-h-screen flex-col">
-      {/* App Header */}
-      <header className="flex flex-col items-center border-b border-support-light bg-brand-white px-6 py-4 sm:flex-row">
-        <div className="flex w-full items-center justify-between sm:w-auto">
-          <Link href="/dashboard" legacyBehavior={false}>
-            <h1 className="text-2xl font-heading font-bold text-brand-primary">
-              ChoreChum
-            </h1>
-          </Link>
-          {/* Sign Out Button (visible on mobile, hidden on sm+) */}
-          <form action={signOut} className="sm:hidden">
-            <button
-              type="submit"
-              className="rounded-lg bg-support-dark px-3 py-1.5 font-heading text-sm font-semibold text-brand-white transition-colors hover:bg-brand-primary"
-            >
-              Sign Out
-            </button>
-          </form>
-        </div>
-
-        {/* Main Navigation */}
-        <nav className="mt-4 flex w-full flex-1 items-center justify-center gap-4 sm:mt-0 sm:justify-end">
-          <Link
-            href="/dashboard"
-            className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/rooms"
-            className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
-          >
-            Rooms
-          </Link>
+      
+      {/* App Header: Sticky, Clean Top Bar */}
+      <header className="sticky top-0 z-20 w-full border-b border-support-light bg-brand-white shadow-sm">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between px-6 py-4 sm:flex-row">
           
-          {/* Sign Out Button (hidden on mobile, visible on sm+) */}
-          <form action={signOut} className="hidden sm:block">
-            <button
-              type="submit"
-              className="rounded-lg bg-support-dark px-4 py-2 font-heading text-sm font-semibold text-brand-white transition-colors hover:bg-brand-primary"
+          <div className="flex w-full items-center justify-between sm:w-auto">
+            <Link href="/dashboard" legacyBehavior={false}>
+              <h1 className="text-2xl font-heading font-bold text-brand-primary transition-colors hover:text-brand-primary/80">
+                ChoreChum
+              </h1>
+            </Link>
+          </div>
+
+          {/* Main Navigation */}
+          <nav className="mt-4 flex w-full flex-1 items-center justify-center gap-2 sm:mt-0 sm:w-auto sm:justify-end sm:gap-4">
+            
+            {/* Nav Links */}
+            <Link
+              href="/dashboard"
+              className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
             >
-              Sign Out
-            </button>
-          </form>
-        </nav>
+              Dashboard
+            </Link>
+            <Link
+              href="/rooms"
+              className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
+            >
+              Rooms
+            </Link>
+            
+            {/* Sign Out Button (Reversed colors for clean look) */}
+            <form action={signOut} className="ml-4">
+              <button
+                type="submit"
+                className="rounded-lg bg-support-dark px-4 py-2 font-heading text-sm font-semibold text-brand-white transition-colors hover:bg-support-dark/90"
+              >
+                Sign Out
+              </button>
+            </form>
+          </nav>
+        </div>
       </header>
 
-      {/* Main content area */}
-      <main className="flex-1 bg-gray-50 p-4 sm:p-8">{children}</main>
+      {/* Main content area: Clean white background */}
+      <main className="flex-1 bg-brand-white p-4 sm:p-8">
+        {children}
+      </main>
     </div>
   )
 }

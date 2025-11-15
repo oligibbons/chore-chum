@@ -2,154 +2,151 @@
 
 'use client'
 
+import { ChoreWithDetails } from '@/types/database'
+import { Check, Clock, User, Home, Calendar, Plus } from 'lucide-react'
 import { useTransition } from 'react'
-import { ChoreWithDetails, DbChore } from '@/types/database'
-import {
-  toggleChoreStatus,
-  incrementChoreInstance,
-  decrementChoreInstance,
-} from '@/app/chore-actions'
-import { Check, Plus, Minus } from 'lucide-react'
-import confetti from 'canvas-confetti'
-import ChoreMenu from './ChoreMenu' // Import the new menu
-
-// --- Confetti Animation ---
-const fireConfetti = () => {
-  confetti({
-    particleCount: 100,
-    spread: 70,
-    origin: { y: 0.6 },
-    colors: ['#b02e46', '#ad8ae1', '#cccecf', '#303030'],
-  })
-}
-
-// --- Helper to format dates ---
-const formatDate = (dateString?: string | null) => {
-  if (!dateString) return 'No due date'
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return 'No due date'
-  return date.toLocaleString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  })
-}
+import { completeChore, uncompleteChore } from '@/app/chore-actions'
+import ChoreMenu from './ChoreMenu'
+import Avatar from './Avatar' // New component
 
 type Props = {
   chore: ChoreWithDetails
-  onEdit: (chore: ChoreWithDetails) => void
+  showActions: boolean
+  status: string // Now accepts a string status from the ChoreDisplay
+  onEdit: (chore: ChoreWithDetails) => void // Added back the onEdit handler
 }
 
-export default function ChoreItem({ chore, onEdit }: Props) {
-  const [isPending, startTransition] = useTransition()
-
-  const isOverdue =
-    chore.due_date &&
-    new Date(chore.due_date) < new Date() &&
-    chore.status !== 'complete'
+// Helper to map status to Tailwind classes
+const getStatusClasses = (status: string, isCompleted: boolean): string => {
+  if (isCompleted) return 'opacity-60 bg-status-complete/10 border-status-complete/50'
   
-  const statusClasses =
-    chore.status === 'complete'
-      ? 'border-status-complete/30 bg-status-complete/5'
-      : isOverdue
-      ? 'border-status-overdue/30 bg-status-overdue/5'
-      : 'border-support-light bg-brand-white'
-  
-  const handleAction = (
-    action: (chore: DbChore) => Promise<any>
-  ) => {
-    startTransition(async () => {
-      try {
-        // We must pass the raw 'chore' object to the action
-        const result = await action(chore as DbChore)
-        if (result.success && result.didComplete) {
-          fireConfetti()
-        }
-      } catch (error) {
-        console.error(error)
-      }
-    })
+  switch (status) {
+    case 'overdue':
+      return 'bg-status-overdue/10 border-status-overdue/50'
+    case 'due-soon':
+      return 'bg-status-due-soon/10 border-status-due-soon/50'
+    default:
+      return 'bg-brand-white border-brand-primary/50'
   }
-  
-  // --- THIS IS THE FIX ---
-  // Use ?? to treat null as 1 or 0 before comparing
-  const targetInstances = chore.target_instances ?? 1
-  const completedInstances = chore.completed_instances ?? 0
-  const isMultiInstance = targetInstances > 1
-  // --- END OF FIX ---
+}
 
-  const isComplete = chore.status === 'complete'
+// Helper to format due date display
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'No due date'
+  const date = new Date(dateString)
+  return new Intl.DateTimeFormat('en-GB', {
+    month: 'short',
+    day: 'numeric',
+  }).format(date)
+}
+
+
+export default function ChoreItem({ chore, showActions, status, onEdit }: Props) {
+  const [isPending, startTransition] = useTransition()
+  const isCompleted = chore.completed_instances === chore.target_instances
+  const classes = getStatusClasses(status, isCompleted)
+
+  const handleToggleCompletion = () => {
+    if (isCompleted) {
+      startTransition(() => {
+        uncompleteChore(chore.id)
+      })
+    } else {
+      startTransition(() => {
+        completeChore(chore.id)
+      })
+    }
+  }
 
   return (
-    <li
-      className={`flex items-center justify-between gap-4 rounded-xl border p-4 shadow-sm ${statusClasses} ${
-        isPending ? 'opacity-50 blur-sm' : 'transition-all'
-      }`}
+    // Modern Chore Card: Subtle shadow, ring-1 for definition
+    <div 
+      className={`flex items-center justify-between rounded-xl border ring-1 ring-support-light/50 p-4 transition-all ${classes} ${!isCompleted && 'hover:shadow-md'}`}
+      // Add a primary color left-border bar for status visual cue
+      style={{
+        borderLeft: `4px solid ${status === 'overdue' ? '#D92D20' : status === 'due-soon' ? '#FDB022' : isCompleted ? '#079455' : '#ad8ae1'}`,
+      }}
     >
-      <div className="flex flex-1 items-center gap-3 overflow-hidden">
-        {/* Interaction Button(s) */}
-        {isMultiInstance ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleAction(decrementChoreInstance)}
-              disabled={isPending || completedInstances === 0}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-support-light text-support-light transition-all hover:border-brand-primary hover:text-brand-primary disabled:opacity-30"
-            >
-              <Minus className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => handleAction(incrementChoreInstance)}
-              disabled={isPending || isComplete}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-brand-secondary text-brand-secondary transition-all hover:bg-brand-secondary hover:text-white disabled:opacity-30"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => handleAction(toggleChoreStatus)}
-            disabled={isPending}
-            className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all
-            ${
-              isComplete
-                ? 'border-brand-secondary bg-brand-secondary text-white'
-                : 'border-support-light text-support-light hover:border-brand-secondary hover:text-brand-secondary'
-            }`}
-          >
-            {isComplete && <Check className="h-5 w-5" />}
-          </button>
-        )}
+      
+      {/* --- Left Side: Completion Button and Details --- */}
+      <div className="flex flex-1 items-center space-x-4">
+        
+        {/* Completion Checkbox/Button */}
+        <button
+          onClick={handleToggleCompletion}
+          disabled={isPending}
+          className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${isCompleted ? 'border-status-complete bg-status-complete' : 'border-brand-primary text-brand-primary hover:bg-brand-primary/10'} transition-all disabled:opacity-50`}
+          aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+        >
+          {isCompleted ? (
+            <Check className="h-5 w-5 text-brand-white" />
+          ) : (
+            <Plus className="h-5 w-5 text-brand-primary" />
+          )}
+        </button>
 
-        {/* Chore Details */}
-        <div className="flex-1 overflow-hidden">
-          <h3 className="truncate font-heading text-lg font-semibold text-support-dark">
+        {/* Chore Name and Status Info */}
+        <div className="flex flex-col space-y-0.5">
+          <h4 className="font-heading text-lg font-semibold text-support-dark">
             {chore.name}
-          </h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-support-dark/80">
-            {isMultiInstance && (
-              <span className="font-bold text-brand-secondary">{`${completedInstances} / ${targetInstances} done`}</span>
+            {chore.target_instances > 1 && (
+              <span className="ml-2 rounded-full bg-support-dark/10 px-2 py-0.5 text-xs font-medium text-support-dark">
+                {chore.completed_instances}/{chore.target_instances}
+              </span>
             )}
-            <span className={isOverdue ? 'font-bold text-status-overdue' : ''}>
-              {formatDate(chore.due_date)}
-            </span>
-            {chore.rooms && (
-              <>
-                <span className="hidden sm:inline">|</span>
+          </h4>
+          
+          {/* Metadata Row: Icons and Text */}
+          <div className="flex items-center space-x-3 text-sm text-support-dark/70">
+            
+            {/* Due Date */}
+            {chore.due_date && (
+              <span className="flex items-center space-x-1">
+                <Calendar className="h-4 w-4" />
+                <span>{formatDate(chore.due_date)}</span>
+              </span>
+            )}
+
+            {/* Room */}
+            {chore.rooms?.name && (
+              <span className="flex items-center space-x-1">
+                <Home className="h-4 w-4" />
                 <span>{chore.rooms.name}</span>
-              </>
+              </span>
             )}
-            {chore.profiles && (
-              <>
-                <span className="hidden sm:inline">|</span>
-                <span>{chore.profiles.full_name}</span>
-              </>
+
+            {/* Recurrence */}
+            {chore.recurrence_type !== 'none' && (
+              <span className="flex items-center space-x-1">
+                <Clock className="h-4 w-4" />
+                <span>{chore.recurrence_type}</span>
+              </span>
             )}
           </div>
         </div>
       </div>
+      
+      {/* --- Right Side: Avatar and Menu --- */}
+      <div className="flex items-center space-x-3">
+        
+        {/* Assigned Avatar */}
+        {chore.profiles ? (
+          <Avatar 
+            url={chore.profiles.avatar_url} 
+            alt={chore.profiles.full_name} 
+            size={36} 
+          />
+        ) : (
+          <div className="h-9 w-9 rounded-full bg-support-light flex items-center justify-center">
+            <User className="h-5 w-5 text-support-dark/70" />
+          </div>
+        )}
 
-      {/* Edit/Delete Menu */}
-      <ChoreMenu chore={chore} onEdit={() => onEdit(chore)} />
-    </li>
+        {/* Chore Menu */}
+        {showActions && (
+          <ChoreMenu chore={chore} onEdit={onEdit} />
+        )}
+      </div>
+    </div>
   )
 }

@@ -38,8 +38,10 @@ export default function AuthForm() {
           // ...and override it with your brand colours
           default: {
             colors: {
-              brand: '#b02e46', // Your brand-primary
-              brandAccent: '#ad8ae1', // Your brand-secondary
+              // Primary Purple: #ad8ae1 (new brand-primary)
+              brand: '#ad8ae1',
+              // Secondary Red/Accent: #b02e46 (new brand-secondary)
+              brandAccent: '#b02e46', 
               brandButtonText: '#FFFFFF',
               defaultButtonBackground: '#FFFFFF',
               defaultButtonBackgroundHover: '#f9f9f9',
@@ -47,8 +49,8 @@ export default function AuthForm() {
               defaultButtonText: '#303030',
               inputBackground: '#FFFFFF',
               inputBorder: '#cccecf',
-              inputBorderHover: '#b02e46',
-              inputBorderFocus: '#b02e46',
+              inputBorderHover: '#ad8ae1', // Purple hover border
+              inputBorderFocus: '#ad8ae1', // Purple focus border
               inputText: '#303030',
               messageText: '#303030',
               messageTextDanger: '#D92D20',

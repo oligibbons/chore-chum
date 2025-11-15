@@ -2,134 +2,118 @@
 
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
-import { DbRoom } from '@/types/database'
-import { createRoom, deleteRoom } from '@/app/room-actions'
-import { Loader2, Plus, Trash2, X } from 'lucide-react'
+import { useFormState, useFormStatus } from 'react-dom'
+import { createRoom, deleteRoom, FormState, RoomData } from '@/app/room-actions'
+import { Plus, Trash2, Loader2, Home } from 'lucide-react'
 
-// Sub-component for the "Add Room" form
-function AddRoomForm() {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const formRef = useRef<HTMLFormElement>(null) // To reset the form
+// Initial state for our forms
+const initialState: FormState = {
+  success: false,
+  message: '',
+}
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError(null)
-    const formData = new FormData(event.currentTarget)
-    
-    startTransition(async () => {
-      try {
-        await createRoom(formData)
-        formRef.current?.reset() // Clear the form on success
-      } catch (err: any) {
-        setError(err.message)
-      }
-    })
-  }
+// A helper component to show a loading spinner on the submit button
+function SubmitButton({ text, isDelete }: { text: string, isDelete?: boolean }) {
+  const { pending } = useFormStatus() // Hook to check if form is submitting
+
+  // Use primary purple for creation, or secondary red for deletion
+  const colorClass = isDelete
+    ? 'bg-brand-secondary hover:bg-brand-secondary/90'
+    : 'bg-brand-primary hover:bg-brand-primary/90'
 
   return (
-    <form onSubmit={handleSubmit} ref={formRef} className="space-y-3">
-      <h3 className="font-heading text-xl font-semibold text-support-dark">
-        Add a New Room
-      </h3>
-      <div>
-        <label htmlFor="roomName" className="sr-only">Room Name</label>
-        <input
-          type="text"
-          id="roomName"
-          name="roomName"
-          required
-          placeholder="e.g. 'Upstairs Bathroom'"
-          className="block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
-        />
-      </div>
-      
-      {error && <p className="text-sm text-status-overdue">{error}</p>}
-      
-      <button
-        type="submit"
-        disabled={isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-primary px-5 py-3 font-heading text-base font-semibold text-brand-white shadow-sm transition-all hover:bg-brand-primary/90 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-      >
-        {isPending ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <Plus className="h-5 w-5" />
-        )}
-        Add Room
-      </button>
-    </form>
+    <button
+      type="submit"
+      disabled={pending}
+      className={`flex items-center justify-center rounded-xl ${colorClass} px-5 py-2 font-heading text-sm font-semibold text-brand-white shadow-md transition-all disabled:cursor-not-allowed disabled:opacity-70`}
+    >
+      {pending ? (
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+      ) : (
+        <>
+          {text}
+          {!isDelete && <Plus className="ml-2 h-4 w-4" />}
+          {isDelete && <Trash2 className="ml-2 h-4 w-4" />}
+        </>
+      )}
+    </button>
   )
 }
 
-// Sub-component for the list of existing rooms
-function RoomList({ rooms }: { rooms: DbRoom[] }) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  const handleDelete = (roomId: number) => {
-    // Optional: Add a confirmation dialog here
-    // if (!confirm('Are you sure you want to delete this room?')) {
-    //   return
-    // }
-    
-    setError(null)
-    startTransition(async () => {
-      try {
-        await deleteRoom(roomId)
-      } catch (err: any) {
-        setError(err.message)
-      }
-    })
-  }
+// Main component
+export default function RoomManager({ data }: { data: RoomData }) {
+  const [createState, createAction] = useFormState(createRoom, initialState)
   
   return (
-    <div className="space-y-3">
-       <h3 className="font-heading text-xl font-semibold text-support-dark">
-        Existing Rooms
-      </h3>
-      {error && <p className="text-sm text-status-overdue">{error}</p>}
+    <div className="space-y-8">
       
-      {rooms.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-support-light p-6 text-center text-support-dark/80">
-          You haven't added any rooms yet.
-        </p>
-      ) : (
-        <ul className="rounded-lg border border-support-light shadow-sm">
-          {rooms.map((room, index) => (
-            <li
-              key={room.id}
-              className={`flex items-center justify-between p-4
-                ${index === 0 ? '' : 'border-t border-support-light'}
-                ${isPending ? 'opacity-50' : ''}
-              `}
+      {/* --- Create Room Form (Primary Action - PURPLE) --- */}
+      <div className="rounded-xl border border-support-light bg-brand-white p-6 shadow-xl ring-1 ring-support-light/50 max-w-lg">
+        <h3 className="mb-4 font-heading text-2xl font-semibold text-brand-primary">
+          Add a New Room
+        </h3>
+        <form action={createAction} className="space-y-4">
+          <div>
+            <label
+              htmlFor="roomName"
+              className="block font-heading text-sm font-medium text-support-dark"
             >
-              <span className="font-medium text-support-dark">{room.name}</span>
-              <button
-                onClick={() => handleDelete(room.id)}
-                disabled={isPending}
-                className="rounded-lg p-2 text-status-overdue/70 transition-all hover:bg-status-overdue/10 hover:text-status-overdue disabled:opacity-50"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-// Main component that wraps the others
-export default function RoomManager({ rooms }: { rooms: DbRoom[] }) {
-  return (
-    <div className="mx-auto grid max-w-4xl grid-cols-1 gap-10 md:grid-cols-2">
-      <div>
-        <AddRoomForm />
+              Room Name
+            </label>
+            <input
+              type="text"
+              id="roomName"
+              name="roomName"
+              required
+              placeholder="e.g. 'Kitchen' or 'Upstairs Bathroom'"
+              className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
+            />
+          </div>
+          {!createState.success && createState.message && (
+            <p className="text-sm text-status-overdue">{createState.message}</p>
+          )}
+          <div className="flex justify-end">
+             <SubmitButton text="Create Room" />
+          </div>
+        </form>
       </div>
+
+      {/* --- Existing Rooms List --- */}
       <div>
-        <RoomList rooms={rooms} />
+        <h3 className="mb-4 font-heading text-2xl font-semibold text-support-dark">
+          Existing Rooms ({data.rooms.length})
+        </h3>
+        <div className="space-y-4">
+          {data.rooms.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-support-light p-6 text-center text-support-dark/60">
+              No rooms created yet.
+            </p>
+          ) : (
+            data.rooms.map((room) => (
+              <div
+                key={room.id}
+                // Sleek room item card
+                className="flex items-center justify-between rounded-xl bg-brand-white p-4 shadow-sm ring-1 ring-support-light/50 transition-all hover:bg-support-light/10"
+              >
+                <div className="flex items-center space-x-3">
+                    <Home className="h-6 w-6 text-brand-primary" />
+                    <span className="font-heading text-lg font-medium text-support-dark">
+                        {room.name}
+                    </span>
+                    <span className="text-sm text-support-dark/60">
+                        ({room.chore_count} chores)
+                    </span>
+                </div>
+                
+                {/* Delete Form (Secondary Red Action) */}
+                <form action={deleteRoom} className="flex items-center space-x-4">
+                  <input type="hidden" name="roomId" value={room.id} />
+                  <SubmitButton text="Delete" isDelete={true} />
+                </form>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   )

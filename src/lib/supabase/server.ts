@@ -1,14 +1,14 @@
 // src/lib/supabase/server.ts
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers' // (Ensure this import is present)
+import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 
 export async function createSupabaseClient() {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
-    // VERCEL FIX: Use original NEXT_PUBLIC_ variables directly. Vercel knows these are secrets on the server.
+    // VERCEL FIX: Use the original NEXT_PUBLIC_ variables. Vercel handles these secrets correctly.
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {

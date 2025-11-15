@@ -10,13 +10,14 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      colors: {
-        // Your chosen brand palette
-        'brand-primary': '#b02e46', // Bold Red
-        'brand-secondary': '#ad8ae1', // Purple
-        'support-light': '#cccecf', // Light Grey
-        'support-dark': '#303030', // Dark Grey / Text
-        'brand-white': '#FFFFFF', // Clean White
+       colors: {
+            // Your chosen brand palette - SWAPPED ROLES
+            'brand-primary': '#ad8ae1',    // PURPLE (now Primary)
+            'brand-secondary': '#b02e46', // RED (now Secondary)
+            'support-light': '#cccecf',
+            'support-dark': '#303030', // Dark Grey / Text
+            'brand-white': '#FFFFFF', // Clean White
+
 
         // Status colours (for later)
         'status-overdue': '#D92D20', // A strong red for overdue
