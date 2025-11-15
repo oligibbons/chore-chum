@@ -4,13 +4,14 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
 export async function middleware(request: NextRequest) {
+  // Create a response object that we can modify
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  // Use the same Vercel-safe logic for env vars
+  // Get Vercel-safe env vars
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
@@ -19,6 +20,7 @@ export async function middleware(request: NextRequest) {
     supabaseAnonKey,
     {
       cookies: {
+        // This is the new, correct cookie handling pattern for middleware
         get(name: string) {
           return request.cookies.get(name)?.value
         },
@@ -29,41 +31,40 @@ export async function middleware(request: NextRequest) {
               headers: request.headers,
             },
           })
-          response.cookies.set(name, value, options)
+          response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.delete(name)
+          request.cookies.set({ name, value: '', ...options })
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
-          response.cookies.delete({ name, ...options })
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
-  // Refresh the session
-  const { data: { session } } = await supabase.auth.getSession()
-  const user = session?.user
+  // Use getUser() to read the session. This will also refresh the session cookie.
+  const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // --- NEW AUTH REDIRECT LOGIC ---
+  // --- CONSOLIDATED AUTH REDIRECT LOGIC ---
+  const isAppRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/rooms')
+  const isHomeRoute = pathname === '/'
 
-  // 1. If user is not logged in and tries to access protected app routes
-  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/rooms'))) {
+  if (!user && isAppRoute) {
+    // If user is not logged in and tries to access app, redirect to home.
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // 2. If user is logged in and tries to access the homepage
-  if (user && pathname === '/') {
+  if (user && isHomeRoute) {
+    // If user is logged in and tries to access home/login page, redirect to dashboard.
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
-
-  // --- END NEW LOGIC ---
-
-  // All good, continue to the requested page
+  
+  // All checks passed, return the response (which now has the refreshed cookie)
   return response
 }
 
@@ -74,7 +75,6 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public assets
      * - /auth/callback (CRITICAL: must exclude this)
      */
     '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.png$|.*\\.jpg$).*)',

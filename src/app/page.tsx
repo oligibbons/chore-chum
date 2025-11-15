@@ -1,22 +1,17 @@
 // app/page.tsx
 
-// IMPORTS FOR AUTH/REDIRECT ARE REMOVED
 import AuthForm from '@/components/AuthForm'
 
 // Tell Next.js to server-render this page
 export const dynamic = 'force-dynamic'
-
 
 export default async function HomePage() {
   
   // --- ALL AUTH LOGIC REMOVED ---
   // The middleware.ts file now handles all redirect logic.
   // This page's only job is to show the login form.
-  // --- END REMOVED LOGIC ---
 
-  // If no session, show the landing/login page
   return (
-    // New: Use a minimal white background for the whole screen
     <div className="flex min-h-screen bg-brand-white">
       
       {/* --- Left Side: Hero Text (Wider, Cleaner) --- */}

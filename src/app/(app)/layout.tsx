@@ -1,6 +1,5 @@
 // app/(app)/layout.tsx
 
-// IMPORTS FOR AUTH/REDIRECT ARE REMOVED
 import { signOut } from '@/app/actions'
 import Link from 'next/link' 
 
@@ -13,9 +12,7 @@ export default async function AppLayout({
   // --- ALL AUTH LOGIC REMOVED ---
   // The middleware.ts file now handles all route protection.
   // This layout can now safely assume a user is present.
-  // --- END REMOVED LOGIC ---
 
-  // If we have a session, show the protected app layout
   return (
     <div className="flex min-h-screen flex-col">
       
