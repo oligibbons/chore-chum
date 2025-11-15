@@ -1,7 +1,7 @@
 // src/app/household-actions.ts
 'use server'
 
-import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- THE FIX
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
 
@@ -21,7 +21,7 @@ export async function createHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
   const householdName = formData.get('householdName') as string
 
   // 1. Get the current user
@@ -99,7 +99,7 @@ export async function joinHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
   const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
 
   // 1. Get the current user

@@ -1,13 +1,13 @@
 // src/app/room-actions.ts
 'use server'
 
-import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- THE FIX
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
 
 // Helper function to get the current user and their household
 async function getUserHousehold() {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -28,7 +28,7 @@ async function getUserHousehold() {
 
 // ACTION: Create a new room
 export async function createRoom(formData: FormData) {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
   const roomName = formData.get('roomName') as string
   const { householdId } = await getUserHousehold()
 
@@ -60,7 +60,7 @@ export async function createRoom(formData: FormData) {
 // ACTION: Delete an existing room
 export async function deleteRoom(roomId: number) {
   const { householdId } = await getUserHousehold()
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
 
   // 1. Delete the room
   const { error } = await supabase

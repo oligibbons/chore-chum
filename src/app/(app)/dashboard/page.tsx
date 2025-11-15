@@ -1,6 +1,6 @@
 // app/(app)/dashboard/page.tsx
 
-import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- THE FIX
 import { redirect } from 'next/navigation'
 import HouseholdManager from '@/components/HouseholdManager'
 import ChoreDisplay from '@/components/ChoreDisplay'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 
 export default async function DashboardPage() {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
 
   const {
     data: { user },

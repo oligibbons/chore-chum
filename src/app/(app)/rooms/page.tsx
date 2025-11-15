@@ -1,6 +1,6 @@
 // app/(app)/rooms/page.tsx
 
-import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- THE FIX
 import { DbRoom } from '@/types/database'
 import { redirect } from 'next/navigation'
 import RoomManager from '@/components/RoomManager'
@@ -12,7 +12,7 @@ export const runtime = 'edge'
 
 // Helper function to fetch the user's rooms
 async function getRooms() {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
 
   // Get user
   const {

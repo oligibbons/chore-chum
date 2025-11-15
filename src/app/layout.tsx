@@ -1,16 +1,16 @@
 // app/(app)/layout.tsx
 
-import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- THE FIX
 import { redirect } from 'next/navigation'
 import { signOut } from '@/app/actions'
-import Link from 'next/link' // Import Link
+import Link from 'next/link' 
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
 
   // Check for an active session
   const {

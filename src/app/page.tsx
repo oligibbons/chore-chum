@@ -1,6 +1,6 @@
 // app/page.tsx
 
-import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- THE FIX
 import { redirect } from 'next/navigation'
 import AuthForm from '@/components/AuthForm'
 import { ArrowRight } from 'lucide-react'
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 
 export default async function HomePage() {
-  const supabase = createSupabaseClient() // <-- UPDATED
+  const supabase = createSupabaseClient() // <-- THE FIX
 
   // Check for an active session
   const {
