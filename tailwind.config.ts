@@ -4,51 +4,40 @@ import type { Config } from 'tailwindcss'
 
 const config: Config = {
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
-       colors: {
-            // Your chosen brand palette - SWAPPED ROLES
-            'brand-primary': '#ad8ae1',    // PURPLE (now Primary)
-            'brand-secondary': '#b02e46', // RED (now Secondary)
-            'support-light': '#cccecf',
-            'support-dark': '#303030', // Dark Grey / Text
-            'brand-white': '#FFFFFF', // Clean White
-
-
-        // Status colours (for later)
-        'status-overdue': '#D92D20', // A strong red for overdue
-        'status-due-soon': '#FDB022', // An amber for warning
-        'status-complete': '#079455', // A nice green for success
-      },
+      // Setup the fonts we added in app/layout.tsx
       fontFamily: {
-        // sans: ['Inter', 'sans-serif'], // This will be our body font
-        // heading: ['Lexend', 'sans-serif'], // This will be our heading font
+        sans: ['var(--font-inter)'], // Inter for body text
+        heading: ['var(--font-lexend)'], // Lexend for headings
+      },
+
+      // Define our new, modern color palette
+      colors: {
+        // Main Brand Colors
+        'brand-primary': '#ad8ae1', // Purple (Primary accent)
+        'brand-secondary': '#b02e46', // Red (Destructive actions)
+        'brand-white': '#ffffff', // Card backgrounds, text on dark
         
-        // We register them properly via the layout file,
-        // but this shows how you could do it.
-        // For simplicity, we'll use CSS variables set in layout.js
-        sans: ['var(--font-inter)'],
-        heading: ['var(--font-lexend)'],
-      },
-      animation: {
-        // Example animation for later (e.g., successful completion)
-        'confetti-burst': 'confetti 0.8s ease-out forwards',
-      },
-      keyframes: {
-        // Example keyframes for that animation
-        confetti: {
-          '0%': { transform: 'scale(0.5) translateY(0)', opacity: '1' },
-          '100%': { transform: 'scale(1.2) translateY(-100px)', opacity: '0' },
-        },
+        // NEW: Background color for the main page body
+        'background': '#f9fafb', // A very light, clean gray
+
+        // Support Colors
+        'support-dark': '#303030', // Main text color
+        'support-light': '#e5e7eb', // Borders and dividers
+
+        // Status Colors (for chores)
+        'status-overdue': '#D92D20', // Red
+        'status-due-soon': '#FDB022', // Amber
+        'status-complete': '#079455', // Green
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/forms'), // A useful plugin for styling forms nicely
-  ],
+  // Add the Tailwind forms plugin
+  plugins: [require('@tailwindcss/forms')],
 }
 export default config

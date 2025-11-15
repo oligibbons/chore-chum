@@ -8,14 +8,16 @@
 /* Set up the base layer defaults.
 */
 @layer base {
-  /* Copied from globals.css */
+  /* Define CSS vars for colors */
   :root {
-    /* Define primary colors in CSS vars for future Tailwind flexibility */
-    --color-brand-primary: #ad8ae1; /* Purple */
-    --color-support-dark: #303030; /* Dark Text */
+    --color-brand-primary: #ad8ae1; 
+    --color-support-dark: #303030;
+    
+    /* NEW: Define our background color */
+    --color-background: #f9fafb;
   }
 
-  /* Font styles from original global.css */
+  /* Set default fonts */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-lexend);
   }
@@ -24,16 +26,19 @@
     font-family: var(--font-inter);
   }
 
-  /* Additional body styles from globals.css (error line removed) */
+  /* THIS IS THE KEY:
+    - Set the main body background to our new light gray
+    - Set default text to dark
+    - Enable anti-aliasing for smooth, modern fonts
+  */
   body {
-    background-color: #f7f7f7; 
+    background-color: var(--color-background); 
     color: var(--color-support-dark);
-    /* The problematic "@apply text-support-dark antialiased;" was here and has been removed */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Copied from globals.css */
   /* Target the Tailwind Forms plugin styles for a cleaner look */
-  /* Remove default border and shadow on focus to match the sleek UI */
   .focus\:ring-brand-primary:focus,
   .focus\:ring-brand-secondary:focus {
     --tw-ring-shadow: none !important;

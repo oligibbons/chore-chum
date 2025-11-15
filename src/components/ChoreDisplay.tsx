@@ -4,17 +4,14 @@
 import { ChoreWithDetails } from '@/types/database'
 import ChoreItem from './ChoreItem'
 
-// This component is now just for the 3-column dashboard layout
-
 type Props = {
   title: string
   chores: ChoreWithDetails[]
   status: string
   showActions: boolean
-  // onEdit is no longer needed, ChoreItem/ChoreMenu will use <Link>
 }
 
-// Helper to map status to Tailwind classes
+// Helper to map status to Tailwind classes for the titles
 const getStatusClasses = (status: string): string => {
   switch (status) {
     case 'overdue':
@@ -34,11 +31,9 @@ export default function ChoreDisplay({
 }: Props) {
   const classes = getStatusClasses(status)
 
-  // No more realtime, no more modals, no more state.
-  // Just render the list passed to it.
-
   return (
     <div>
+      {/* Sleek, modern column headers */}
       <h3 className={`mb-4 pb-2 font-heading text-2xl font-semibold ${classes}`}>
         {title}
       </h3>
@@ -48,13 +43,13 @@ export default function ChoreDisplay({
             <ChoreItem
               key={chore.id}
               chore={chore}
-              // onEdit is removed. ChoreMenu will handle its own link.
               status={status}
               showActions={showActions}
             />
           ))}
         </ul>
       ) : (
+        // Clean "empty" state card
         <p className="rounded-xl border border-dashed border-support-light p-8 text-center text-support-dark/60">
           {status === 'overdue'
             ? 'Nothing overdue!'

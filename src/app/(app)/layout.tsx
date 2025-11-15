@@ -9,26 +9,26 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   
-  // --- ALL AUTH AND REDIRECT LOGIC REMOVED ---
-  // The middleware now handles this. This layout assumes a user is logged in.
-
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       
-      {/* App Header */}
+      {/* App Header: 
+        - White background, separated by a subtle border
+        - Constrained width with mx-auto
+      */}
       <header className="sticky top-0 z-20 w-full border-b border-support-light bg-brand-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between px-6 py-4 sm:flex-row">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           
-          <div className="flex w-full items-center justify-between sm:w-auto">
-            <Link href="/dashboard" legacyBehavior={false}>
-              <h1 className="text-2xl font-heading font-bold text-brand-primary transition-colors hover:text-brand-primary/80">
-                ChoreChum
-              </h1>
-            </Link>
-          </div>
+          <Link href="/dashboard" legacyBehavior={false}>
+            <h1 className="text-2xl font-heading font-bold text-brand-primary transition-colors hover:text-brand-primary/80">
+              ChoreChum
+            </h1>
+          </Link>
 
           {/* Main Navigation */}
-          <nav className="mt-4 flex w-full flex-1 items-center justify-center gap-2 sm:mt-0 sm:w-auto sm:justify-end sm:gap-4">
+          <nav className="flex items-center gap-2 sm:gap-4">
+            
+            {/* Nav Links: Cleaner, no background on hover */}
             <Link
               href="/dashboard"
               className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
@@ -41,6 +41,8 @@ export default async function AppLayout({
             >
               Rooms
             </Link>
+            
+            {/* Sign Out Button: Modern, solid accent */}
             <form action={signOut} className="ml-4">
               <button
                 type="submit"
@@ -53,8 +55,11 @@ export default async function AppLayout({
         </div>
       </header>
 
-      {/* Main content area */}
-      <main className="flex-1 bg-brand-white p-4 sm:p-8">
+      {/* Main content area: 
+        - Constrained width
+        - Generous padding
+      */}
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-8">
         {children}
       </main>
     </div>

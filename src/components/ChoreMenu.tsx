@@ -6,14 +6,13 @@ import { Menu, Transition } from '@headlessui/react'
 import { MoreVertical, Trash2, Edit } from 'lucide-react'
 import { ChoreWithDetails } from '@/types/database'
 import { deleteChore } from '@/app/chore-actions'
-import Link from 'next/link' // <-- Import Link
+import Link from 'next/link'
 
 type Props = {
   chore: ChoreWithDetails
-  // onEdit: (chore: ChoreWithDetails) => void // <-- Remove onEdit
 }
 
-export default function ChoreMenu({ chore }: Props) { // <-- Remove onEdit
+export default function ChoreMenu({ chore }: Props) {
   const [isPending, startTransition] = useTransition()
 
   const handleDelete = () => {
@@ -27,6 +26,7 @@ export default function ChoreMenu({ chore }: Props) { // <-- Remove onEdit
   return (
     <Menu as="div" className="relative inline-block text-left">
       <div>
+        {/* Subtle menu button */}
         <Menu.Button 
           disabled={isPending}
           className="rounded-full p-2 text-support-dark/60 transition-all hover:bg-support-light/50 hover:text-support-dark disabled:opacity-50"
@@ -49,14 +49,14 @@ export default function ChoreMenu({ chore }: Props) { // <-- Remove onEdit
         <Menu.Items className="absolute right-0 z-30 mt-2 w-48 origin-top-right divide-y divide-support-light/50 rounded-xl bg-brand-white shadow-xl ring-1 ring-black/5 focus:outline-none">
           <div className="p-1">
             <Menu.Item>
-              {({ active, close }) => ( // <-- Add 'close'
-                <Link // <-- Use Link instead of button
+              {({ active, close }) => (
+                <Link
                   href={`?modal=edit-chore&choreId=${chore.id}`}
                   scroll={false}
                   className={`group flex w-full items-center rounded-lg p-2 text-sm font-medium ${
                     active ? 'bg-brand-primary text-brand-white' : 'text-support-dark'
                   }`}
-                  onClick={close} // <-- Close menu on click
+                  onClick={close}
                 >
                   <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
                   Edit Chore

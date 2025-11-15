@@ -3,15 +3,9 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { createRoom, deleteRoom } from '@/app/room-actions'
+import { createRoom, deleteRoom, FormState } from '@/app/room-actions'
 import { Plus, Trash2, Loader2, Home } from 'lucide-react'
-import { RoomWithChoreCount } from '@/types/database' // <-- Import new type
-
-// Define FormState here
-type FormState = {
-  success: boolean
-  message: string
-}
+import { RoomWithChoreCount } from '@/types/database'
 
 // Initial state for our forms
 const initialState: FormState = {
@@ -21,11 +15,11 @@ const initialState: FormState = {
 
 // A helper component to show a loading spinner on the submit button
 function SubmitButton({ text, isDelete }: { text: string, isDelete?: boolean }) {
-  const { pending } = useFormStatus() // Hook to check if form is submitting
+  const { pending } = useFormStatus()
 
   // Use primary purple for creation, or secondary red for deletion
   const colorClass = isDelete
-    ? 'bg-brand-secondary hover:bg-brand-secondary/90'
+    ? 'bg-status-overdue hover:bg-status-overdue/90' // Changed to red
     : 'bg-brand-primary hover:bg-brand-primary/90'
 
   return (
@@ -38,69 +32,75 @@ function SubmitButton({ text, isDelete }: { text: string, isDelete?: boolean }) 
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
       ) : (
         <>
-          {text}
-          {!isDelete && <Plus className="ml-2 h-4 w-4" />}
-          {isDelete && <Trash2 className="ml-2 h-4 w-4" />}
+          {isDelete ? (
+            <Trash2 className="h-4 w-4" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
+          <span className="ml-2">{text}</span>
         </>
       )}
     </button>
   )
 }
 
-// Main component - CHANGED PROPS
-export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) { // <-- CHANGED
+// Main component
+export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) {
   const [createState, createAction] = useFormState(createRoom, initialState)
   
   return (
-    <div className="space-y-8">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
       
       {/* --- Create Room Form (Primary Action - PURPLE) --- */}
-      <div className="rounded-xl border border-support-light bg-brand-white p-6 shadow-xl ring-1 ring-support-light/50 max-w-lg">
-        <h3 className="mb-4 font-heading text-2xl font-semibold text-brand-primary">
-          Add a New Room
-        </h3>
-        <form action={createAction} className="space-y-4">
-          <div>
-            <label
-              htmlFor="roomName"
-              className="block font-heading text-sm font-medium text-support-dark"
-            >
-              Room Name
-            </label>
-            <input
-              type="text"
-              id="roomName"
-              name="roomName"
-              required
-              placeholder="e.g. 'Kitchen' or 'Upstairs Bathroom'"
-              className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
-            />
-          </div>
-          {!createState.success && createState.message && (
-            <p className="text-sm text-status-overdue">{createState.message}</p>
-          )}
-          <div className="flex justify-end">
-             <SubmitButton text="Create Room" />
-          </div>
-        </form>
+      <div className="md:col-span-1">
+        {/* NEW: Modern card UI */}
+        <div className="rounded-xl border border-support-light bg-brand-white p-6 shadow-xl ring-1 ring-support-light/50">
+          <h3 className="mb-4 font-heading text-2xl font-semibold text-brand-primary">
+            Add a New Room
+          </h3>
+          <form action={createAction} className="space-y-4">
+            <div>
+              <label
+                htmlFor="roomName"
+                className="block font-heading text-sm font-medium text-support-dark"
+              >
+                Room Name
+              </label>
+              <input
+                type="text"
+                id="roomName"
+                name="roomName"
+                required
+                placeholder="e.g. 'Kitchen'"
+                className="mt-1 block w-full rounded-lg border-support-light shadow-sm transition-all focus:border-brand-primary focus:ring-brand-primary"
+              />
+            </div>
+            {!createState.success && createState.message && (
+              <p className="text-sm text-status-overdue">{createState.message}</p>
+            )}
+            <div className="flex justify-end">
+              <SubmitButton text="Create Room" />
+            </div>
+          </form>
+        </div>
       </div>
 
       {/* --- Existing Rooms List --- */}
-      <div>
+      <div className="md:col-span-2">
         <h3 className="mb-4 font-heading text-2xl font-semibold text-support-dark">
-          Existing Rooms ({rooms.length}) {/* <-- CHANGED */}
+          Existing Rooms ({rooms.length})
         </h3>
         <div className="space-y-4">
-          {rooms.length === 0 ? ( /* <-- CHANGED */
-            <p className="rounded-xl border border-dashed border-support-light p-6 text-center text-support-dark/60">
+          {rooms.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-support-light bg-brand-white p-6 text-center text-support-dark/60">
               No rooms created yet.
             </p>
           ) : (
-            rooms.map((room) => ( /* <-- CHANGED */
+            // NEW: Room items are now cards
+            rooms.map((room) => (
               <div
                 key={room.id}
-                // Sleek room item card
-                className="flex items-center justify-between rounded-xl bg-brand-white p-4 shadow-sm ring-1 ring-support-light/50 transition-all hover:bg-support-light/10"
+                className="flex items-center justify-between rounded-xl bg-brand-white p-4 shadow-sm ring-1 ring-support-light/50 transition-all hover:shadow-md"
               >
                 <div className="flex items-center space-x-3">
                     <Home className="h-6 w-6 text-brand-primary" />
@@ -108,12 +108,11 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
                         {room.name}
                     </span>
                     <span className="text-sm text-support-dark/60">
-                        ({room.chore_count} chores) {/* <-- This now works */}
+                        ({room.chore_count} chores)
                     </span>
                 </div>
                 
-                {/* Delete Form (Secondary Red Action) */}
-                <form action={deleteRoom} className="flex items-center space-x-4">
+                <form action={deleteRoom}>
                   <input type="hidden" name="roomId" value={room.id} />
                   <SubmitButton text="Delete" isDelete={true} />
                 </form>
