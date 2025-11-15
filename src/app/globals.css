@@ -13,8 +13,9 @@
   }
 
   body {
-    /* FIX: Use a custom color (brand-white) which is guaranteed to be included by Tailwind. */
-    @apply bg-brand-white text-support-dark antialiased;
+    /* FIX: Use raw CSS property for base color to bypass Tailwind purge errors. */
+    background-color: #f7f7f7; 
+    @apply text-support-dark antialiased;
     /* Apply base font for body text */
     font-family: var(--font-inter);
     /* Set color used for text based on support-dark */

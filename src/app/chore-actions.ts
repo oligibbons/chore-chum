@@ -101,7 +101,7 @@ export async function getHouseholdData(
   }
 }
 
-// NEW EXPORT: Used by dashboard/page.tsx to get the categorized data
+// EXPORTED: Used by dashboard/page.tsx to get the categorized data
 export async function getChoreDisplayData(householdId: string): Promise<ChoreDisplayData> {
     const fullData = await getHouseholdData(householdId)
 
@@ -147,7 +147,7 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
     return categorizedData
 }
 
-// NEW EXPORT: Wrapper used by ChoreItem for single-instance completion (Increment for multi-step, toggle for single)
+// EXPORTED: Wrapper used by ChoreItem for completion
 export async function completeChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
     const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
@@ -162,7 +162,7 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
     }
 }
 
-// NEW EXPORT: Wrapper used by ChoreItem for uncompletion (Decrement for multi-step, toggle for single)
+// EXPORTED: Wrapper used by ChoreItem for uncompletion
 export async function uncompleteChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
     const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
@@ -218,6 +218,7 @@ export async function createChore(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
+// Internal: used by toggleChoreStatus and uncompleteChore
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
@@ -252,6 +253,7 @@ export async function toggleChoreStatus(
   return { success: true, didComplete }
 }
 
+// Internal: used by completeChore
 export async function incrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
@@ -294,6 +296,7 @@ export async function incrementChoreInstance(
   return { success: true, didComplete }
 }
 
+// Internal: used by uncompleteChore
 export async function decrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {

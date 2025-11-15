@@ -26,7 +26,7 @@ async function getUserHousehold() {
   return { userId: user.id, householdId: profile.household_id }
 }
 
-// NEW EXPORT: Used by the dashboard page to get members and rooms for the AddChoreModal
+// EXPORTED: Used by the dashboard page to get members and rooms for the AddChoreModal
 export async function getRoomsAndMembers(householdId: string) {
   const supabase = await createSupabaseClient() 
 
