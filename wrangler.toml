@@ -1,0 +1,6 @@
+name = "chore-chum"
+compatibility_date = "2024-05-01"
+
+# This flag enables the Node.js compatibility layer on Cloudflare
+# and fixes the runtime error you were seeing.
+compatibility_flags = [ "nodejs_compat" ]
