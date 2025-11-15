@@ -3,8 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
-export const dynamic = 'force-dynamic' // Ensure it's not statically built
-
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -16,7 +14,6 @@ export async function middleware(request: NextRequest) {
   // with fallback to NEXT_PUBLIC_ for local development compatibility.
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
 
   const supabase = createServerClient<Database>(
     supabaseUrl, // <-- Using the robust variable here
@@ -52,4 +49,17 @@ export async function middleware(request: NextRequest) {
   await supabase.auth.getSession()
 
   return response
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public assets
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$).*)',
+  ],
 }
