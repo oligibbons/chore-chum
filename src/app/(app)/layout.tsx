@@ -10,7 +10,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createSupabaseClient()
+  const supabase = await createSupabaseClient()
 
   // Check for an active session
   const {
