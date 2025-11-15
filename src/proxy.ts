@@ -45,3 +45,6 @@ export async function proxy(request: NextRequest) {
 
   return response
 }
+
+// NOTE: The 'export const config' object has been
+// completely removed as it is not needed by OpenNext.
