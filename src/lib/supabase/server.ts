@@ -7,10 +7,13 @@ import { Database } from '@/types/supabase'
 export async function createSupabaseClient() {
   const cookieStore = await cookies()
 
+  // FIX: Use the same logic as middleware.ts
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
   return createServerClient<Database>(
-    // VERCEL FIX: Use the original NEXT_PUBLIC_ variables. Vercel handles these secrets correctly.
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
