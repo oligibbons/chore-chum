@@ -2,7 +2,7 @@
 
 import type { Metadata } from 'next'
 import { Inter, Lexend } from 'next/font/google'
-import './globals.css'
+import './global.css'
 
 // Define custom fonts using Next.js font optimization
 const inter = Inter({

@@ -8,21 +8,34 @@
 /* Set up the base layer defaults.
 */
 @layer base {
-  /* The body background and text color styles are applied
-     in app/layout.tsx as utility classes.
-  */
+  /* Copied from globals.css */
+  :root {
+    /* Define primary colors in CSS vars for future Tailwind flexibility */
+    --color-brand-primary: #ad8ae1; /* Purple */
+    --color-support-dark: #303030; /* Dark Text */
+  }
 
-  /*
-    THIS IS THE FIX:
-    Instead of using @apply or theme() for custom fonts, we use
-    the CSS variables (`--font-lexend` and `--font-inter`)
-    that are already being defined in `app/layout.tsx`.
-  */
+  /* Font styles from original global.css */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-lexend);
   }
 
   body, p, span, div, a, button, input, select, textarea {
     font-family: var(--font-inter);
+  }
+
+  /* Additional body styles from globals.css (error line removed) */
+  body {
+    background-color: #f7f7f7; 
+    color: var(--color-support-dark);
+    /* The problematic "@apply text-support-dark antialiased;" was here and has been removed */
+  }
+
+  /* Copied from globals.css */
+  /* Target the Tailwind Forms plugin styles for a cleaner look */
+  /* Remove default border and shadow on focus to match the sleek UI */
+  .focus\:ring-brand-primary:focus,
+  .focus\:ring-brand-secondary:focus {
+    --tw-ring-shadow: none !important;
   }
 }
