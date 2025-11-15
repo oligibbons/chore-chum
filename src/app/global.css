@@ -7,7 +7,7 @@
 
 @layer base {
   /*
-    FIX: Removed all @apply directives for body, font-sans, etc.
+    FIX: Removed all @apply directives for body.
     This is handled in layout.tsx.
   */
   body {
@@ -15,8 +15,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* These are OK because they are not on the root body */
+  /*
+    FIX: Replaced the broken @apply block with raw CSS.
+    This will apply the 'Lexend' font (via its CSS var) and
+    the 'text-text-primary' color (via @apply, which is fine here)
+    to all headings, fixing the build error permanently.
+  */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-heading text-text-primary;
+    font-family: var(--font-lexend), sans-serif;
+    @apply text-text-primary;
   }
 }

@@ -7,12 +7,12 @@ import './global.css'
 // Define custom fonts using Next.js font optimization
 const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-inter', // Provides var(--font-inter)
 })
 
 const lexend = Lexend({
   subsets: ['latin'],
-  variable: '--font-lexend',
+  variable: '--font-lexend', // Provides var(--font-lexend)
 })
 
 
@@ -27,11 +27,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    // Apply font variables to HTML tag
+    // This applies the CSS variables to the root
     <html lang="en" className={`${inter.variable} ${lexend.variable}`}>
       {/*
-        FIX: Apply background, text, AND font-sans here.
-        This is the correct pattern and fixes the build.
+        This is the correct, final version.
+        It applies the base styles to the body tag.
       */}
       <body className="bg-background text-text-secondary font-sans">
         {children}
