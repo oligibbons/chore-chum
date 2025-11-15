@@ -6,14 +6,12 @@
 @tailwind utilities;
 
 /* Set up the base layer defaults.
-  We apply the clean white background and the dark supporting text colour.
 */
 @layer base {
-  body {
-    /* Use theme() to reference your custom colors from tailwind.config.ts */
-    background-color: theme('colors.brand-white');
-    color: theme('colors.support-dark');
-  }
+  /* The body background and text color styles have been
+    moved to app/layout.tsx as utility classes 
+    to fix the Tailwind build error.
+  */
 
   /* This makes all h1, h2, h3, etc.
     use your bold 'heading' font by default.

@@ -27,7 +27,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${lexend.variable}`}>
-      <body>
+      {/* THIS IS THE FIX: 
+        We apply the background and text colors directly here as utility classes.
+        This avoids the CSS build-order error with @apply or theme() in global.css.
+      */}
+      <body className="bg-brand-white text-support-dark">
         {children}
       </body>
     </html>
