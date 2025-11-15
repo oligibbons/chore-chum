@@ -1,20 +1,18 @@
 // app/(app)/rooms/page.tsx
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
 import { DbRoom } from '@/types/database'
 import { redirect } from 'next/navigation'
 import RoomManager from '@/components/RoomManager'
 
-// --- THIS IS THE FIX ---
 // Tell Next.js to server-render this page
 export const dynamic = 'force-dynamic'
 // Tell Cloudflare to use the Edge Runtime
 export const runtime = 'edge'
-// --- END OF FIX ---
 
 // Helper function to fetch the user's rooms
 async function getRooms() {
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseClient() // <-- UPDATED
 
   // Get user
   const {

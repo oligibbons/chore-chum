@@ -1,46 +1,78 @@
-// app/layout.tsx
+// app/(app)/layout.tsx
 
-import type { Metadata } from 'next'
-// Import the fonts from Google Fonts
-import { Inter, Lexend } from 'next/font/google'
-import './globals.css'
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
+import { redirect } from 'next/navigation'
+import { signOut } from '@/app/actions'
+import Link from 'next/link' // Import Link
 
-// Configure the 'Inter' font (for body/sans-serif text)
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-inter', // CSS variable name
-  weight: ['300', '400', '500'], // Light, Regular, Medium
-})
-
-// Configure the 'Lexend' font (for heading text)
-const lexend = Lexend({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-lexend', // CSS variable name
-  weight: ['600', '700', '800'], // Bold weights
-})
-
-// Metadata for your app (good for SEO and browser tabs)
-export const metadata: Metadata = {
-  title: 'ChoreChum - Your Household Chore Planner',
-  description: 'Manage your household chores with ease. Join a household, assign tasks, and get things done together.',
-}
-
-// This is the RootLayout that wraps every page
-export default function RootLayout({
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const supabase = createSupabaseClient() // <-- UPDATED
+
+  // Check for an active session
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  // If no session, redirect to the homepage
+  if (!session) {
+    redirect('/')
+  }
+
+  // If we have a session, show the protected app layout
   return (
-    <html lang="en-GB">
-      {/* This applies the font variables to the <html> tag,
-        making them available for Tailwind's 'font-sans' and 'font-heading' classes.
-      */}
-      <body className={`${inter.variable} ${lexend.variable}`}>
-        {children}
-      </body>
-    </html>
+    <div className="flex min-h-screen flex-col">
+      {/* App Header */}
+      <header className="flex flex-col items-center border-b border-support-light bg-brand-white px-6 py-4 sm:flex-row">
+        <div className="flex w-full items-center justify-between sm:w-auto">
+          <Link href="/dashboard" legacyBehavior={false}>
+            <h1 className="text-2xl font-heading font-bold text-brand-primary">
+              ChoreChum
+            </h1>
+          </Link>
+          {/* Sign Out Button (visible on mobile, hidden on sm+) */}
+          <form action={signOut} className="sm:hidden">
+            <button
+              type="submit"
+              className="rounded-lg bg-support-dark px-3 py-1.5 font-heading text-sm font-semibold text-brand-white transition-colors hover:bg-brand-primary"
+            >
+              Sign Out
+            </button>
+          </form>
+        </div>
+
+        {/* Main Navigation */}
+        <nav className="mt-4 flex w-full flex-1 items-center justify-center gap-4 sm:mt-0 sm:justify-end">
+          <Link
+            href="/dashboard"
+            className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/rooms"
+            className="rounded-lg px-3 py-2 font-heading text-base font-medium text-support-dark transition-colors hover:bg-support-light/50"
+          >
+            Rooms
+          </Link>
+          
+          {/* Sign Out Button (hidden on mobile, visible on sm+) */}
+          <form action={signOut} className="hidden sm:block">
+            <button
+              type="submit"
+              className="rounded-lg bg-support-dark px-4 py-2 font-heading text-sm font-semibold text-brand-white transition-colors hover:bg-brand-primary"
+            >
+              Sign Out
+            </button>
+          </form>
+        </nav>
+      </header>
+
+      {/* Main content area */}
+      <main className="flex-1 bg-gray-50 p-4 sm:p-8">{children}</main>
+    </div>
   )
 }

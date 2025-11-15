@@ -1,14 +1,9 @@
 // src/app/household-actions.ts
 'use server'
 
-// --- THIS IS THE FIX ---
-import { createSupabaseServerActionClient } from '@/lib/supabase/server'
-// --- END OF FIX ---
-
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
-
-// --- REMOVED old client helper and SupabaseClient import ---
 
 // Helper function to generate a random 6-character code
 function generateInviteCode(): string {
@@ -26,7 +21,7 @@ export async function createHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() // --- FIX ---
+  const supabase = createSupabaseClient() // <-- UPDATED
   const householdName = formData.get('householdName') as string
 
   // 1. Get the current user
@@ -104,7 +99,7 @@ export async function joinHousehold(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const supabase = createSupabaseServerActionClient() // --- FIX ---
+  const supabase = createSupabaseClient() // <-- UPDATED
   const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
 
   // 1. Get the current user

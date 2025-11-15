@@ -1,11 +1,11 @@
 // app/actions.ts
 'use server' // Defines this as a Server Actions file
 
-import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
 import { redirect } from 'next/navigation'
 
 export async function signOut() {
-  const supabase = createSupabaseServerActionClient()
+  const supabase = createSupabaseClient() // <-- UPDATED
   
   // Sign the user out
   await supabase.auth.signOut()

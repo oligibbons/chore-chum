@@ -1,20 +1,18 @@
 // app/(app)/dashboard/page.tsx
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseClient } from '@/lib/supabase/server' // <-- UPDATED
 import { redirect } from 'next/navigation'
 import HouseholdManager from '@/components/HouseholdManager'
 import ChoreDisplay from '@/components/ChoreDisplay'
 import { getHouseholdData } from '@/app/chore-actions'
 
-// --- THIS IS THE FIX ---
 // Tell Next.js to server-render this page
 export const dynamic = 'force-dynamic'
 // Tell Cloudflare to use the Edge Runtime
 export const runtime = 'edge'
-// --- END OF FIX ---
 
 export default async function DashboardPage() {
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseClient() // <-- UPDATED
 
   const {
     data: { user },
