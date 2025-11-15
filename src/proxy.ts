@@ -19,10 +19,7 @@ export async function proxy(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // --- THIS IS THE FIX ---
-          // request.cookies.set expects a single object
           request.cookies.set({ name, value, ...options })
-          // --- END OF FIX ---
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -32,15 +29,15 @@ export async function proxy(request: NextRequest) {
         },
         remove(name: string, options: CookieOptions) {
           // --- THIS IS THE FIX ---
-          // Use request.cookies.delete and response.cookies.delete
-          request.cookies.delete({ name, ...options })
+          // request.cookies.delete just takes the name as a string
+          request.cookies.delete(name)
+          // --- END OF FIX ---
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
           response.cookies.delete({ name, ...options })
-          // --- END OF FIX ---
         },
       },
     }
