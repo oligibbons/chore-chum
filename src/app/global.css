@@ -8,22 +8,19 @@
 /* Set up the base layer defaults.
 */
 @layer base {
-  /* The body background and text color styles have been
-    moved to app/layout.tsx as utility classes 
-    to fix the Tailwind build error.
+  /* The body background and text color styles are applied
+     in app/layout.tsx as utility classes.
   */
 
-  /* This makes all h1, h2, h3, etc.
-    use your bold 'heading' font by default.
+  /* THIS IS THE FIX:
+    Use theme() to reference your custom font families
+    from tailwind.config.ts instead of @apply.
   */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-heading;
+    font-family: theme('fontFamily.heading');
   }
 
-  /* This makes all other text (p, span, div, etc.)
-    use your light 'sans' font by default.
-  */
   body, p, span, div, a, button, input, select, textarea {
-    @apply font-sans;
+    font-family: theme('fontFamily.sans');
   }
 }
