@@ -11,13 +11,13 @@ export const dynamic = 'force-dynamic'
 export default async function HomePage() {
   const supabase = await createSupabaseClient() 
 
-  // Check for an active session
+  // FIX: Use .getUser() instead of .getSession()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
   // If the user is already logged in, send them to the main app dashboard
-  if (session) {
+  if (user) { // <-- Check for 'user' instead of 'session'
     return redirect('/dashboard')
   }
 

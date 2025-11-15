@@ -9,31 +9,32 @@ import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
-import EditChoreModal from '@/components/EditChoreModal' // <-- Import EditChoreModal
-import { ChoreWithDetails } from '@/types/database' // <-- Import ChoreWithDetails
+import EditChoreModal from '@/components/EditChoreModal'
+import { ChoreWithDetails } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { modal: string; choreId?: string } // <-- Add choreId
+  searchParams: { modal: string; choreId?: string }
 }) {
   const supabase = await createSupabaseClient()
   
-  // 1. Get session and profile
+  // 1. Get user and profile
+  // FIX: Use .getUser() instead of .getSession()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) { // <-- Check for 'user'
     redirect('/')
   }
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
-    .eq('id', session.user.id)
+    .eq('id', user.id) // <-- Use user.id (which is now guaranteed to exist)
     .single()
 
   if (!profile) {
@@ -59,7 +60,6 @@ export default async function DashboardPage({
   // 4. Logic for Edit Modal
   let editChore: ChoreWithDetails | null = null
   if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
-    // Find the chore to edit from the data we already fetched
     const allChores = [...data.overdue, ...data.dueSoon, ...data.upcoming]
     editChore = allChores.find(c => c.id === Number(searchParams.choreId)) || null
   }

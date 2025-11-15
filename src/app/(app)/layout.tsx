@@ -12,17 +12,17 @@ export default async function AppLayout({
 }) {
   const supabase = await createSupabaseClient()
 
-  // Check for an active session
+  // FIX: Use .getUser() instead of .getSession()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  // If no session, redirect to the homepage
-  if (!session) {
+  // If no user, redirect to the homepage
+  if (!user) { // <-- Check for 'user' instead of 'session'
     redirect('/')
   }
 
-  // If we have a session, show the protected app layout
+  // If we have a user, show the protected app layout
   return (
     <div className="flex min-h-screen flex-col">
       
