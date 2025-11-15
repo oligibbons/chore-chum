@@ -18,7 +18,7 @@ const lexend = Lexend({
 
 export const metadata: Metadata = {
   title: 'ChoreChum | Home Organization Simplified',
-  description: 'The simplest way to manage your household chores, assign tasks, and get things done together.',
+  description: 'The simplest way to manage your household tasks, assign tasks, and get things done together.',
 }
 
 export default function RootLayout({
@@ -27,9 +27,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    // Apply font variables to HTML tag for global use in Tailwind
+    // Apply font variables to HTML tag
     <html lang="en" className={`${inter.variable} ${lexend.variable}`}>
-      <body>
+      {/*
+        FIX: Apply background and text colors here.
+        This fixes the "Cannot apply unknown utility class" error.
+      */}
+      <body className="bg-background text-text-secondary">
         {children}
       </body>
     </html>

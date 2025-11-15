@@ -6,21 +6,16 @@
 @tailwind utilities;
 
 @layer base {
-  /* Apply our new sleek foundation:
-    1. Set the page background to our new 'background' color.
-    2. Set the default text to our new 'text-secondary' color.
-    3. Enable anti-aliasing for smooth, Apple-like fonts.
+  /*
+    FIX: Removed the @apply directive.
+    We will apply bg-background and text-text-secondary in layout.tsx
   */
   body {
-    @apply bg-background text-text-secondary;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Set default font families:
-    - 'Inter' (font-sans) for the whole app
-    - 'Lexend' (font-heading) for all headings
-  */
+  /* Set default font families */
   body, input, textarea, select, button {
     @apply font-sans;
   }
