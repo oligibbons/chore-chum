@@ -1,6 +1,9 @@
 name = "chore-chum"
 compatibility_date = "2024-05-01"
 
-# This flag enables the Node.js compatibility layer on Cloudflare
-# and fixes the runtime error you were seeing.
+# This flag enables the Node.js compatibility layer
 compatibility_flags = [ "nodejs_compat" ]
+
+# This property is required by Cloudflare Pages to validate this file
+# and apply the compatibility flags during the build.
+pages_build_output_dir = ".open-next"
