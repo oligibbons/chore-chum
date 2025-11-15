@@ -1,4 +1,4 @@
-// app/(app)/dashboard/page.tsx
+// src/app/(app)/dashboard/page.tsx
 
 import { redirect } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/server'
@@ -21,39 +21,39 @@ export default async function DashboardPage({
 }) {
   const supabase = await createSupabaseClient()
   
-  // 1. Get user and profile
-  // FIX: Use .getUser() here, not .getSession()
+  // 1. Get user (This is safe, middleware protects this)
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) { // <-- Check for 'user'
-    // This redirect is a safety net; the layout should have already caught this.
+  if (!user) {
+    // This should never be hit if middleware is correct, but as a fallback.
     redirect('/')
   }
 
+  // 2. Get profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
-    .eq('id', user.id) // <-- This is now safe because we know 'user' exists
+    .eq('id', user.id)
     .single()
 
-  if (!profile) {
-    // This can happen if the user's profile wasn't created properly
-    redirect('/')
-  }
-
-  // 2. Check if user is in a household
-  const householdId = profile.household_id
-  if (!householdId) {
+  // --- THIS IS THE CRITICAL FIX ---
+  // If the user has no profile OR their profile has no household_id,
+  // they need to create or join one. Show the HouseholdManager.
+  // This STOPS the redirect loop.
+  if (!profile || !profile.household_id) {
     return (
       <div className="py-12 flex items-center justify-center">
         <HouseholdManager />
       </div>
     )
   }
+  // --- END FIX ---
 
-  // 3. Fetch all data for the dashboard
+  // 3. User has a profile and a household. Load the dashboard.
+  const householdId = profile.household_id
+
   const [data, roomData] = await Promise.all([
     getChoreDisplayData(householdId),
     getRoomsAndMembers(householdId),
@@ -66,11 +66,10 @@ export default async function DashboardPage({
     editChore = allChores.find(c => c.id === Number(searchParams.choreId)) || null
   }
 
-  // --- UI Overhaul: Modern Grid Layout ---
+  // --- Render the full dashboard ---
   return (
     <div className="space-y-10">
       
-      {/* Dashboard Header: Clean, Prominent Title and Purple CTA */}
       <header className="mb-6 flex items-center justify-between">
         <h2 className="font-heading text-4xl font-bold text-support-dark">
           Your Dashboard
@@ -86,10 +85,7 @@ export default async function DashboardPage({
         </Link>
       </header>
 
-      {/* Main Content Area: Chore Status Groups in a modern 3-column grid */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        
-        {/* Overdue Chores */}
         <div className="lg:col-span-1">
           <ChoreDisplay 
             title="Overdue" 
@@ -98,8 +94,6 @@ export default async function DashboardPage({
             showActions={true}
           />
         </div>
-
-        {/* Due Soon Chores */}
         <div className="lg:col-span-1">
           <ChoreDisplay 
             title="Due Soon" 
@@ -108,8 +102,6 @@ export default async function DashboardPage({
             showActions={true}
           />
         </div>
-
-        {/* Assigned/Unassigned Chores (The 'Backlog') */}
         <div className="lg:col-span-1">
           <ChoreDisplay 
             title="Upcoming" 
@@ -120,7 +112,6 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {/* Add Chore Modal */}
       {searchParams.modal === 'add-chore' && (
         <AddChoreModal
           isOpen={true}
@@ -131,7 +122,6 @@ export default async function DashboardPage({
         />
       )}
 
-      {/* Edit Chore Modal (NEW) */}
       {searchParams.modal === 'edit-chore' && editChore && (
         <EditChoreModal
           isOpen={true}
