@@ -1,25 +1,34 @@
-// components/ChoreDisplay.tsx
+// src/components/ChoreDisplay.tsx
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
-import ChoreItem from './ChoreItem'
+import ChoreItem from './ChoreItem' // This will be redesigned in Batch 3
+import { AlertOctagon, AlertTriangle, Calendar } from 'lucide-react' // Icons for headers
 
 type Props = {
   title: string
   chores: ChoreWithDetails[]
-  status: string
-  showActions: boolean
+  status: 'overdue' | 'due' | 'upcoming'
 }
 
-// Helper to map status to Tailwind classes for the titles
-const getStatusClasses = (status: string): string => {
+// Helper to get styling for each column
+const getStatusConfig = (status: Props['status']) => {
   switch (status) {
     case 'overdue':
-      return 'border-b-2 border-status-overdue/20 text-status-overdue'
-    case 'due-soon':
-      return 'border-b-2 border-status-due-soon/20 text-status-due-soon'
+      return {
+        icon: <AlertOctagon className="h-5 w-5 text-status-overdue" />,
+        pillClasses: 'bg-status-overdue/10 text-status-overdue',
+      }
+    case 'due':
+      return {
+        icon: <AlertTriangle className="h-5 w-5 text-status-due" />,
+        pillClasses: 'bg-status-due/10 text-status-due',
+      }
     default:
-      return 'border-b-2 border-support-light/50 text-support-dark'
+      return {
+        icon: <Calendar className="h-5 w-5 text-text-secondary" />,
+        pillClasses: 'bg-gray-100 text-text-secondary',
+      }
   }
 }
 
@@ -27,36 +36,51 @@ export default function ChoreDisplay({
   title,
   chores,
   status,
-  showActions,
 }: Props) {
-  const classes = getStatusClasses(status)
+  const config = getStatusConfig(status)
 
   return (
-    <div>
-      {/* Sleek, modern column headers */}
-      <h3 className={`mb-4 pb-2 font-heading text-2xl font-semibold ${classes}`}>
-        {title}
-      </h3>
+    // NEW: Column layout
+    <div className="flex flex-col space-y-4">
+      
+      {/* NEW: Playful header with pill count */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          {config.icon}
+          <h3 className="font-heading text-xl font-semibold text-text-primary">
+            {title}
+          </h3>
+        </div>
+        <span 
+          className={`rounded-full px-3 py-0.5 text-sm font-bold ${config.pillClasses}`}
+        >
+          {chores.length}
+        </span>
+      </div>
+
+      {/* Chore list or empty state */}
       {chores.length > 0 ? (
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {chores.map((chore) => (
             <ChoreItem
               key={chore.id}
               chore={chore}
               status={status}
-              showActions={showActions}
+              showActions={true} // We'll use this in the new card
             />
           ))}
         </ul>
       ) : (
-        // Clean "empty" state card
-        <p className="rounded-xl border border-dashed border-support-light p-8 text-center text-support-dark/60">
-          {status === 'overdue'
-            ? 'Nothing overdue!'
-            : status === 'due-soon'
-            ? 'Nothing due soon!'
-            : 'Nothing upcoming!'}
-        </p>
+        // NEW: Clean "empty" state card
+        <div className="rounded-xl border-2 border-dashed border-border bg-card/50 p-8 text-center">
+          <p className="font-medium text-text-secondary">
+            {status === 'overdue'
+              ? 'Nothing overdue. Nice!'
+              : status === 'due'
+              ? 'Nothing due soon!'
+              : 'All caught up!'}
+          </p>
+        </div>
       )}
     </div>
   )

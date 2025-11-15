@@ -1,4 +1,4 @@
-// app/(app)/dashboard/page.tsx
+// src/app/(app)/dashboard/page.tsx
 
 import { redirect } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/server'
@@ -31,10 +31,11 @@ export default async function DashboardPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('household_id')
+    .select('household_id, full_name') // Get full_name for the welcome message
     .eq('id', user.id)
     .single()
 
+  // This logic is still correct from the auth fix
   if (!profile || !profile.household_id) {
     return (
       <div className="py-12 flex items-center justify-center">
@@ -44,6 +45,7 @@ export default async function DashboardPage({
   }
 
   const householdId = profile.household_id
+  const userName = profile.full_name?.split(' ')[0] || 'User' // Get user's first name
 
   const [data, roomData] = await Promise.all([
     getChoreDisplayData(householdId),
@@ -56,35 +58,28 @@ export default async function DashboardPage({
     editChore = allChores.find(c => c.id === Number(searchParams.choreId)) || null
   }
 
-  // --- NEW UI ---
+  // --- NEW "PLAYFUL" UI ---
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       
-      {/* Dashboard Header: Clean, Prominent Title and Purple CTA */}
-      <header className="mb-6 flex items-center justify-between">
-        <h2 className="font-heading text-4xl font-bold text-support-dark">
-          Your Dashboard
+      {/* 1. NEW Dashboard Header: Playful & Welcoming */}
+      <header className="mb-6">
+        <h2 className="text-4xl font-heading font-bold text-text-primary">
+          Welcome back, {userName}! 👋
         </h2>
-        
-        <Link 
-          href="?modal=add-chore"
-          scroll={false} 
-          className="flex items-center rounded-xl bg-brand-primary px-5 py-3 font-heading text-base font-semibold text-brand-white shadow-lg transition-colors hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
-        >
-          <Plus className="mr-2 h-5 w-5" />
-          Add Chore
-        </Link>
+        <p className="mt-1 text-lg text-text-secondary">
+          Here’s what’s on the list for today.
+        </p>
       </header>
 
-      {/* Main Content Area: Spacious 3-column grid */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      {/* 2. Main Content Area: Spacious 3-column grid */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         
         <div className="lg:col-span-1">
           <ChoreDisplay 
             title="Overdue" 
             chores={data.overdue} 
             status="overdue" 
-            showActions={true}
           />
         </div>
 
@@ -92,8 +87,7 @@ export default async function DashboardPage({
           <ChoreDisplay 
             title="Due Soon" 
             chores={data.dueSoon} 
-            status="due-soon" 
-            showActions={true}
+            status="due" 
           />
         </div>
 
@@ -102,13 +96,23 @@ export default async function DashboardPage({
             title="Upcoming" 
             chores={data.upcoming} 
             status="upcoming" 
-            showActions={true}
           />
         </div>
       </div>
+
+      {/* 3. NEW Floating Action Button (FAB) for "Add Chore" */}
+      <Link 
+        href="?modal=add-chore"
+        scroll={false} 
+        className="fixed bottom-8 right-8 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-brand shadow-lg transition-transform hover:scale-105 active:scale-95"
+        aria-label="Add new chore"
+      >
+        <Plus className="h-8 w-8 text-white" />
+      </Link>
       {/* --- END NEW UI --- */}
 
-      {/* Modals (No change, but they will look better with the new form styles) */}
+
+      {/* Modals: No change, but they will inherit the new styles */}
       {searchParams.modal === 'add-chore' && (
         <AddChoreModal
           isOpen={true}

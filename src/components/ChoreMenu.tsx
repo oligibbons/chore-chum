@@ -1,4 +1,4 @@
-// components/ChoreMenu.tsx
+// src/components/ChoreMenu.tsx
 'use client'
 
 import { Fragment, useTransition } from 'react'
@@ -29,7 +29,7 @@ export default function ChoreMenu({ chore }: Props) {
         {/* Subtle menu button */}
         <Menu.Button 
           disabled={isPending}
-          className="rounded-full p-2 text-support-dark/60 transition-all hover:bg-support-light/50 hover:text-support-dark disabled:opacity-50"
+          className="rounded-full p-2 text-text-secondary transition-all hover:bg-background hover:text-text-primary disabled:opacity-50"
           aria-label="Chore actions menu"
         >
           <MoreVertical className="h-5 w-5" />
@@ -45,8 +45,8 @@ export default function ChoreMenu({ chore }: Props) {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        {/* Modern Menu Card: Rounded corners, shadow */}
-        <Menu.Items className="absolute right-0 z-30 mt-2 w-48 origin-top-right divide-y divide-support-light/50 rounded-xl bg-brand-white shadow-xl ring-1 ring-black/5 focus:outline-none">
+        {/* Modern Menu Card: White, rounded, border, and shadow */}
+        <Menu.Items className="absolute right-0 z-30 mt-1 w-48 origin-top-right divide-y divide-border rounded-xl bg-card shadow-card ring-1 ring-border focus:outline-none">
           <div className="p-1">
             <Menu.Item>
               {({ active, close }) => (
@@ -54,11 +54,11 @@ export default function ChoreMenu({ chore }: Props) {
                   href={`?modal=edit-chore&choreId=${chore.id}`}
                   scroll={false}
                   className={`group flex w-full items-center rounded-lg p-2 text-sm font-medium ${
-                    active ? 'bg-brand-primary text-brand-white' : 'text-support-dark'
+                    active ? 'bg-brand-light text-brand-dark' : 'text-text-primary'
                   }`}
                   onClick={close}
                 >
-                  <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
+                  <Edit className="mr-2 h-4 w-4 text-text-secondary group-hover:text-brand-dark" aria-hidden="true" />
                   Edit Chore
                 </Link>
               )}
@@ -70,8 +70,7 @@ export default function ChoreMenu({ chore }: Props) {
                 <button
                   onClick={handleDelete}
                   className={`group flex w-full items-center rounded-lg p-2 text-sm font-medium ${
-                    // Highlight delete red for clear action
-                    active ? 'bg-status-overdue text-brand-white' : 'text-status-overdue'
+                    active ? 'bg-status-overdue/10 text-status-overdue' : 'text-status-overdue'
                   }`}
                 >
                   <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />

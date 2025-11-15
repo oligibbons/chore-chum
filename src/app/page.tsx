@@ -1,48 +1,48 @@
-// app/page.tsx
+// src/app/page.tsx
 
 import AuthForm from '@/components/AuthForm'
+import { ClipboardCheck } from 'lucide-react' // A charming icon!
 
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   
-  // --- ALL AUTH AND REDIRECT LOGIC REMOVED ---
-  // The middleware now handles this.
+  // No auth logic needed, middleware handles it!
 
   return (
-    <div className="flex min-h-screen bg-brand-white">
-      
-      {/* Left Side: Hero Text */}
-      <div className="flex w-full items-center justify-center p-8 lg:w-1/2 lg:p-12">
-        <div className="mx-auto w-full max-w-lg space-y-12 text-center lg:text-left">
-          <header>
-            <h1 className="text-4xl font-heading font-extrabold text-brand-primary sm:text-5xl">
-              ChoreChum
-            </h1>
-          </header>
-          <div className="space-y-6">
-            <h2 className="font-heading text-5xl font-extrabold text-support-dark sm:text-6xl">
+    // NEW: Full-screen, centered layout
+    <div className="flex min-h-screen items-center justify-center bg-background p-4 sm:p-8">
+      <div className="mx-auto w-full max-w-4xl">
+        
+        {/* NEW: Modern card-based grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
+          
+          {/* Left Side: Charming Welcome Message */}
+          <div className="space-y-6 text-center md:text-left">
+            <div className="inline-block rounded-full bg-brand-light p-4 text-brand">
+              <ClipboardCheck className="h-12 w-12" />
+            </div>
+            
+            <h1 className="text-4xl lg:text-5xl font-heading font-bold text-text-primary">
               Stop arguing.
               <br />
-              <span className="text-brand-primary">Start organising.</span>
-            </h2>
-            <p className="text-xl text-support-dark/80">
+              <span className="text-brand">Start organising.</span>
+            </h1>
+            <p className="text-lg text-text-secondary">
               Welcome to the simplest way to manage your household tasks,
               assign responsibilities, and get things done together.
             </p>
           </div>
+
+          {/* Right Side: Login Form in a Card */}
+          <main className="w-full max-w-md rounded-2xl bg-card p-8 shadow-card border border-border mx-auto">
+            <h2 className="mb-6 font-heading text-xl font-semibold text-text-primary text-center">
+              Sign in to your household
+            </h2>
+            <AuthForm />
+          </main>
         </div>
       </div>
-
-      {/* Right Side: Login Form */}
-      <main className="flex w-full items-center justify-center bg-support-light/10 p-8 lg:w-1/2 lg:p-12">
-        <div className="w-full max-w-md rounded-xl bg-brand-white p-6 shadow-2xl ring-1 ring-support-light/50 sm:p-10">
-          <p className="mb-8 text-center font-heading text-xl font-medium text-support-dark/80">
-            Sign in to your household.
-          </p>
-          <AuthForm />
-        </div>
-      </main>
     </div>
   )
 }

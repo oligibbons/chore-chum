@@ -1,6 +1,5 @@
-// components/AuthForm.tsx
-
-'use client' // This MUST be a Client Component
+// src/components/AuthForm.tsx
+'use client'
 
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -18,9 +17,7 @@ export default function AuthForm() {
       process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this in Vercel/Cloudflare
       process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel
       'http://localhost:3000/'
-    // Make sure to include `https://` when not localhost.
     url = url.includes('http') ? url : `https://${url}`
-    // Make sure to include a trailing `/`.
     url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
     return url
   }
@@ -30,47 +27,43 @@ export default function AuthForm() {
       supabaseClient={supabase}
       providers={['google', 'apple']}
       magicLink
-      // We need to tell the Auth helper where our callback route is
       redirectTo={`${getURL()}auth/callback`}
       appearance={{
-        theme: ThemeSupa, // Start with the default Supabase theme
+        theme: ThemeSupa,
+        // --- NEW "CHARMING" THEME ---
         variables: {
-          // ...and override it with your brand colours
           default: {
             colors: {
-              // Primary Purple: #ad8ae1 (new brand-primary)
-              brand: '#ad8ae1',
-              // Secondary Red/Accent: #b02e46 (new brand-secondary)
-              brandAccent: '#b02e46', 
-              brandButtonText: '#FFFFFF',
-              defaultButtonBackground: '#FFFFFF',
-              defaultButtonBackgroundHover: '#f9f9f9',
-              defaultButtonBorder: '#cccecf',
-              defaultButtonText: '#303030',
-              inputBackground: '#FFFFFF',
-              inputBorder: '#cccecf',
-              inputBorderHover: '#ad8ae1', // Purple hover border
-              inputBorderFocus: '#ad8ae1', // Purple focus border
-              inputText: '#303030',
-              messageText: '#303030',
-              messageTextDanger: '#D92D20',
+              brand: 'hsl(252, 75%, 60%)',
+              brandAccent: 'hsl(252, 75%, 50%)',
+              brandButtonText: 'white',
+              defaultButtonBackground: 'white',
+              defaultButtonBackgroundHover: 'hsl(210, 40%, 98%)',
+              defaultButtonBorder: 'hsl(214, 32%, 91%)',
+              defaultButtonText: 'hsl(215, 10%, 45%)',
+              inputBackground: 'hsl(210, 40%, 98%)',
+              inputBorder: 'hsl(214, 32%, 91%)',
+              inputBorderHover: 'hsl(252, 75%, 60%)',
+              inputBorderFocus: 'hsl(252, 75%, 60%)',
+              inputText: 'hsl(224, 20%, 13%)',
+              messageText: 'hsl(215, 10%, 45%)',
+              messageTextDanger: 'hsl(350, 78%, 60%)',
             },
             fonts: {
-              bodyFontFamily: 'var(--font-inter)',
-              buttonFontFamily: 'var(--font-lexend)',
-              labelFontFamily: 'var(--font-lexend)',
+              bodyFontFamily: 'var(--font-inter), sans-serif',
+              buttonFontFamily: 'var(--font-lexend), sans-serif',
+              labelFontFamily: 'var(--font-lexend), sans-serif',
             },
             fontSizes: {
               baseLabelSize: '0.875rem',
             },
             radii: {
-              borderRadiusButton: '8px',
-              inputBorderRadius: '8px',
+              borderRadiusButton: '12px',
+              inputBorderRadius: '12px',
             },
           },
         },
       }}
-      // Use British English for all UI text
       localization={{
         variables: {
           sign_in: {

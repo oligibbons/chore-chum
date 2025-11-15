@@ -1,46 +1,31 @@
-/* app/global.css */
+/* src/app/global.css */
 
 /* Imports the base styles for Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Set up the base layer defaults.
-*/
 @layer base {
-  /* Define CSS vars for colors */
-  :root {
-    --color-brand-primary: #ad8ae1; 
-    --color-support-dark: #303030;
-    
-    /* NEW: Define our background color */
-    --color-background: #f9fafb;
-  }
-
-  /* Set default fonts */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-lexend);
-  }
-
-  body, p, span, div, a, button, input, select, textarea {
-    font-family: var(--font-inter);
-  }
-
-  /* THIS IS THE KEY:
-    - Set the main body background to our new light gray
-    - Set default text to dark
-    - Enable anti-aliasing for smooth, modern fonts
+  /* Apply our new sleek foundation:
+    1. Set the page background to our new 'background' color.
+    2. Set the default text to our new 'text-secondary' color.
+    3. Enable anti-aliasing for smooth, Apple-like fonts.
   */
   body {
-    background-color: var(--color-background); 
-    color: var(--color-support-dark);
+    @apply bg-background text-text-secondary;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Target the Tailwind Forms plugin styles for a cleaner look */
-  .focus\:ring-brand-primary:focus,
-  .focus\:ring-brand-secondary:focus {
-    --tw-ring-shadow: none !important;
+  /* Set default font families:
+    - 'Inter' (font-sans) for the whole app
+    - 'Lexend' (font-heading) for all headings
+  */
+  body, input, textarea, select, button {
+    @apply font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading text-text-primary;
   }
 }

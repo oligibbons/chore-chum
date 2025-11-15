@@ -1,4 +1,4 @@
-// app/(app)/rooms/page.tsx
+// src/app/(app)/rooms/page.tsx
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
 import { RoomWithChoreCount } from '@/types/database'
@@ -14,7 +14,7 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/')
+    redirect('/') // Should be caught by middleware, but good safety.
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -58,20 +58,20 @@ export default async function RoomsPage() {
   const rooms = await getRooms()
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       
-      {/* NEW: Sleek Page Header */}
+      {/* --- NEW: Sleek Page Header --- */}
       <header className="mb-6">
-        <h2 className="font-heading text-4xl font-bold text-support-dark">
-          Room Management
+        <h2 className="text-4xl font-heading font-bold text-text-primary">
+          Household Rooms
         </h2>
-        <p className="mt-1 text-lg max-w-2xl text-support-dark/80">
-          Add or remove rooms for your household. These will appear in the "Add
-          Chore" form, making it easy to assign tasks to a location.
+        <p className="mt-1 text-lg max-w-2xl text-text-secondary">
+          Manage the locations in your home. Rooms help you assign chores
+          to a specific place.
         </p>
       </header>
+      {/* --- END NEW HEADER --- */}
 
-      {/* Client component to handle interactivity */}
       <RoomManager rooms={rooms} />
     </div>
   )
