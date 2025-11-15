@@ -7,8 +7,7 @@ import { ArrowRight } from 'lucide-react'
 
 // Tell Next.js to server-render this page
 export const dynamic = 'force-dynamic'
-// Tell Cloudflare to use the Edge Runtime
-export const runtime = 'edge'
+
 
 export default async function HomePage() {
   const supabase = await createSupabaseClient() 

@@ -7,8 +7,7 @@ import RoomManager from '@/components/RoomManager'
 
 // Tell Next.js to server-render this page
 export const dynamic = 'force-dynamic'
-// Tell Cloudflare to use the Edge Runtime
-export const runtime = 'edge'
+
 
 // Helper function to fetch the user's rooms
 async function getRooms() {

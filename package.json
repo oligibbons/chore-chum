@@ -23,7 +23,8 @@
     "rrule": "^2.8.1"
   },
   "devDependencies": {
-    "opennext": "^3.0.4",
+    "@opennextjs/cloudflare": "^3.0.4",
+    "wrangler": "^3.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",

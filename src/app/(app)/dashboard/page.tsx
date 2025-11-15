@@ -8,8 +8,7 @@ import { getHouseholdData } from '@/app/chore-actions'
 
 // Tell Next.js to server-render this page
 export const dynamic = 'force-dynamic'
-// Tell Cloudflare to use the Edge Runtime
-export const runtime = 'edge'
+
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseClient() 
