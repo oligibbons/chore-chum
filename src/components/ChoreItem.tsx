@@ -42,7 +42,10 @@ const formatDate = (dateString: string | null | undefined): string => {
 
 export default function ChoreItem({ chore, showActions, status }: Props) { // <-- Removed onEdit
   const [isPending, startTransition] = useTransition()
-  const isCompleted = chore.completed_instances === chore.target_instances
+  
+  // <-- PROACTIVE FIX: Use '??' to safely handle nulls for this check
+  const isCompleted = chore.completed_instances === (chore.target_instances ?? 1)
+  
   const classes = getStatusClasses(status, isCompleted)
 
   const handleToggleCompletion = () => {
@@ -88,9 +91,16 @@ export default function ChoreItem({ chore, showActions, status }: Props) { // <-
         <div className="flex flex-col space-y-0.5">
           <h4 className="font-heading text-lg font-semibold text-support-dark">
             {chore.name}
-            {chore.target_instances > 1 && (
+            
+            {/* FIX 1/2: This was the build error. 
+              Use '?? 1' to safely check if target_instances is greater than 1.
+            */}
+            {(chore.target_instances ?? 1) > 1 && (
               <span className="ml-2 rounded-full bg-support-dark/10 px-2 py-0.5 text-xs font-medium text-support-dark">
-                {chore.completed_instances}/{chore.target_instances}
+                {/* FIX 2/2: This was the next error.
+                  Use '?? 0' for completed and '?? 1' for target to safely render.
+                */}
+                {chore.completed_instances ?? 0}/{chore.target_instances ?? 1}
               </span>
             )}
           </h4>
