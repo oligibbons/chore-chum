@@ -1,9 +1,9 @@
-// src/proxy.ts
+// src/middleware.ts
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -56,8 +56,6 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
-  // --- THIS IS THE FIX ---
-  // Add the edge runtime config for Cloudflare
+  // This config is correct for middleware
   runtime: 'edge',
-  // --- END OF FIX ---
 }
