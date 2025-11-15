@@ -1,9 +1,11 @@
-// src/middleware.ts
+// src/proxy.ts
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
-export async function middleware(request: NextRequest) {
+// --- THIS IS THE FIX ---
+export async function proxy(request: NextRequest) {
+// --- END OF FIX ---
   let response = NextResponse.next({
     request: {
       headers: request.headers,
