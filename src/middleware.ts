@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
+export const dynamic = 'force-dynamic' // Ensure it's not statically built
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -10,9 +12,15 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  // 🔑 DEFINITIVE FIX: Use un-prefixed names (Cloudflare standard) 
+  // with fallback to NEXT_PUBLIC_ for local development compatibility.
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl, // <-- Using the robust variable here
+    supabaseAnonKey, // <-- Using the robust variable here
     {
       cookies: {
         get(name: string) {
