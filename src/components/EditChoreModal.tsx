@@ -9,12 +9,10 @@ import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useFormStatus } from 'react-dom'
 
 // --- New EditForm Component ---
-// This component contains the form itself.
-// This is necessary so we can use the `useFormStatus` hook.
-
 type EditFormProps = {
   onClose: () => void
   chore: ChoreWithDetails
+  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
@@ -186,12 +184,11 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
 
 
 // --- Main Modal Component ---
-// This is the wrapper that controls the modal state.
-
 type Props = {
   isOpen: boolean
   onClose: () => void
   chore: ChoreWithDetails
+  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
@@ -204,7 +201,6 @@ export default function EditChoreModal({
   rooms,
 }: Props) {
 
-  // This state is just to optimistically close the modal
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleFormSubmit = async (formData: FormData) => {
@@ -262,10 +258,6 @@ export default function EditChoreModal({
                 </div>
                 
                 <div className="mt-6">
-                  {/*
-                    We wrap the EditForm in a <form> tag here and pass the 
-                    server action. This lets useFormStatus work inside.
-                  */}
                   <form action={handleFormSubmit}>
                     <EditForm 
                       onClose={onClose}

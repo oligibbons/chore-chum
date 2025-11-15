@@ -11,6 +11,7 @@ type Props = {
   isOpen: boolean
   onClose: () => void
   householdId: string
+  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
@@ -20,7 +21,8 @@ type Props = {
 type FormProps = {
   onClose: () => void
   householdId: string
-  members: Pick<DbProfile, 'id' | 'full_name', 'avatar_url'>[]
+  // --- THIS IS THE FIX ---
+  members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
 
@@ -50,7 +52,6 @@ function ChoreForm({ onClose, householdId, members, rooms }: FormProps) {
     >
       {/* --- FORM CONTENT --- */}
       
-      {/* FIX: Replaced placeholder with the 'householdId' prop */}
       <input type="hidden" name="householdId" value={householdId} />
 
       {/* Chore Name */}
@@ -86,7 +87,6 @@ function ChoreForm({ onClose, householdId, members, rooms }: FormProps) {
               defaultValue=""
             >
               <option value="">Unassigned</option>
-              {/* FIX: Replaced placeholder with the 'members' map */}
               {members.map((member) => (
                 <option key={member.id} value={member.id}>
                   {member.full_name}
@@ -110,7 +110,6 @@ function ChoreForm({ onClose, householdId, members, rooms }: FormProps) {
               defaultValue=""
             >
               <option value="">No Room</option>
-              {/* FIX: Replaced placeholder with the 'rooms' map */}
               {rooms.map((room) => (
                 <option key={room.id} value={room.id}>
                   {room.name}
@@ -183,7 +182,7 @@ function ChoreForm({ onClose, householdId, members, rooms }: FormProps) {
       <div className="flex items-center justify-end space-x-4 pt-4">
         <button
           type="button"
-          onClick={onClose} // FIX: Replaced placeholder
+          onClick={onClose}
           className="rounded-xl px-5 py-3 font-heading text-base font-semibold text-text-secondary transition-all hover:bg-gray-100"
         >
           Cancel
@@ -262,10 +261,6 @@ export default function AddChoreModal({
                 </div>
                 
                 <div className="mt-6">
-                  {/*
-                    The form is now a self-contained component.
-                    We pass all the props down to it.
-                  */}
                   <ChoreForm
                     onClose={onClose}
                     householdId={householdId}
