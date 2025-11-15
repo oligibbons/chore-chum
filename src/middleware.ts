@@ -56,6 +56,10 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
-  // This config is correct for middleware
-  runtime: 'edge',
+  
+  // --- THIS IS THE FIX ---
+  // We are following the build error's instruction:
+  // "Use runtime 'experimental-edge' instead."
+  runtime: 'experimental-edge',
+  // --- END OF FIX ---
 }
