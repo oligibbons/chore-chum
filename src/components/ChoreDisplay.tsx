@@ -45,7 +45,7 @@ export default function ChoreDisplay({ data }: { data: HouseholdData }) {
       )
       .subscribe()
 
-    // Cleanup function to remove the subscription when the component unmasks
+    // Cleanup function to remove the subscription when the component unmounts
     return () => {
       supabase.removeChannel(channel)
     }

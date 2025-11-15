@@ -72,7 +72,7 @@ export default function ChoreItem({ chore, onEdit }: Props) {
   }
   
   // --- THIS IS THE FIX ---
-  // Use ?? to treat null as 1 before comparing
+  // Use ?? to treat null as 1 or 0 before comparing
   const targetInstances = chore.target_instances ?? 1
   const completedInstances = chore.completed_instances ?? 0
   const isMultiInstance = targetInstances > 1
