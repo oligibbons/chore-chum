@@ -1,14 +1,24 @@
 // src/app/auth/callback/route.ts
+import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import type { Database } from '@/types/supabase'
 
-// ... imports ...
+export const dynamic = 'force-dynamic' // Ensure it's not statically built
+
 export async function GET(request: NextRequest) {
-    // ...
-    if (code) {
-      // VERCEL FIX: Use original NEXT_PUBLIC_ variables directly.
-      const supabase = createServerClient<Database>(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
+
+  // Create a response object to redirect to the dashboard
+  const response = NextResponse.redirect(new URL('/dashboard', request.url))
+
+  if (code) {
+    // VERCEL FIX: Use the original NEXT_PUBLIC_ variables.
+    // Vercel handles these secrets correctly on the serverless function.
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
         cookies: {
           get(name: string) {
             return request.cookies.get(name)?.value
