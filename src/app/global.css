@@ -7,8 +7,7 @@
 
 @layer base {
   /*
-    FIX: Removed all @apply directives for body.
-    This is handled in layout.tsx.
+    This is fine, it sets the font smoothing.
   */
   body {
     -webkit-font-smoothing: antialiased;
@@ -16,13 +15,12 @@
   }
 
   /*
-    FIX: Replaced the broken @apply block with raw CSS.
-    This will apply the 'Lexend' font (via its CSS var) and
-    the 'text-text-primary' color (via @apply, which is fine here)
-    to all headings, fixing the build error permanently.
+    --- THIS IS THE FIX ---
+    Replaced the broken '@apply text-text-primary;' with its
+    actual CSS value from your tailwind.config.ts.
   */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-lexend), sans-serif;
-    @apply text-text-primary;
+    color: hsl(224, 20%, 13%); /* Replaces @apply text-text-primary; */
   }
 }
