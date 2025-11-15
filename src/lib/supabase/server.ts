@@ -1,6 +1,6 @@
 // src/lib/supabase/server.ts
 
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 
@@ -16,7 +16,6 @@ export function createSupabaseServerClient() {
           return cookieStore.get(name)?.value
         },
         // Note: Server Components cannot set cookies.
-        // Actions, Routes, and Middleware can.
       },
     }
   )
@@ -34,11 +33,11 @@ export function createSupabaseServerActionClient() {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
-        set(name: string, value: string, options) {
+        set(name: string, value: string, options: CookieOptions) {
           cookieStore.set(name, value, options)
         },
-        remove(name: string, options) {
-          cookieStore.set(name, '', options)
+        remove(name: string, options: CookieOptions) {
+          cookieStore.delete({ name, ...options })
         },
       },
     }

@@ -1,11 +1,9 @@
 // src/proxy.ts
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
-// --- THIS IS THE FIX ---
 export async function proxy(request: NextRequest) {
-// --- END OF FIX ---
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -20,7 +18,7 @@ export async function proxy(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options) {
+        set(name: string, value: string, options: CookieOptions) {
           request.cookies.set(name, value, options)
           response = NextResponse.next({
             request: {
@@ -29,14 +27,17 @@ export async function proxy(request: NextRequest) {
           })
           response.cookies.set(name, value, options)
         },
-        remove(name: string, options) {
-          request.cookies.delete(name)
+        remove(name: string, options: CookieOptions) {
+          // --- THIS IS THE FIX ---
+          // Use request.cookies.delete and response.cookies.delete
+          request.cookies.delete({ name, ...options })
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
-          response.cookies.delete(name, options)
+          response.cookies.delete({ name, ...options })
+          // --- END OF FIX ---
         },
       },
     }

@@ -1,6 +1,6 @@
 // src/app/auth/callback/route.ts
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic' // Ensure it's not statically built
@@ -23,15 +23,13 @@ export async function GET(request: NextRequest) {
           get(name: string) {
             return request.cookies.get(name)?.value
           },
-          set(name: string, value: string, options) {
+          set(name: string, value: string, options: CookieOptions) {
             response.cookies.set(name, value, options)
           },
-          // --- THIS IS THE FIX ---
-          remove(name: string, options) {
+          remove(name: string, options: CookieOptions) {
             // Combine name and options into a single object
             response.cookies.delete({ name, ...options })
           },
-          // --- END OF FIX ---
         },
       }
     )
