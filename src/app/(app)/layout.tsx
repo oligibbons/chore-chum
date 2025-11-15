@@ -68,7 +68,7 @@ export default async function AppLayout({
         </div>
       </header>
 
-      {/* Main content area: Clean white background */}
+      {/* Main content area: Changed from bg-gray-50 to bg-brand-white for guaranteed inclusion */}
       <main className="flex-1 bg-brand-white p-4 sm:p-8">
         {children}
       </main>
