@@ -22,22 +22,24 @@ export default async function DashboardPage({
   const supabase = await createSupabaseClient()
   
   // 1. Get user and profile
-  // FIX: Use .getUser() instead of .getSession()
+  // FIX: Use .getUser() here, not .getSession()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) { // <-- Check for 'user'
+    // This redirect is a safety net; the layout should have already caught this.
     redirect('/')
   }
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
-    .eq('id', user.id) // <-- Use user.id (which is now guaranteed to exist)
+    .eq('id', user.id) // <-- This is now safe because we know 'user' exists
     .single()
 
   if (!profile) {
+    // This can happen if the user's profile wasn't created properly
     redirect('/')
   }
 

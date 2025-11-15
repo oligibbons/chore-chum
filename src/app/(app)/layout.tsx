@@ -12,13 +12,13 @@ export default async function AppLayout({
 }) {
   const supabase = await createSupabaseClient()
 
-  // FIX: Use .getUser() instead of .getSession()
+  // FIX: Use .getUser() here, not .getSession()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   // If no user, redirect to the homepage
-  if (!user) { // <-- Check for 'user' instead of 'session'
+  if (!user) { // <-- Check for 'user'
     redirect('/')
   }
 

@@ -11,17 +11,17 @@ export const dynamic = 'force-dynamic'
 export default async function HomePage() {
   const supabase = await createSupabaseClient() 
 
-  // FIX: Use .getUser() instead of .getSession()
+  // FIX: Use .getUser() here, not .getSession()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   // If the user is already logged in, send them to the main app dashboard
-  if (user) { // <-- Check for 'user' instead of 'session'
+  if (user) { // <-- Check for 'user'
     return redirect('/dashboard')
   }
 
-  // If no session, show the landing/login page
+  // If no user, show the landing/login page
   return (
     // New: Use a minimal white background for the whole screen
     <div className="flex min-h-screen bg-brand-white">
