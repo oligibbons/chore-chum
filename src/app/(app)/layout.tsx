@@ -1,7 +1,6 @@
 // app/(app)/layout.tsx
 
-import { createSupabaseClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+// IMPORTS FOR AUTH/REDIRECT ARE REMOVED
 import { signOut } from '@/app/actions'
 import Link from 'next/link' 
 
@@ -10,19 +9,13 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createSupabaseClient()
+  
+  // --- ALL AUTH LOGIC REMOVED ---
+  // The middleware.ts file now handles all route protection.
+  // This layout can now safely assume a user is present.
+  // --- END REMOVED LOGIC ---
 
-  // FIX: Use .getUser() here, not .getSession()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // If no user, redirect to the homepage
-  if (!user) { // <-- Check for 'user'
-    redirect('/')
-  }
-
-  // If we have a user, show the protected app layout
+  // If we have a session, show the protected app layout
   return (
     <div className="flex min-h-screen flex-col">
       

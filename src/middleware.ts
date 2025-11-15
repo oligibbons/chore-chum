@@ -10,14 +10,13 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // 🔑 DEFINITIVE FIX: Use un-prefixed names (Cloudflare standard) 
-  // with fallback to NEXT_PUBLIC_ for local development compatibility.
+  // Use the same Vercel-safe logic for env vars
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
   const supabase = createServerClient<Database>(
-    supabaseUrl, // <-- Using the robust variable here
-    supabaseAnonKey, // <-- Using the robust variable here
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -45,9 +44,26 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // This line is crucial! It refreshes the auth session
-  await supabase.auth.getSession()
+  // Refresh the session
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
+  const { pathname } = request.nextUrl
 
+  // --- NEW AUTH REDIRECT LOGIC ---
+
+  // 1. If user is not logged in and tries to access protected app routes
+  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/rooms'))) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // 2. If user is logged in and tries to access the homepage
+  if (user && pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // --- END NEW LOGIC ---
+
+  // All good, continue to the requested page
   return response
 }
 
@@ -59,7 +75,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public assets
+     * - /auth/callback (CRITICAL: must exclude this)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.png$|.*\\.jpg$).*)',
   ],
 }
