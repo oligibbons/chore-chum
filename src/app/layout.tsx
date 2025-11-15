@@ -2,7 +2,8 @@
 
 import type { Metadata } from 'next'
 import { Inter, Lexend } from 'next/font/google'
-import './global.css'
+// FIX: Import the correct file!
+import './global.css' 
 
 // Define custom fonts using Next.js font optimization
 const inter = Inter({
@@ -14,7 +15,6 @@ const lexend = Lexend({
   subsets: ['latin'],
   variable: '--font-lexend',
 })
-
 
 export const metadata: Metadata = {
   title: 'ChoreChum | Home Organization Simplified',

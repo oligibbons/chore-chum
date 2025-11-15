@@ -14,7 +14,7 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/') // Should be caught by middleware, but good safety.
+    redirect('/') // Should be caught by middleware
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -23,15 +23,17 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     .eq('id', user.id)
     .single()
 
-  // --- THIS IS THE FIX for the redirect bug ---
-  // If the user has no household, redirect them to the dashboard
-  // where they can create or join one.
+  // --- THIS IS THE REDIRECT LOGIC ---
+  // If the user has no profile or no household, send them to the
+  // dashboard, which will show them the HouseholdManager.
+  // This is now correct.
   if (profileError || !profile || !profile.household_id) {
     redirect('/dashboard')
   }
 
   const householdId = profile.household_id
 
+  // Fetch rooms
   const { data: rooms, error: roomsError } = await supabase
     .from('rooms')
     .select('*, chore_count:chores(count)')

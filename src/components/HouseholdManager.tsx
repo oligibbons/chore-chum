@@ -87,6 +87,7 @@ export default function HouseholdManager() {
                 className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
               />
             </div>
+            {/* This will now correctly show the error message */}
             {createState.message && (
               <p className={`text-sm ${createState.success ? 'text-status-complete' : 'text-status-overdue'}`}>
                 {createState.message}

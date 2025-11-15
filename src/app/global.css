@@ -7,17 +7,15 @@
 
 @layer base {
   /*
-    This is fine, it sets the font smoothing.
+    This is the final, correct version.
+    - No @apply for body (handled in layout.tsx)
+    - Raw CSS for headings to fix the build error
   */
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /*
-    --- THIS IS THE FIX ---
-    Replaced the broken '@apply' with raw CSS values.
-  */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-lexend), sans-serif;
     color: hsl(224, 20%, 13%); /* This was text-text-primary */

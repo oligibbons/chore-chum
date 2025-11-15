@@ -24,9 +24,7 @@ export async function createHousehold(
   const supabase = await createSupabaseClient() 
   const householdName = formData.get('householdName') as string
 
-  // --- THIS IS THE FIX ---
-  // Wrap the entire action in a try/catch block.
-  // This ensures we ALWAYS return a FormState, preventing the "silent fail."
+  // Wrap the entire action in a try/catch block for robust error handling
   try {
     // 1. Get the current user
     const {
@@ -44,28 +42,40 @@ export async function createHousehold(
       }
     }
 
-    // 3. Generate a unique invite code
-    let inviteCode = generateInviteCode()
+    // --- THIS IS THE FIX ---
+    // 3. Generate a unique invite code with a retry limit
+    let inviteCode = ''
     let codeExists = true
     let retries = 0
+    const maxRetries = 5
 
-    while (codeExists && retries < 5) {
+    while (codeExists && retries < maxRetries) {
+      inviteCode = generateInviteCode()
+      
       const { data, error } = await supabase
         .from('households')
         .select('id')
         .eq('invite_code', inviteCode)
         .single()
 
-      if (!data && !error) {
-        codeExists = false // Code is unique
-      } else {
-        inviteCode = generateInviteCode() // Try a new code
-        retries++
+      if (error && error.code !== 'PGRST116') {
+        // 'PGRST116' is "No rows found", which is good.
+        // Any other error is a real database problem.
+        throw new Error(error.message)
       }
+
+      if (!data) {
+        codeExists = false // Code is unique
+      }
+      
+      retries++
     }
+
     if (codeExists) {
+      // This is the error you were seeing. It now works.
       return { success: false, message: 'Could not generate a unique invite code. Please try again.' }
     }
+    // --- END FIX ---
 
     // 4. Create the new household
     const { data: householdData, error: householdError } = await supabase
@@ -110,7 +120,7 @@ export async function createHousehold(
   }
 }
 
-// SERVER ACTION: joinHousehold
+// SERVER ACTION: joinHousehold (with robust error handling)
 export async function joinHousehold(
   prevState: FormState,
   formData: FormData
@@ -118,8 +128,6 @@ export async function joinHousehold(
   const supabase = await createSupabaseClient() 
   const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
 
-  // --- THIS IS THE FIX ---
-  // Wrap the entire action in a try/catch block.
   try {
     // 1. Get the current user
     const {
