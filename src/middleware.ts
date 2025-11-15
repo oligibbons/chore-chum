@@ -1,9 +1,9 @@
-// src/proxy.ts
+// src/middleware.ts
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -45,6 +45,3 @@ export async function proxy(request: NextRequest) {
 
   return response
 }
-
-// NOTE: The 'export const config' object has been
-// completely removed as it is not needed by OpenNext.
