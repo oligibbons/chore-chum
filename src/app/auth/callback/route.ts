@@ -26,9 +26,12 @@ export async function GET(request: NextRequest) {
           set(name: string, value: string, options) {
             response.cookies.set(name, value, options)
           },
+          // --- THIS IS THE FIX ---
           remove(name: string, options) {
-            response.cookies.delete(name, options)
+            // Combine name and options into a single object
+            response.cookies.delete({ name, ...options })
           },
+          // --- END OF FIX ---
         },
       }
     )

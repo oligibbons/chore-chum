@@ -1,48 +1,56 @@
-// src/lib/supabase/server.ts
-
-// The "'use server'" directive has been REMOVED from this file.
-
+// src/proxy.ts
+import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/types/supabase'
+import type { Database } from '@/types/supabase'
 
-export function createSupabaseServerClient() {
-  const cookieStore = cookies()
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-  return createServerClient<Database>(
+  const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        // Note: Server Components cannot set cookies.
-        // Actions, Routes, and Middleware can.
-      },
-    }
-  )
-}
-
-// This client is for Server Actions and Route Handlers
-export function createSupabaseServerActionClient() {
-  const cookieStore = cookies()
-
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
+          return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options) {
-          cookieStore.set(name, value, options)
+          request.cookies.set(name, value, options)
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set(name, value, options)
         },
+        // --- THIS IS THE FIX ---
         remove(name: string, options) {
-          cookieStore.set(name, '', options)
+          // Combine name and options into a single object
+          response.cookies.delete({ name, ...options })
         },
+        // --- END OF FIX ---
       },
     }
   )
+
+  // This line is crucial! It refreshes the auth session
+  await supabase.auth.getSession()
+
+  return response
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 }
