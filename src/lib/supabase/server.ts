@@ -16,10 +16,22 @@ export function createSupabaseClient() {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set(name, value, options)
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch (error) {
+            // The `set` method can throw an error if called from a Server Component.
+            // This is fine and expected, as Server Components are read-only.
+          }
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.delete({ name, ...options })
+          try {
+            // The `remove` method should be implemented by setting an empty value
+            // with an expiration date in the past.
+            cookieStore.set({ name, value: '', ...options })
+          } catch (error) {
+            // The `delete` (or `set` in this case) method can throw an error
+            // if called from a Server Component. This is fine and expected.
+          }
         },
       },
     }
