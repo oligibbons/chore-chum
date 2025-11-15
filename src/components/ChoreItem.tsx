@@ -12,7 +12,6 @@ type Props = {
   chore: ChoreWithDetails
   showActions: boolean
   status: string // Now accepts a string status from the ChoreDisplay
-  // onEdit: (chore: ChoreWithDetails) => void // <-- Removed
 }
 
 // Helper to map status to Tailwind classes
@@ -40,10 +39,9 @@ const formatDate = (dateString: string | null | undefined): string => {
 }
 
 
-export default function ChoreItem({ chore, showActions, status }: Props) { // <-- Removed onEdit
+export default function ChoreItem({ chore, showActions, status }: Props) {
   const [isPending, startTransition] = useTransition()
   
-  // <-- PROACTIVE FIX: Use '??' to safely handle nulls for this check
   const isCompleted = chore.completed_instances === (chore.target_instances ?? 1)
   
   const classes = getStatusClasses(status, isCompleted)
@@ -92,14 +90,8 @@ export default function ChoreItem({ chore, showActions, status }: Props) { // <-
           <h4 className="font-heading text-lg font-semibold text-support-dark">
             {chore.name}
             
-            {/* FIX 1/2: This was the build error. 
-              Use '?? 1' to safely check if target_instances is greater than 1.
-            */}
             {(chore.target_instances ?? 1) > 1 && (
               <span className="ml-2 rounded-full bg-support-dark/10 px-2 py-0.5 text-xs font-medium text-support-dark">
-                {/* FIX 2/2: This was the next error.
-                  Use '?? 0' for completed and '?? 1' for target to safely render.
-                */}
                 {chore.completed_instances ?? 0}/{chore.target_instances ?? 1}
               </span>
             )}
@@ -141,8 +133,10 @@ export default function ChoreItem({ chore, showActions, status }: Props) { // <-
         {/* Assigned Avatar */}
         {chore.profiles ? (
           <Avatar 
-            url={chore.profiles.avatar_url} 
-            alt={chore.profiles.full_name} 
+            // Proactive fix: handle null avatar_url
+            url={chore.profiles.avatar_url ?? undefined} 
+            // FIX: This was the build error. Provide a fallback string for alt.
+            alt={chore.profiles.full_name ?? 'User avatar'} 
             size={36} 
           />
         ) : (
@@ -153,7 +147,7 @@ export default function ChoreItem({ chore, showActions, status }: Props) { // <-
 
         {/* Chore Menu */}
         {showActions && (
-          <ChoreMenu chore={chore} /> // <-- onEdit prop removed
+          <ChoreMenu chore={chore} />
         )}
       </div>
     </div>
