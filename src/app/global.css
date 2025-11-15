@@ -12,15 +12,17 @@
      in app/layout.tsx as utility classes.
   */
 
-  /* THIS IS THE FIX:
-    Use theme() to reference your custom font families
-    from tailwind.config.ts instead of @apply.
+  /*
+    THIS IS THE FIX:
+    Instead of using @apply or theme() for custom fonts, we use
+    the CSS variables (`--font-lexend` and `--font-inter`)
+    that are already being defined in `app/layout.tsx`.
   */
   h1, h2, h3, h4, h5, h6 {
-    font-family: theme('fontFamily.heading');
+    font-family: var(--font-lexend);
   }
 
   body, p, span, div, a, button, input, select, textarea {
-    font-family: theme('fontFamily.sans');
+    font-family: var(--font-inter);
   }
 }
