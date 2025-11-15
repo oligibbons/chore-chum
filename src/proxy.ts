@@ -1,9 +1,9 @@
-// src/middleware.ts
+// src/proxy.ts
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -56,10 +56,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
-  
-  // --- THIS IS THE FIX ---
-  // We are following the build error's instruction:
-  // "Use runtime 'experimental-edge' instead."
-  runtime: 'experimental-edge',
-  // --- END OF FIX ---
 }
