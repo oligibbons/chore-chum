@@ -26,7 +26,7 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/')
+    redirect('/') // Should be caught by middleware
   }
 
   const { data: profile } = await supabase
@@ -35,7 +35,7 @@ export default async function DashboardPage({
     .eq('id', user.id)
     .single()
 
-  // This logic is still correct from the auth fix
+  // This logic is correct.
   if (!profile || !profile.household_id) {
     return (
       <div className="py-12 flex items-center justify-center">
@@ -64,7 +64,7 @@ export default async function DashboardPage({
       
       {/* 1. NEW Dashboard Header: Playful & Welcoming */}
       <header className="mb-6">
-        <h2 className="text-4xl font-heading font-bold text-text-primary">
+        <h2 className="text-4xl font-heading font-bold">
           Welcome back, {userName}! 👋
         </h2>
         <p className="mt-1 text-lg text-text-secondary">

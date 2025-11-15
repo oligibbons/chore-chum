@@ -65,7 +65,7 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
             <Home className="h-6 w-6" />
           </div>
-          <h2 className="mb-2 font-heading text-2xl font-semibold text-text-primary">
+          <h2 className="mb-2 font-heading text-2xl font-semibold">
             Add a New Room
           </h2>
           <p className="mb-6 flex-1 text-text-secondary">
@@ -89,8 +89,10 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
                 className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
               />
             </div>
-            {!createState.success && createState.message && (
-              <p className="text-sm text-status-overdue">{createState.message}</p>
+            {createState.message && (
+              <p className={`text-sm ${createState.success ? 'text-status-complete' : 'text-status-overdue'}`}>
+                {createState.message}
+              </p>
             )}
             <div className="pt-2">
               <SubmitButton text="Create Room" icon={<ArrowRight className="h-5 w-5" />} />
@@ -101,7 +103,7 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
 
       {/* --- Column 2: Existing Rooms List --- */}
       <div className="md:col-span-2">
-        <h3 className="mb-4 font-heading text-2xl font-semibold text-text-primary">
+        <h3 className="mb-4 font-heading text-2xl font-semibold">
           Existing Rooms ({rooms.length})
         </h3>
         <div className="space-y-4">
@@ -121,7 +123,7 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
                 <div className="flex items-center space-x-3">
                     <Home className="h-6 w-6 text-brand" />
                     <div className="flex flex-col">
-                      <span className="font-heading text-lg font-medium text-text-primary">
+                      <span className="font-heading text-lg font-medium">
                           {room.name}
                       </span>
                       <span className="text-sm text-text-secondary">

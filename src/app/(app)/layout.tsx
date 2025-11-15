@@ -2,7 +2,7 @@
 
 import { signOut } from '@/app/actions'
 import Link from 'next/link'
-import NavLink from '@/components/NavLink' // We'll create this next, but add the import
+import NavLink from '@/components/NavLink' // We'll create this next
 import { Home, LayoutGrid } from 'lucide-react' // Import icons for nav
 
 export default async function AppLayout({

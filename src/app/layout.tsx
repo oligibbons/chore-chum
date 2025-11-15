@@ -7,12 +7,12 @@ import './global.css'
 // Define custom fonts using Next.js font optimization
 const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-inter', // Provides var(--font-inter)
+  variable: '--font-inter',
 })
 
 const lexend = Lexend({
   subsets: ['latin'],
-  variable: '--font-lexend', // Provides var(--font-lexend)
+  variable: '--font-lexend',
 })
 
 

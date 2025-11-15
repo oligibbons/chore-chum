@@ -59,7 +59,6 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
 
   return (
     // --- THE NEW CHORE CARD ---
-    // A sleek, white card with rounded corners, border, and a soft shadow
     <li 
       className={`
         flex flex-col rounded-xl border border-border bg-card p-4
@@ -90,7 +89,7 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
           
           {/* Chore Name & Instance Counter */}
           <div className="flex flex-col pt-1.5">
-            <h4 className="font-heading text-lg font-semibold text-text-primary">
+            <h4 className="font-heading text-lg font-semibold">
               {chore.name}
             </h4>
             {(chore.target_instances ?? 1) > 1 && (

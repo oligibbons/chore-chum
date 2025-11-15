@@ -2,7 +2,7 @@
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
-import ChoreItem from './ChoreItem' // This will be redesigned in Batch 3
+import ChoreItem from './ChoreItem'
 import { AlertOctagon, AlertTriangle, Calendar } from 'lucide-react' // Icons for headers
 
 type Props = {
@@ -47,7 +47,7 @@ export default function ChoreDisplay({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           {config.icon}
-          <h3 className="font-heading text-xl font-semibold text-text-primary">
+          <h3 className="font-heading text-xl font-semibold">
             {title}
           </h3>
         </div>
@@ -66,7 +66,7 @@ export default function ChoreDisplay({
               key={chore.id}
               chore={chore}
               status={status}
-              showActions={true} // We'll use this in the new card
+              showActions={true}
             />
           ))}
         </ul>

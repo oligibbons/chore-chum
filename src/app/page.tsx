@@ -23,7 +23,7 @@ export default async function HomePage() {
               <ClipboardCheck className="h-12 w-12" />
             </div>
             
-            <h1 className="text-4xl lg:text-5xl font-heading font-bold text-text-primary">
+            <h1 className="text-4xl lg:text-5xl font-heading font-bold">
               Stop arguing.
               <br />
               <span className="text-brand">Start organising.</span>
@@ -36,7 +36,7 @@ export default async function HomePage() {
 
           {/* Right Side: Login Form in a Card */}
           <main className="w-full max-w-md rounded-2xl bg-card p-8 shadow-card border border-border mx-auto">
-            <h2 className="mb-6 font-heading text-xl font-semibold text-text-primary text-center">
+            <h2 className="mb-6 font-heading text-xl font-semibold text-center">
               Sign in to your household
             </h2>
             <AuthForm />

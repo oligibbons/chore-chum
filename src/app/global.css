@@ -16,11 +16,10 @@
 
   /*
     --- THIS IS THE FIX ---
-    Replaced the broken '@apply text-text-primary;' with its
-    actual CSS value from your tailwind.config.ts.
+    Replaced the broken '@apply' with raw CSS values.
   */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-lexend), sans-serif;
-    color: hsl(224, 20%, 13%); /* Replaces @apply text-text-primary; */
+    color: hsl(224, 20%, 13%); /* This was text-text-primary */
   }
 }

@@ -245,7 +245,7 @@ export default function EditChoreModal({
                 <div className="flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-2xl font-heading font-semibold text-text-primary"
+                    className="text-2xl font-heading font-semibold"
                   >
                     Edit Chore
                   </Dialog.Title>

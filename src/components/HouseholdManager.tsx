@@ -47,7 +47,7 @@ export default function HouseholdManager() {
       
       {/* Page Header */}
       <div className="text-center">
-        <h1 className="text-4xl font-heading font-bold text-text-primary">
+        <h1 className="text-4xl font-heading font-bold">
           Welcome to ChoreChum!
         </h1>
         <p className="mt-2 text-lg text-text-secondary">
@@ -63,7 +63,7 @@ export default function HouseholdManager() {
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
             <Home className="h-6 w-6" />
           </div>
-          <h2 className="mb-2 font-heading text-2xl font-semibold text-text-primary">
+          <h2 className="mb-2 font-heading text-2xl font-semibold">
             Create a Household
           </h2>
           <p className="mb-6 flex-1 text-text-secondary">
@@ -87,8 +87,10 @@ export default function HouseholdManager() {
                 className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
               />
             </div>
-            {!createState.success && createState.message && (
-              <p className="text-sm text-status-overdue">{createState.message}</p>
+            {createState.message && (
+              <p className={`text-sm ${createState.success ? 'text-status-complete' : 'text-status-overdue'}`}>
+                {createState.message}
+              </p>
             )}
             <SubmitButton text="Create Household" icon={<ArrowRight className="h-5 w-5" />} />
           </form>
@@ -99,7 +101,7 @@ export default function HouseholdManager() {
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
             <Users className="h-6 w-6" />
           </div>
-          <h2 className="mb-2 font-heading text-2xl font-semibold text-text-primary">
+          <h2 className="mb-2 font-heading text-2xl font-semibold">
             Join a Household
           </h2>
           <p className="mb-6 flex-1 text-text-secondary">
@@ -123,8 +125,10 @@ export default function HouseholdManager() {
                 className="mt-1 block w-full rounded-xl border-border bg-background p-3 uppercase transition-all focus:border-brand focus:ring-brand"
               />
             </div>
-            {!joinState.success && joinState.message && (
-              <p className="text-sm text-status-overdue">{joinState.message}</p>
+            {joinState.message && (
+              <p className={`text-sm ${joinState.success ? 'text-status-complete' : 'text-status-overdue'}`}>
+                {joinState.message}
+              </p>
             )}
             <SubmitButton text="Join Household" icon={<ArrowRight className="h-5 w-5" />} />
           </form>

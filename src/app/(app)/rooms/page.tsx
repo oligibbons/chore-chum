@@ -23,12 +23,10 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     .eq('id', user.id)
     .single()
 
-  if (profileError) {
-    console.error('Error fetching profile for rooms page:', profileError)
-    redirect('/dashboard')
-  }
-
-  if (!profile || !profile.household_id) {
+  // --- THIS IS THE FIX for the redirect bug ---
+  // If the user has no household, redirect them to the dashboard
+  // where they can create or join one.
+  if (profileError || !profile || !profile.household_id) {
     redirect('/dashboard')
   }
 
@@ -62,7 +60,7 @@ export default async function RoomsPage() {
       
       {/* --- NEW: Sleek Page Header --- */}
       <header className="mb-6">
-        <h2 className="text-4xl font-heading font-bold text-text-primary">
+        <h2 className="text-4xl font-heading font-bold">
           Household Rooms
         </h2>
         <p className="mt-1 text-lg max-w-2xl text-text-secondary">

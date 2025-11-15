@@ -24,74 +24,90 @@ export async function createHousehold(
   const supabase = await createSupabaseClient() 
   const householdName = formData.get('householdName') as string
 
-  // 1. Get the current user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return { success: false, message: 'You must be logged in.' }
-  }
-
-  // 2. Validate input
-  if (!householdName || householdName.trim().length < 3) {
-    return {
-      success: false,
-      message: 'Household name must be at least 3 characters.',
+  // --- THIS IS THE FIX ---
+  // Wrap the entire action in a try/catch block.
+  // This ensures we ALWAYS return a FormState, preventing the "silent fail."
+  try {
+    // 1. Get the current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, message: 'You must be logged in.' }
     }
-  }
 
-  // 3. Generate a unique invite code
-  let inviteCode = generateInviteCode()
-  let codeExists = true
+    // 2. Validate input
+    if (!householdName || householdName.trim().length < 3) {
+      return {
+        success: false,
+        message: 'Household name must be at least 3 characters.',
+      }
+    }
 
-  while (codeExists) {
-    const { data, error } = await supabase
+    // 3. Generate a unique invite code
+    let inviteCode = generateInviteCode()
+    let codeExists = true
+    let retries = 0
+
+    while (codeExists && retries < 5) {
+      const { data, error } = await supabase
+        .from('households')
+        .select('id')
+        .eq('invite_code', inviteCode)
+        .single()
+
+      if (!data && !error) {
+        codeExists = false // Code is unique
+      } else {
+        inviteCode = generateInviteCode() // Try a new code
+        retries++
+      }
+    }
+    if (codeExists) {
+      return { success: false, message: 'Could not generate a unique invite code. Please try again.' }
+    }
+
+    // 4. Create the new household
+    const { data: householdData, error: householdError } = await supabase
       .from('households')
+      .insert({
+        name: householdName,
+        owner_id: user.id,
+        invite_code: inviteCode,
+      })
       .select('id')
-      .eq('invite_code', inviteCode)
       .single()
 
-    if (!data && !error) {
-      codeExists = false // Code is unique
-    } else {
-      inviteCode = generateInviteCode() // Try a new code
+    if (householdError || !householdData) {
+      return {
+        success: false,
+        message: `Could not create household: ${householdError?.message || ''}`,
+      }
     }
-  }
 
-  // 4. Create the new household
-  const { data: householdData, error: householdError } = await supabase
-    .from('households')
-    .insert({
-      name: householdName,
-      owner_id: user.id,
-      invite_code: inviteCode,
-    })
-    .select('id')
-    .single()
+    // 5. Add this user to the new household
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ household_id: householdData.id })
+      .eq('id', user.id)
 
-  if (householdError || !householdData) {
+    if (profileError) {
+      return {
+        success: false,
+        message: `Could not join new household: ${profileError.message}`,
+      }
+    }
+
+    // 6. Success! Refresh the page.
+    revalidatePath('/dashboard')
+    return { success: true, message: 'Household created!' }
+
+  } catch (error: any) {
     return {
       success: false,
-      message: `Could not create household: ${householdError?.message || ''}`,
+      message: `An unknown error occurred: ${error.message}`
     }
   }
-
-  // 5. Add this user to the new household
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ household_id: householdData.id })
-    .eq('id', user.id)
-
-  if (profileError) {
-    return {
-      success: false,
-      message: `Could not join new household: ${profileError.message}`,
-    }
-  }
-
-  // 6. Success! Refresh the page.
-  revalidatePath('/dashboard')
-  return { success: true, message: 'Household created!' }
 }
 
 // SERVER ACTION: joinHousehold
@@ -102,47 +118,57 @@ export async function joinHousehold(
   const supabase = await createSupabaseClient() 
   const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
 
-  // 1. Get the current user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return { success: false, message: 'You must be logged in.' }
-  }
+  // --- THIS IS THE FIX ---
+  // Wrap the entire action in a try/catch block.
+  try {
+    // 1. Get the current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, message: 'You must be logged in.' }
+    }
 
-  // 2. Validate input
-  if (!inviteCode || inviteCode.trim().length < 6) {
-    return { success: false, message: 'Invite code must be 6 characters.' }
-  }
+    // 2. Validate input
+    if (!inviteCode || inviteCode.trim().length < 6) {
+      return { success: false, message: 'Invite code must be 6 characters.' }
+    }
 
-  // 3. Find the household with this invite code
-  const { data: householdData, error: householdError } = await supabase
-    .from('households')
-    .select('id')
-    .eq('invite_code', inviteCode)
-    .single()
+    // 3. Find the household with this invite code
+    const { data: householdData, error: householdError } = await supabase
+      .from('households')
+      .select('id')
+      .eq('invite_code', inviteCode)
+      .single()
 
-  if (householdError || !householdData) {
+    if (householdError || !householdData) {
+      return {
+        success: false,
+        message: 'Invalid invite code. Please check and try again.',
+      }
+    }
+
+    // 4. Add this user to the household
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ household_id: householdData.id })
+      .eq('id', user.id)
+
+    if (profileError) {
+      return {
+        success: false,
+        message: `Could not join household: ${profileError.message}`,
+      }
+    }
+
+    // 5. Success! Refresh the page.
+    revalidatePath('/dashboard')
+    return { success: true, message: 'Joined household!' }
+    
+  } catch (error: any) {
     return {
       success: false,
-      message: 'Invalid invite code. Please check and try again.',
+      message: `An unknown error occurred: ${error.message}`
     }
   }
-
-  // 4. Add this user to the household
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ household_id: householdData.id })
-    .eq('id', user.id)
-
-  if (profileError) {
-    return {
-      success: false,
-      message: `Could not join household: ${profileError.message}`,
-    }
-  }
-
-  // 5. Success! Refresh the page.
-  revalidatePath('/dashboard')
-  return { success: true, message: 'Joined household!' }
 }
