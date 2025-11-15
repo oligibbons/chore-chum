@@ -1,6 +1,6 @@
 import { Inter, Lexend } from "next/font/google";
 import type { Metadata } from "next";
-import "./global.css"; // <-- THIS IS THE FIX
+import "./global.css"; // <-- THE CRITICAL IMPORT
 
 const inter = Inter({
   subsets: ["latin"],

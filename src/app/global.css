@@ -1,16 +1,62 @@
-/* src/app/global.css */
-
-/* Imports the base styles for Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /*
-    This is the final, correct version.
-    - No @apply for body (handled in layout.tsx)
-    - Raw CSS for headings to fix the build error
+  /* START OF FIX: 
+    Added all missing CSS variable definitions for light and dark mode.
+    Your tailwind.config.ts depends on these to work.
   */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220 8.9% 46.1%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220 8.9% 46.1%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262.1 83.3% 57.8%;
+    --radius: 0.75rem;
+    --text-primary: 224 20% 13%;
+    --text-secondary: 224 10% 38%;
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%;
+    --foreground: 0 0% 98%;
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 0 0% 98%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 0 0% 98%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 262.1 83.3% 57.8%;
+    --text-primary: 0 0% 98%;
+    --text-secondary: 215 20.2% 65.1%;
+  }
+  /* END OF FIX */
+  
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -18,6 +64,6 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-lexend), sans-serif;
-    color: hsl(224, 20%, 13%); /* This was text-text-primary */
+    color: hsl(var(--text-primary)); /* Updated to use the new variable */
   }
 }
