@@ -1,24 +1,18 @@
 // src/app/room-actions.ts
 'use server'
 
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+// --- THIS IS THE FIX ---
+import { createSupabaseServerActionClient } from '@/lib/supabase/server'
+// --- END OF FIX ---
+
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
-import { SupabaseClient } from '@supabase/supabase-js' // <-- IMPORT THIS
 
-// This is the correct client for Server Actions
-const createSupabaseServerActionClient = () => {
-  const cookieStore = cookies()
-  return createServerActionClient<Database>({
-    cookies: () => cookieStore,
-  })
-}
+// --- REMOVED old client helper and SupabaseClient import ---
 
 // Helper function to get the current user and their household
 async function getUserHousehold() {
-  // --- APPLY THE FIX (as unknown as ...) ---
-  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
+  const supabase = createSupabaseServerActionClient() // --- FIX ---
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -39,8 +33,7 @@ async function getUserHousehold() {
 
 // ACTION: Create a new room
 export async function createRoom(formData: FormData) {
-  // --- APPLY THE FIX (as unknown as ...) ---
-  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
+  const supabase = createSupabaseServerActionClient() // --- FIX ---
   const roomName = formData.get('roomName') as string
   const { householdId } = await getUserHousehold()
 
@@ -72,8 +65,7 @@ export async function createRoom(formData: FormData) {
 // ACTION: Delete an existing room
 export async function deleteRoom(roomId: number) {
   const { householdId } = await getUserHousehold()
-  // --- APPLY THE FIX (as unknown as ...) ---
-  const supabase = createSupabaseServerActionClient() as unknown as SupabaseClient<Database>
+  const supabase = createSupabaseServerActionClient() // --- FIX ---
 
   // 1. Delete the room
   const { error } = await supabase

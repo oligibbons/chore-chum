@@ -1,5 +1,6 @@
 // src/lib/supabase/server.ts
-'use server' // This file is now server-only
+
+// The "'use server'" directive has been REMOVED from this file.
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
