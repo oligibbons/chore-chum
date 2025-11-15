@@ -19,7 +19,10 @@ export async function proxy(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set(name, value, options)
+          // --- THIS IS THE FIX ---
+          // request.cookies.set expects a single object
+          request.cookies.set({ name, value, ...options })
+          // --- END OF FIX ---
           response = NextResponse.next({
             request: {
               headers: request.headers,
