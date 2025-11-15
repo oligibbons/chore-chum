@@ -154,7 +154,9 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
     // If it's a multi-instance chore, increment it. Otherwise, toggle status.
-    if (chore.target_instances > 1) {
+    //
+    // <-- FIX: Use '?? 1' to handle possible null value for target_instances
+    if ((chore.target_instances ?? 1) > 1) {
         return incrementChoreInstance(chore as DbChore)
     } else {
         // Toggle the status to complete (since ChoreItem only calls this when incomplete)
@@ -169,7 +171,9 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
     // If it's a multi-instance chore, decrement it. Otherwise, toggle status.
-    if (chore.target_instances > 1) {
+    //
+    // <-- FIX: Use '?? 1' to handle possible null value for target_instances
+    if ((chore.target_instances ?? 1) > 1) {
         return decrementChoreInstance(chore as DbChore)
     } else {
         // Toggle the status to pending (since ChoreItem only calls this when complete)
