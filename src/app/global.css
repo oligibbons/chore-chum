@@ -1,4 +1,4 @@
-/* app/globals.css */
+/* app/global.css */
 
 /* Imports the base styles for Tailwind */
 @tailwind base;
@@ -10,7 +10,9 @@
 */
 @layer base {
   body {
-    @apply bg-brand-white text-support-dark;
+    /* Use theme() to reference your custom colors from tailwind.config.ts */
+    background-color: theme('colors.brand-white');
+    color: theme('colors.support-dark');
   }
 
   /* This makes all h1, h2, h3, etc.
