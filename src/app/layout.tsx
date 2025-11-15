@@ -30,10 +30,10 @@ export default function RootLayout({
     // Apply font variables to HTML tag
     <html lang="en" className={`${inter.variable} ${lexend.variable}`}>
       {/*
-        FIX: Apply background and text colors here.
+        FIX: Apply background, text, AND font-sans here.
         This fixes the "Cannot apply unknown utility class" error.
       */}
-      <body className="bg-background text-text-secondary">
+      <body className="bg-background text-text-secondary font-sans">
         {children}
       </body>
     </html>

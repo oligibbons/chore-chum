@@ -7,8 +7,9 @@
 
 @layer base {
   /*
-    FIX: Removed the @apply directive.
-    We will apply bg-background and text-text-secondary in layout.tsx
+    FIX: Removed all @apply directives.
+    We will apply bg-background, text-text-secondary, and font-sans
+    in the layout.tsx file where it belongs.
   */
   body {
     -webkit-font-smoothing: antialiased;
@@ -17,10 +18,12 @@
 
   /* Set default font families */
   body, input, textarea, select, button {
+    /* This is fine */
     @apply font-sans;
   }
 
   h1, h2, h3, h4, h5, h6 {
+    /* This is fine */
     @apply font-heading text-text-primary;
   }
 }

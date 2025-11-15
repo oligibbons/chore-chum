@@ -1,7 +1,7 @@
 // src/components/AddChoreModal.tsx
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { X, Loader2, User, Home, Calendar, Repeat, Hash } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
@@ -15,27 +15,43 @@ type Props = {
   rooms: DbRoom[]
 }
 
-// New, sleek Submit Button for the modal
-function SubmitButton() {
-  const [pending, setPending] = useState(false) // Use local state for pending
+// --- New Form Component ---
+// This contains the form itself so we can manage state
+type FormProps = {
+  onClose: () => void
+  householdId: string
+  members: Pick<DbProfile, 'id' | 'full_name', 'avatar_url'>[]
+  rooms: DbRoom[]
+}
 
-  // We'll manually set pending on form submit
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+function ChoreForm({ onClose, householdId, members, rooms }: FormProps) {
+  // Use local state for pending
+  const [pending, setPending] = useState(false)
+
+  // Handle submission manually
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     setPending(true)
-    // No need to e.preventDefault(), the form will submit and action will run
+    
+    const formData = new FormData(event.currentTarget)
+    try {
+      await createChore(formData)
+      onClose() // Close modal on success
+    } catch (error) {
+      console.error(error)
+      setPending(false) // Stop loading on error
+    }
   }
 
   return (
     <form
-      action={createChore}
       onSubmit={handleSubmit}
       className="space-y-6"
     >
       {/* --- FORM CONTENT --- */}
-      {/* We'll move all the form fields inside this component */}
       
-      {/* Hidden Household ID */}
-      <input type="hidden" name="householdId" value={/* Pass householdId here */} />
+      {/* FIX: Replaced placeholder with the 'householdId' prop */}
+      <input type="hidden" name="householdId" value={householdId} />
 
       {/* Chore Name */}
       <div>
@@ -70,7 +86,12 @@ function SubmitButton() {
               defaultValue=""
             >
               <option value="">Unassigned</option>
-              {/* Pass members here */}
+              {/* FIX: Replaced placeholder with the 'members' map */}
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.full_name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -89,7 +110,12 @@ function SubmitButton() {
               defaultValue=""
             >
               <option value="">No Room</option>
-              {/* Pass rooms here */}
+              {/* FIX: Replaced placeholder with the 'rooms' map */}
+              {rooms.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -157,7 +183,7 @@ function SubmitButton() {
       <div className="flex items-center justify-end space-x-4 pt-4">
         <button
           type="button"
-          onClick={/* Pass onClose here */}
+          onClick={onClose} // FIX: Replaced placeholder
           className="rounded-xl px-5 py-3 font-heading text-base font-semibold text-text-secondary transition-all hover:bg-gray-100"
         >
           Cancel
@@ -237,11 +263,10 @@ export default function AddChoreModal({
                 
                 <div className="mt-6">
                   {/*
-                    The form submission is now handled by the new 
-                    SubmitButton component to manage form state.
+                    The form is now a self-contained component.
                     We pass all the props down to it.
                   */}
-                  <SubmitButton
+                  <ChoreForm
                     onClose={onClose}
                     householdId={householdId}
                     members={members}
