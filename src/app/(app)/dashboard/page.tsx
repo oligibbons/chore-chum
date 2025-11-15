@@ -24,10 +24,15 @@ export default async function DashboardPage({
     data: { session },
   } = await supabase.auth.getSession()
 
+  // If no session, redirect. This also fixes the TypeScript error.
+  if (!session) {
+    redirect('/')
+  }
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
-    .eq('id', session?.user.id)
+    .eq('id', session.user.id) // <-- FIX: No longer optional '?'
     .single()
 
   // If no session, redirect will be handled by layout. If no profile, we can't do anything
