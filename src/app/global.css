@@ -3,24 +3,22 @@
 @tailwind utilities;
 
 @layer base {
-  /*
-    FIX: Removed the conflicting :root and .dark blocks.
-    The tailwind.config.ts is now the single source of truth.
-  */
-  
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* The body background and text color are now applied 
+    /* The body background and text color are applied 
       in layout.tsx via 'bg-background' and 'text-foreground'
     */
   }
 
   h1, h2, h3, h4, h5, h6 {
-    /* This now correctly references the 'heading' font family 
-      and 'text-primary' color from your tailwind.config.ts
+    /* FIX: The Vercel build failed on theme('fontFamily.heading').
+      We are now using the raw CSS variable '--font-lexend' 
+      which is provided by layout.tsx. This bypasses the theme() lookup.
+      
+      The color is inherited from the body ('text-foreground' in layout.tsx)
+      so we don't need to explicitly set it here.
     */
-    font-family: theme('fontFamily.heading');
-    color: theme('colors.text.primary');
+    font-family: var(--font-lexend), sans-serif;
   }
 }
