@@ -59,9 +59,16 @@ export async function signUpWithEmail(formData: FormData) {
   }
 
   // FIX: Redirect to dashboard on successful sign-up
-  // Supabase will send a confirmation email, but we can let them
-  // proceed to the app (or a "check your email" page).
-  // For this app's flow, dashboard is the correct next step.
   revalidatePath("/", "layout");
   redirect("/dashboard");
+}
+
+// FIX: Added the missing signOut function
+export async function signOut() {
+  const supabase = createClient();
+  await supabase.auth.signOut();
+  
+  // Revalidate all paths and redirect to the root (login page)
+  revalidatePath("/", "layout");
+  redirect("/");
 }
