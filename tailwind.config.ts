@@ -3,10 +3,13 @@ import type { Config } from 'tailwindcss'
 import forms from '@tailwindcss/forms'
 
 const config: Config = {
-  // FIX: Forcing Tailwind v4 alpha to scan all files,
-  // as it's missing the (app) route group.
+  // FIX: The Tailwind v4 alpha glob is failing on the (app) route group.
+  // We are providing two paths:
+  // 1. The original broad path (which works for /app and /components)
+  // 2. A specific, explicit path to force it to scan inside (app).
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/(app)/**/*.{js,ts,jsx,tsx,mdx}'
   ],
   
   // 'theme.extend' is removed in v4
