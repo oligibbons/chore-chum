@@ -2,14 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-// FIX: The function is 'createSupabaseClient', not 'createClient'
 import { createSupabaseClient } from "@/lib/supabase/server";
 
 export async function signInWithEmail(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  // FIX: Using the correct function name
-  const supabase = createSupabaseClient();
+  // FIX: Must 'await' the async function
+  const supabase = await createSupabaseClient();
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -28,8 +27,8 @@ export async function signUpWithEmail(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("full_name") as string;
-  // FIX: Using the correct function name
-  const supabase = createSupabaseClient();
+  // FIX: Must 'await' the async function
+  const supabase = await createSupabaseClient();
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -43,6 +42,7 @@ export async function signUpWithEmail(formData: FormData) {
     return redirect(`/?message=${authError.message}`);
   }
 
+  // FIX: Removed typo on this line
   if (authData.user) {
     const { error: profileError } = await supabase.from("profiles").insert({
       id: authData.user.id,
@@ -59,8 +59,8 @@ export async function signUpWithEmail(formData: FormData) {
 }
 
 export async function signOut() {
-  // FIX: Using the correct function name
-  const supabase = createSupabaseClient();
+  // FIX: Must 'await' the async function
+  const supabase = await createSupabaseClient();
   await supabase.auth.signOut();
   
   revalidatePath("/", "layout");
