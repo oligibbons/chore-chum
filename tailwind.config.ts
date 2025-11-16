@@ -3,7 +3,11 @@ import type { Config } from 'tailwindcss'
 import forms from '@tailwindcss/forms'
 
 const config: Config = {
-  // 'content' is automatic in v4
+  // FIX: Forcing Tailwind v4 alpha to scan all files,
+  // as it's missing the (app) route group.
+  content: [
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
   
   // 'theme.extend' is removed in v4
   theme: {
@@ -14,7 +18,6 @@ const config: Config = {
     colors: {
       // Direct values, no CSS vars needed
       background: 'hsl(210, 40%, 98%)',
-      // FIX: Added 'foreground' so 'text-foreground' in layout.tsx works
       foreground: 'hsl(224, 20%, 13%)', 
       card: 'hsl(0, 0%, 100%)',
       brand: {
@@ -32,7 +35,7 @@ const config: Config = {
         due: 'hsl(38, 92%, 50%)',
         complete: 'hsl(145, 63%, 42%)',
       },
-      // Adding Tailwind's default colors so they aren't lost
+      // Adding Tailwind's default colors
       inherit: 'inherit',
       current: 'currentColor',
       transparent: 'transparent',
