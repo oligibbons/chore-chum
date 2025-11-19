@@ -35,8 +35,16 @@ export default async function FeedPage() {
 
   if (!user) redirect('/')
 
-  const { data: profile } = await supabase.from('profiles').select('household_id').eq('id', user.id).single()
-  if (!profile?.household_id) redirect('/dashboard')
+  // FIX: Explicit cast
+  const { data: rawProfile } = await supabase
+    .from('profiles')
+    .select('household_id')
+    .eq('id', user.id)
+    .single()
+    
+  const profile = rawProfile as { household_id: string | null } | null
+
+  if (!profile || !profile.household_id) redirect('/dashboard')
 
   const logs = await getActivityFeed(profile.household_id)
 

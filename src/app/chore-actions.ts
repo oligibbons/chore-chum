@@ -45,6 +45,7 @@ async function logActivity(
     details: details,
   }
 
+  // Explicit cast to avoid inference issues on insert
   await (supabase.from('activity_logs') as any).insert(logData)
 }
 
@@ -216,13 +217,14 @@ export async function createChore(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: profile } = await supabase
+  // Use raw data + cast pattern
+  const { data: rawProfile } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
   
-  const safeProfile = profile as { household_id: string | null } | null
+  const safeProfile = rawProfile as { household_id: string | null } | null
 
   if (!safeProfile || !safeProfile.household_id) {
     throw new Error('You must be part of a household to create a chore.')
@@ -416,8 +418,9 @@ export async function updateChore(formData: FormData) {
     throw new Error('Chore name is required.')
   }
   
-  // Fetch current chore to get householdId for logging
-  const { data: currentChore } = await supabase.from('chores').select('household_id, name').eq('id', Number(choreId)).single()
+  // Use raw data + cast to fix potential 'never' type error
+  const { data: rawChore } = await supabase.from('chores').select('household_id, name').eq('id', Number(choreId)).single()
+  const currentChore = rawChore as { household_id: string; name: string } | null
 
   const updateData = {
     name: rawName,
@@ -450,8 +453,9 @@ export async function updateChore(formData: FormData) {
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
 
-  // Get details before deleting for log
-  const { data: chore } = await supabase.from('chores').select('household_id, name').eq('id', choreId).single()
+  // Use raw data + cast to fix potential 'never' type error
+  const { data: rawChore } = await supabase.from('chores').select('household_id, name').eq('id', choreId).single()
+  const chore = rawChore as { household_id: string; name: string } | null
 
   const { error } = await (supabase.from('chores') as any)
     .delete()
@@ -475,17 +479,17 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
 export async function delayChore(choreId: number, days: number) {
   const supabase = await createSupabaseClient()
 
-  // Get current chore due date
-  const { data: chore } = await supabase
+  // Use raw data + cast
+  const { data: rawChore } = await supabase
     .from('chores')
     .select('household_id, name, due_date')
     .eq('id', choreId)
     .single()
 
-  if (!chore) throw new Error('Chore not found')
-
-  const safeChore = chore as { household_id: string, name: string, due_date: string | null }
+  const safeChore = rawChore as { household_id: string, name: string, due_date: string | null } | null
   
+  if (!safeChore) throw new Error('Chore not found')
+
   const baseDate = safeChore.due_date ? new Date(safeChore.due_date) : new Date()
   
   // Add days

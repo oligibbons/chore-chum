@@ -13,11 +13,14 @@ export default async function CalendarPage() {
 
   if (!user) redirect('/')
 
-  const { data: profile } = await supabase
+  // FIX: Fetch raw data and explicitly cast to avoid 'never' type inference errors
+  const { data: rawProfile } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
+
+  const profile = rawProfile as { household_id: string | null } | null
 
   if (!profile || !profile.household_id) redirect('/dashboard')
 
