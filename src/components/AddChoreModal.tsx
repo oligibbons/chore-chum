@@ -10,23 +10,20 @@ import { DbProfile, DbRoom } from '@/types/database'
 type Props = {
   isOpen: boolean
   onClose: () => void
-  householdId: string
+  householdId: string // Kept in props to avoid breaking parent usage, but unused in form
   // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
 
 // --- New Form Component ---
-// This contains the form itself so we can manage state
 type FormProps = {
   onClose: () => void
-  householdId: string
-  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
 
-function ChoreForm({ onClose, householdId, members, rooms }: FormProps) {
+function ChoreForm({ onClose, members, rooms }: FormProps) {
   // Use local state for pending
   const [pending, setPending] = useState(false)
 
@@ -51,8 +48,7 @@ function ChoreForm({ onClose, householdId, members, rooms }: FormProps) {
       className="space-y-6"
     >
       {/* --- FORM CONTENT --- */}
-      
-      <input type="hidden" name="householdId" value={householdId} />
+      {/* Hidden input for householdId removed - handled securely on server */}
 
       {/* Chore Name */}
       <div>
@@ -263,7 +259,6 @@ export default function AddChoreModal({
                 <div className="mt-6">
                   <ChoreForm
                     onClose={onClose}
-                    householdId={householdId}
                     members={members}
                     rooms={rooms}
                   />

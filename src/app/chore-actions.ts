@@ -26,35 +26,40 @@ type ChoreDisplayData = {
     upcoming: ChoreWithDetails[]
 }
 
-async function getUserId() {
-  const supabase = await createSupabaseClient() 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id
-}
-
 function getNextDueDate(
   recurrenceType: string,
   currentDueDate: string | null
 ): string | null {
-  const startDate = currentDueDate ? new Date(currentDueDate) : new Date()
-  let rule: RRule | undefined
-  switch (recurrenceType) {
-    case 'daily':
-      rule = new RRule({ freq: RRule.DAILY, dtstart: startDate, count: 2 })
-      break
-    case 'weekly':
-      rule = new RRule({ freq: RRule.WEEKLY, dtstart: startDate, count: 2 })
-      break
-    case 'monthly':
-      rule = new RRule({ freq: RRule.MONTHLY, dtstart: startDate, count: 2 })
-      break
-    default:
-      return null
+  if (!currentDueDate) return null
+  
+  try {
+    const startDate = new Date(currentDueDate)
+    let rule: RRule | undefined
+    
+    // Validations to prevent RRule crashes
+    if (isNaN(startDate.getTime())) return null
+
+    switch (recurrenceType) {
+      case 'daily':
+        rule = new RRule({ freq: RRule.DAILY, dtstart: startDate, count: 2 })
+        break
+      case 'weekly':
+        rule = new RRule({ freq: RRule.WEEKLY, dtstart: startDate, count: 2 })
+        break
+      case 'monthly':
+        rule = new RRule({ freq: RRule.MONTHLY, dtstart: startDate, count: 2 })
+        break
+      default:
+        return null
+    }
+    
+    const allDates = rule.all()
+    // The first date is the start date, so we take the second one
+    return allDates.length > 1 ? allDates[1].toISOString() : null
+  } catch (error) {
+    console.error('Error calculating next due date:', error)
+    return null
   }
-  const nextDate = rule.all()[1]
-  return nextDate ? nextDate.toISOString() : null
 }
 
 // --- Main Actions ---
@@ -178,30 +183,52 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
 
 export async function createChore(formData: FormData) {
   const supabase = await createSupabaseClient() 
-  const userId = await getUserId()
-  if (!userId) throw new Error('Not authenticated')
+  
+  // 1. Get the current user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
-  const rawData = {
-    name: formData.get('name') as string,
-    household_id: formData.get('householdId') as string,
-    assigned_to: (formData.get('assignedTo') as string) || null,
-    room_id: (formData.get('roomId') as string) || null,
-    due_date: (formData.get('dueDate') as string) || null,
-    target_instances: Number(formData.get('instances') as string) || 1,
-    recurrence_type: (formData.get('recurrence_type') as string) || 'none',
+  // 2. SECURE FETCH: Get the household_id directly from the DB profile.
+  // We do NOT trust the client-side 'householdId' hidden input anymore.
+  // This ensures the insert matches the RLS policy "household_id = get_my_household_id()"
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('household_id')
+    .eq('id', user.id)
+    .single()
+  
+  // Type guard for the profile response
+  const safeProfile = profile as { household_id: string | null } | null
+
+  if (!safeProfile || !safeProfile.household_id) {
+    throw new Error('You must be part of a household to create a chore.')
   }
+  
+  const householdId = safeProfile.household_id
 
-  if (!rawData.name || !rawData.household_id) {
-    throw new Error('Chore name and household ID are required.')
+  // 3. Parse form data
+  const rawName = formData.get('name') as string
+  const rawAssignedTo = formData.get('assignedTo') as string
+  const rawRoomId = formData.get('roomId') as string
+  const rawDueDate = formData.get('dueDate') as string
+  const rawInstances = formData.get('instances') as string
+  const rawRecurrence = formData.get('recurrence_type') as string
+
+  if (!rawName) {
+    throw new Error('Chore name is required.')
   }
 
   const newChoreData: ChoreInsert = {
-    ...rawData,
-    created_by: userId,
+    name: rawName,
+    household_id: householdId,
+    created_by: user.id,
     status: 'pending',
-    assigned_to: rawData.assigned_to === '' ? null : rawData.assigned_to,
-    room_id: rawData.room_id ? Number(rawData.room_id) : null,
-    due_date: rawData.due_date === '' ? null : rawData.due_date,
+    // Handle empty strings from form inputs
+    assigned_to: rawAssignedTo && rawAssignedTo !== '' ? rawAssignedTo : null,
+    room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
+    due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
+    target_instances: rawInstances ? Number(rawInstances) : 1,
+    recurrence_type: rawRecurrence || 'none',
     completed_instances: 0,
   }
 
@@ -210,6 +237,8 @@ export async function createChore(formData: FormData) {
 
   if (error) {
     console.error('Error creating chore:', error)
+    // Return structured error instead of throwing blind generic error if possible,
+    // but throwing here triggers the error boundary which is acceptable for now.
     throw new Error(`Could not create chore: ${error.message}`)
   }
   revalidatePath('/dashboard')
@@ -322,27 +351,29 @@ export async function updateChore(formData: FormData) {
   const choreId = formData.get('choreId') as string
   if (!choreId) throw new Error('Chore ID is missing.')
 
-  const rawData = {
-    name: formData.get('name') as string,
-    assigned_to: (formData.get('assignedTo') as string) || null,
-    room_id: (formData.get('roomId') as string) || null,
-    due_date: (formData.get('dueDate') as string) || null,
-    target_instances: Number(formData.get('instances') as string) || 1,
-    recurrence_type: (formData.get('recurrence_type') as string) || 'none',
+  const rawName = formData.get('name') as string
+  const rawAssignedTo = formData.get('assignedTo') as string
+  const rawRoomId = formData.get('roomId') as string
+  const rawDueDate = formData.get('dueDate') as string
+  const rawInstances = formData.get('instances') as string
+  const rawRecurrence = formData.get('recurrence_type') as string
+
+  if (!rawName) {
+    throw new Error('Chore name is required.')
   }
 
-  if (!rawData.name) {
-    throw new Error('Chore name is required.')
+  const updateData = {
+    name: rawName,
+    assigned_to: rawAssignedTo && rawAssignedTo !== '' ? rawAssignedTo : null,
+    room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
+    due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
+    target_instances: rawInstances ? Number(rawInstances) : 1,
+    recurrence_type: rawRecurrence || 'none',
   }
 
   // NUCLEAR FIX: Cast builder to 'any'
   const { error } = await (supabase.from('chores') as any)
-    .update({
-      ...rawData,
-      assigned_to: rawData.assigned_to === '' ? null : rawData.assigned_to,
-      room_id: rawData.room_id ? Number(rawData.room_id) : null,
-      due_date: rawData.due_date === '' ? null : rawData.due_date,
-    })
+    .update(updateData)
     .eq('id', Number(choreId))
 
   if (error) {
