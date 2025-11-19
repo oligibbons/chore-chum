@@ -65,8 +65,7 @@ export async function createHousehold(
       return { success: false, message: 'Could not generate a unique invite code. Please try again.' }
     }
 
-    // FIX: Cast to any
-    const { data: householdData, error: householdError } = await supabase
+    const { data: rawHouseholdData, error: householdError } = await supabase
       .from('households')
       .insert({
         name: householdName,
@@ -76,6 +75,9 @@ export async function createHousehold(
       .select('id')
       .single()
 
+    // FIX: Cast to 'any' to prevent property access errors on inferred 'never'
+    const householdData = rawHouseholdData as any
+
     if (householdError || !householdData) {
       return {
         success: false,
@@ -83,7 +85,6 @@ export async function createHousehold(
       }
     }
 
-    // FIX: Cast to any
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ household_id: householdData.id } as any)
@@ -126,11 +127,14 @@ export async function joinHousehold(
       return { success: false, message: 'Invite code must be 6 characters.' }
     }
 
-    const { data: householdData, error: householdError } = await supabase
+    const { data: rawHouseholdData, error: householdError } = await supabase
       .from('households')
       .select('id')
       .eq('invite_code', inviteCode)
       .single()
+
+    // FIX: Cast to 'any' here as well
+    const householdData = rawHouseholdData as any
 
     if (householdError || !householdData) {
       return {
@@ -139,7 +143,6 @@ export async function joinHousehold(
       }
     }
 
-    // FIX: Cast to any
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ household_id: householdData.id } as any)

@@ -68,17 +68,19 @@ export async function getHouseholdData(
     .select('id, name, invite_code')
     .eq('id', householdId)
     .single()
+    
   if (!household) return null
+
   const { data: members } = await supabase
     .from('profiles')
     .select('id, full_name, avatar_url')
     .eq('household_id', householdId)
+    
   const { data: rooms } = await supabase
     .from('rooms')
     .select('*')
     .eq('household_id', householdId)
-  
-  // FIX: Safe casting for the complex join
+    
   const { data: chores } = await supabase
     .from('chores')
     .select(
@@ -92,9 +94,10 @@ export async function getHouseholdData(
     .order('due_date', { ascending: true, nullsFirst: true })
 
   return {
-    household: household as DbHousehold,
-    members: members || [],
-    rooms: rooms || [],
+    // Force cast everything to avoid 'never' inference issues
+    household: household as unknown as DbHousehold,
+    members: (members || []) as any[],
+    rooms: (rooms || []) as any[],
     chores: (chores as any[] || []) as ChoreWithDetails[],
   }
 }
@@ -145,8 +148,12 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
 
 export async function completeChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
-    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
-    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
+    const { data: rawChore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
+    
+    if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
+
+    // FIX: Cast to 'any' immediately to allow property access
+    const chore = rawChore as any
 
     if ((chore.target_instances ?? 1) > 1) {
         return incrementChoreInstance(chore as DbChore)
@@ -157,8 +164,12 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
 
 export async function uncompleteChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
-    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
-    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
+    const { data: rawChore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
+    
+    if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
+
+    // FIX: Cast to 'any' immediately to allow property access
+    const chore = rawChore as any
 
     if ((chore.target_instances ?? 1) > 1) {
         return decrementChoreInstance(chore as DbChore)
@@ -196,7 +207,6 @@ export async function createChore(formData: FormData) {
     completed_instances: 0,
   }
 
-  // FIX: Cast to any
   const { error } = await supabase.from('chores').insert(newChoreData as any)
 
   if (error) {
@@ -229,7 +239,7 @@ export async function toggleChoreStatus(
       }
     }
   }
-  // FIX: Cast to any
+  
   const { error } = await supabase
     .from('chores')
     .update(updateData as any)
@@ -272,7 +282,6 @@ export async function incrementChoreInstance(
     updateData = { completed_instances: newInstanceCount }
   }
   
-  // FIX: Cast to any
   const { error } = await supabase
     .from('chores')
     .update(updateData as any)
@@ -291,7 +300,6 @@ export async function decrementChoreInstance(
   
   const newInstanceCount = Math.max(0, (chore.completed_instances ?? 0) - 1)
 
-  // FIX: Cast to any
   const { error } = await supabase
     .from('chores')
     .update({
@@ -325,7 +333,6 @@ export async function updateChore(formData: FormData) {
     throw new Error('Chore name is required.')
   }
 
-  // FIX: Cast to any
   const { error } = await supabase
     .from('chores')
     .update({
