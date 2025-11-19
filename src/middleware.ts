@@ -1,7 +1,5 @@
-// src/middleware.ts
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import type { Database } from '@/types/supabase'
+import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -10,72 +8,54 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // Use Vercel-safe env vars
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  const supabase = createServerClient<Database>(
-    supabaseUrl,
-    supabaseAnonKey,
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        // FIX: This is the correct cookie syntax for Middleware
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({ name, value: '', ...options })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  // This will refresh the session cookie
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // --- CONSOLIDATED REDIRECT LOGIC ---
   const isAppRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/rooms')
-  const isHomeRoute = pathname === '/'
+  const isAuthRoute = pathname === '/'
 
-  if (!user && isAppRoute) {
-    // Not logged in, trying to access app? Redirect to home.
-    return NextResponse.redirect(new URL('/', request.url))
+  // 1. If trying to access app routes while not logged in -> Redirect to Login
+  if (isAppRoute && !user) {
+    const redirectUrl = new URL('/', request.url)
+    // Optional: Add ?message= for UX
+    return NextResponse.redirect(redirectUrl)
   }
 
-  if (user && isHomeRoute) {
-    // Logged in, trying to access home? Redirect to dashboard.
+  // 2. If logged in and trying to access login page -> Redirect to Dashboard
+  if (isAuthRoute && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
-  
-  // All checks pass, return the response (which now has the refreshed cookie)
+
   return response
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - /auth/callback (CRITICAL: must exclude this)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.png$|.*\\.jpg$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
