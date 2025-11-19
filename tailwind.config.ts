@@ -14,12 +14,12 @@ const config: Config = {
         heading: ['var(--font-lexend)', 'sans-serif'],
       },
       colors: {
-        background: 'hsl(210, 40%, 98%)', // Soft blue-grey white
-        foreground: 'hsl(224, 20%, 13%)', // Deep navy charcoal
+        background: 'hsl(210, 40%, 98%)',
+        foreground: 'hsl(224, 20%, 13%)',
         card: 'hsl(0, 0%, 100%)',
         brand: {
           light: 'hsl(252, 92%, 96%)',
-          DEFAULT: 'hsl(252, 75%, 60%)', // Vibrant Purple
+          DEFAULT: 'hsl(252, 75%, 60%)', 
           dark: 'hsl(252, 75%, 50%)',
         },
         text: {
@@ -28,9 +28,9 @@ const config: Config = {
         },
         border: 'hsl(214, 32%, 91%)',
         status: {
-          overdue: 'hsl(350, 78%, 60%)', // Soft Red
-          due: 'hsl(38, 92%, 50%)',     // Amber
-          complete: 'hsl(145, 63%, 42%)', // Green
+          overdue: 'hsl(350, 78%, 60%)',
+          due: 'hsl(38, 92%, 50%)',
+          complete: 'hsl(145, 63%, 42%)',
         },
       },
       boxShadow: {

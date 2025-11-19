@@ -12,18 +12,3 @@
     font-family: var(--font-lexend), sans-serif;
   }
 }
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  /* Hides scrollbar but allows scrolling */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}

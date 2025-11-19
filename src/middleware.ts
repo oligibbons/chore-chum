@@ -2,12 +2,14 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
+  // 1. Create an initial response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
+  // 2. Setup Supabase client to handle cookie refreshing
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -33,21 +35,22 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // 3. Check user session
   const { data: { user } } = await supabase.auth.getUser()
-  const { pathname } = request.nextUrl
 
+  const { pathname } = request.nextUrl
   const isAppRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/rooms')
   const isAuthRoute = pathname === '/'
 
-  // 1. If trying to access app routes while not logged in -> Redirect to Login
+  // 4. Redirect Logic
   if (isAppRoute && !user) {
+    // If trying to access app but not logged in -> Redirect to Home
     const redirectUrl = new URL('/', request.url)
-    // Optional: Add ?message= for UX
     return NextResponse.redirect(redirectUrl)
   }
 
-  // 2. If logged in and trying to access login page -> Redirect to Dashboard
   if (isAuthRoute && user) {
+    // If logged in and visiting Home -> Redirect to Dashboard
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
@@ -56,6 +59,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - auth/callback (IMPORTANT: keep this open for auth flow)
+     * - public files (svg, png, etc)
+     */
     '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
