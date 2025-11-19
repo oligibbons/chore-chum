@@ -44,6 +44,21 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
         </div>
       </div>
 
+      <div>
+        <label htmlFor="notes" className="block font-heading text-sm font-medium text-text-primary">
+          Notes
+        </label>
+        <div className="relative mt-1">
+          <textarea
+            id="notes"
+            name="notes"
+            rows={2}
+            defaultValue={chore.notes || ''}
+            className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="assignedTo" className="block font-heading text-sm font-medium text-text-primary">

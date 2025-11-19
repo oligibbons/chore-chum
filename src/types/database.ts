@@ -1,4 +1,4 @@
-// types/database.ts
+// src/types/database.ts
 
 import { Database } from './supabase'
 
@@ -7,6 +7,7 @@ export type DbChore = Database['public']['Tables']['chores']['Row']
 export type DbProfile = Database['public']['Tables']['profiles']['Row']
 export type DbRoom = Database['public']['Tables']['rooms']['Row']
 export type DbHousehold = Database['public']['Tables']['households']['Row']
+export type DbActivityLog = Database['public']['Tables']['activity_logs']['Row']
 
 // This is our new, "combined" type.
 // It's a Chore, but we also include the full 'profiles' object
@@ -29,4 +30,9 @@ export type HouseholdData = {
 // NEW TYPE FOR ROOMS PAGE
 export type RoomWithChoreCount = DbRoom & {
   chore_count: number
+}
+
+// Combined type for Activity Logs
+export type ActivityLogWithUser = DbActivityLog & {
+  profiles: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'> | null
 }

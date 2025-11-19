@@ -1,7 +1,7 @@
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
-import { Check, Clock, User, Home, Calendar, Loader2, RotateCw } from 'lucide-react'
+import { Check, Clock, User, Home, Calendar, Loader2, RotateCw, FileText } from 'lucide-react'
 import { useTransition, useState } from 'react'
 import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
@@ -119,8 +119,17 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
               >
                 {chore.name}
               </h4>
+              
+              {/* NEW: Notes display */}
+              {chore.notes && (
+                <div className="flex items-start gap-1 text-sm text-text-secondary mt-0.5">
+                    <FileText className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <p className="line-clamp-2">{chore.notes}</p>
+                </div>
+              )}
+
               {(chore.target_instances ?? 1) > 1 && (
-                <span className="text-sm font-medium text-text-secondary">
+                <span className="text-sm font-medium text-text-secondary mt-1">
                   {chore.completed_instances ?? 0} / {chore.target_instances ?? 1} completed
                 </span>
               )}

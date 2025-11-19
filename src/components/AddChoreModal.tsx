@@ -58,6 +58,22 @@ function ChoreForm({
         </div>
       </div>
 
+      {/* Notes (Optional) */}
+      <div>
+        <label htmlFor="notes" className="block font-heading text-sm font-medium text-text-primary">
+          Notes (Optional)
+        </label>
+        <div className="relative mt-1">
+          <textarea
+            id="notes"
+            name="notes"
+            rows={2}
+            placeholder="Any extra details..."
+            className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+          />
+        </div>
+      </div>
+
       {/* Grid for details */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Assigned To */}

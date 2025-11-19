@@ -5,7 +5,7 @@ import { createSupabaseClient } from '@/lib/supabase/server'
 import { getChoreDisplayData } from '@/app/chore-actions'
 import ChoreDisplay from '@/components/ChoreDisplay'
 import HouseholdManager from '@/components/HouseholdManager'
-import { Plus } from 'lucide-react'
+import { Plus, Zap } from 'lucide-react'
 import Link from 'next/link'
 import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
@@ -13,6 +13,7 @@ import EditChoreModal from '@/components/EditChoreModal'
 import { ChoreWithDetails } from '@/types/database'
 import RealtimeChores from '@/components/RealtimeChores'
 import RoomFilter from '@/components/RoomFilter'
+import ZenMode from '@/components/ZenMode'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,7 +59,10 @@ export default async function DashboardPage(props: DashboardProps) {
     getRoomsAndMembers(householdId),
   ])
 
-  // Filter chores by room if a filter is active
+  // Collect all chores for Zen Mode
+  const allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
+
+  // Filter chores by room if a filter is active for the main dashboard view
   const filterByRoom = (chores: ChoreWithDetails[]) => {
     if (!roomIdFilter) return chores
     return chores.filter(c => c.room_id === roomIdFilter)
@@ -71,22 +75,36 @@ export default async function DashboardPage(props: DashboardProps) {
 
   let editChore: ChoreWithDetails | null = null
   if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
-    const allChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
-    editChore = allChores.find(c => c.id === Number(searchParams.choreId)) || null
+    editChore = allChoresRaw.find(c => c.id === Number(searchParams.choreId)) || null
   }
 
   return (
     <div className="space-y-8">
       <RealtimeChores householdId={householdId} />
+      
+      {/* Zen Mode Component - Hidden unless ?view=zen is active */}
+      <ZenMode chores={allChoresRaw} />
 
-      <header className="mb-2">
-        <h2 className="text-4xl font-heading font-bold">
-          Welcome back, {userName}! 👋
-        </h2>
-        <p className="mt-1 text-lg text-text-secondary">
-          Here’s what’s on the list for today.
-        </p>
-      </header>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <header>
+          <h2 className="text-4xl font-heading font-bold">
+            Welcome back, {userName}! 👋
+          </h2>
+          <p className="mt-1 text-lg text-text-secondary">
+            Here’s what’s on the list for today.
+          </p>
+        </header>
+        
+        {/* Zen Mode Trigger Button */}
+        <Link 
+          href="?view=zen"
+          scroll={false}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-md transition-transform hover:scale-105 active:scale-95"
+        >
+          <Zap className="h-4 w-4 text-yellow-400" fill="currentColor" />
+          Zen Mode
+        </Link>
+      </div>
       
       {/* Room Filter Section */}
       <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8">

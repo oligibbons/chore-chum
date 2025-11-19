@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          details: Json | null
+          entity_name: string
+          household_id: string
+          id: number
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          details?: Json | null
+          entity_name: string
+          household_id: string
+          id?: number
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          details?: Json | null
+          entity_name?: string
+          household_id?: string
+          id?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chores: {
         Row: {
           assigned_to: string | null
@@ -24,6 +69,7 @@ export type Database = {
           household_id: string
           id: number
           name: string
+          notes: string | null
           recurrence_type: string
           room_id: number | null
           status: string
@@ -38,6 +84,7 @@ export type Database = {
           household_id: string
           id?: number
           name: string
+          notes?: string | null
           recurrence_type?: string
           room_id?: number | null
           status?: string
@@ -52,6 +99,7 @@ export type Database = {
           household_id?: string
           id?: number
           name?: string
+          notes?: string | null
           recurrence_type?: string
           room_id?: number | null
           status?: string
