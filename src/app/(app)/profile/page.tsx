@@ -16,19 +16,27 @@ export default async function ProfilePage() {
     redirect('/')
   }
 
-  // Fetch profile
-  const { data: profileData } = await supabase
+  // 1. Fetch profile safely
+  const { data: profileData, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
+  // 2. Handle the case where profileData might be null
+  if (error || !profileData) {
+    console.error('Error fetching profile:', error)
+    // If the profile is missing (rare), redirect to dashboard to avoid crashing
+    redirect('/dashboard') 
+  }
+
+  // Now TypeScript knows profileData is definitely a DbProfile
   const profile = profileData as DbProfile
 
-  // Fetch household if user has one
+  // 3. Fetch household if user has one
   let household: Pick<DbHousehold, 'name' | 'invite_code'> | null = null
   
-  if (profile?.household_id) {
+  if (profile.household_id) {
     const { data: householdData } = await supabase
       .from('households')
       .select('name, invite_code')
