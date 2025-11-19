@@ -17,8 +17,11 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { modal: string; choreId?: string }
+  searchParams: Promise<{ modal?: string; choreId?: string }>
 }) {
+  // 1. Await the params before using them (Next.js 15 requirement)
+  const params = await searchParams
+  
   const supabase = await createSupabaseClient()
   
   const {
@@ -26,16 +29,15 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/') // Should be caught by middleware
+    redirect('/') 
   }
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('household_id, full_name') // Get full_name for the welcome message
+    .select('household_id, full_name')
     .eq('id', user.id)
     .single()
 
-  // This logic is correct.
   if (!profile || !profile.household_id) {
     return (
       <div className="py-12 flex items-center justify-center">
@@ -45,7 +47,7 @@ export default async function DashboardPage({
   }
 
   const householdId = profile.household_id
-  const userName = profile.full_name?.split(' ')[0] || 'User' // Get user's first name
+  const userName = profile.full_name?.split(' ')[0] || 'User'
 
   const [data, roomData] = await Promise.all([
     getChoreDisplayData(householdId),
@@ -53,16 +55,16 @@ export default async function DashboardPage({
   ])
 
   let editChore: ChoreWithDetails | null = null
-  if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
+  
+  // 2. Use the awaited 'params' object here
+  if (params.modal === 'edit-chore' && params.choreId) {
     const allChores = [...data.overdue, ...data.dueSoon, ...data.upcoming]
-    editChore = allChores.find(c => c.id === Number(searchParams.choreId)) || null
+    editChore = allChores.find(c => c.id === Number(params.choreId)) || null
   }
 
-  // --- NEW "PLAYFUL" UI ---
   return (
     <div className="space-y-8">
       
-      {/* 1. NEW Dashboard Header: Playful & Welcoming */}
       <header className="mb-6">
         <h2 className="text-4xl font-heading font-bold">
           Welcome back, {userName}! 👋
@@ -72,7 +74,6 @@ export default async function DashboardPage({
         </p>
       </header>
 
-      {/* 2. Main Content Area: Spacious 3-column grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         
         <div className="lg:col-span-1">
@@ -100,7 +101,6 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {/* 3. NEW Floating Action Button (FAB) for "Add Chore" */}
       <Link 
         href="?modal=add-chore"
         scroll={false} 
@@ -109,11 +109,9 @@ export default async function DashboardPage({
       >
         <Plus className="h-8 w-8 text-white" />
       </Link>
-      {/* --- END NEW UI --- */}
 
-
-      {/* Modals: No change, but they will inherit the new styles */}
-      {searchParams.modal === 'add-chore' && (
+      {/* 3. Use 'params' here as well */}
+      {params.modal === 'add-chore' && (
         <AddChoreModal
           isOpen={true}
           onClose={() => redirect('/dashboard')}
@@ -123,7 +121,7 @@ export default async function DashboardPage({
         />
       )}
 
-      {searchParams.modal === 'edit-chore' && editChore && (
+      {params.modal === 'edit-chore' && editChore && (
         <EditChoreModal
           isOpen={true}
           onClose={() => redirect('/dashboard')}
