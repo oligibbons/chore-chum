@@ -42,9 +42,8 @@ export default function ChoreDisplay({
 }: Props) {
   const config = getStatusConfig(status)
 
-  if (status === 'completed' && chores.length === 0) {
-     return null; // Don't show completed section if empty
-  }
+  // REMOVED: The check that returned null if chores.length === 0
+  // This ensures the column always renders, maintaining the grid layout.
 
   return (
     <div className="flex flex-col space-y-4">
@@ -69,7 +68,10 @@ export default function ChoreDisplay({
             <ChoreItem
               key={chore.id}
               chore={chore}
-              status={status === 'completed' ? 'upcoming' : status} // Pass visual status to item
+              // If status is completed, we pass 'upcoming' to ChoreItem purely to avoid 
+              // breaking its internal prop types, but ChoreItem will see the chore is 
+              // actually complete via its properties and style it green automatically.
+              status={status === 'completed' ? 'upcoming' : status} 
               showActions={true}
             />
           ))}
@@ -81,6 +83,8 @@ export default function ChoreDisplay({
               ? 'Nothing overdue. Nice!'
               : status === 'due'
               ? 'Nothing due soon!'
+              : status === 'completed'
+              ? 'No completed chores yet.'
               : 'All caught up!'}
           </p>
         </div>
