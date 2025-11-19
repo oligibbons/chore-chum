@@ -65,17 +65,17 @@ export async function createHousehold(
       return { success: false, message: 'Could not generate a unique invite code. Please try again.' }
     }
 
-    const { data: rawHouseholdData, error: householdError } = await supabase
-      .from('households')
+    // NUCLEAR FIX: Cast builder to 'any'
+    const { data: rawHouseholdData, error: householdError } = await (supabase.from('households') as any)
       .insert({
         name: householdName,
         owner_id: user.id,
         invite_code: inviteCode,
-      } as any)
+      })
       .select('id')
       .single()
 
-    // FIX: Cast to 'any' to prevent property access errors on inferred 'never'
+    // Cast data result to avoid 'never' access error
     const householdData = rawHouseholdData as any
 
     if (householdError || !householdData) {
@@ -85,9 +85,9 @@ export async function createHousehold(
       }
     }
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ household_id: householdData.id } as any)
+    // NUCLEAR FIX: Cast builder to 'any'
+    const { error: profileError } = await (supabase.from('profiles') as any)
+      .update({ household_id: householdData.id })
       .eq('id', user.id)
 
     if (profileError) {
@@ -133,7 +133,6 @@ export async function joinHousehold(
       .eq('invite_code', inviteCode)
       .single()
 
-    // FIX: Cast to 'any' here as well
     const householdData = rawHouseholdData as any
 
     if (householdError || !householdData) {
@@ -143,9 +142,9 @@ export async function joinHousehold(
       }
     }
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ household_id: householdData.id } as any)
+    // NUCLEAR FIX: Cast builder to 'any'
+    const { error: profileError } = await (supabase.from('profiles') as any)
+      .update({ household_id: householdData.id })
       .eq('id', user.id)
 
     if (profileError) {

@@ -1,3 +1,4 @@
+// src/app/actions.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -43,11 +44,11 @@ export async function signUpWithEmail(formData: FormData) {
   }
 
   if (authData.user) {
-    // FIX: Cast to 'any' to bypass the strict 'never' type inference error
-    const { error: profileError } = await supabase.from("profiles").insert({
+    // NUCLEAR FIX: Cast the builder to 'any' to bypass strict type checks
+    const { error: profileError } = await (supabase.from("profiles") as any).insert({
       id: authData.user.id,
       full_name: fullName,
-    } as any);
+    });
 
     if (profileError) {
       return redirect(`/?message=${profileError.message}`);

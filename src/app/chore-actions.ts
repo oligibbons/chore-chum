@@ -94,7 +94,6 @@ export async function getHouseholdData(
     .order('due_date', { ascending: true, nullsFirst: true })
 
   return {
-    // Force cast everything to avoid 'never' inference issues
     household: household as unknown as DbHousehold,
     members: (members || []) as any[],
     rooms: (rooms || []) as any[],
@@ -152,7 +151,7 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
     
     if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
 
-    // FIX: Cast to 'any' immediately to allow property access
+    // Force cast data to 'any' so we can access properties without TS complaining
     const chore = rawChore as any
 
     if ((chore.target_instances ?? 1) > 1) {
@@ -168,7 +167,6 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
     
     if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
 
-    // FIX: Cast to 'any' immediately to allow property access
     const chore = rawChore as any
 
     if ((chore.target_instances ?? 1) > 1) {
@@ -207,7 +205,8 @@ export async function createChore(formData: FormData) {
     completed_instances: 0,
   }
 
-  const { error } = await supabase.from('chores').insert(newChoreData as any)
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('chores') as any).insert(newChoreData)
 
   if (error) {
     console.error('Error creating chore:', error)
@@ -240,10 +239,11 @@ export async function toggleChoreStatus(
     }
   }
   
-  const { error } = await supabase
-    .from('chores')
-    .update(updateData as any)
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('chores') as any)
+    .update(updateData)
     .eq('id', chore.id)
+
   if (error) {
     return { success: false, message: error.message }
   }
@@ -282,10 +282,11 @@ export async function incrementChoreInstance(
     updateData = { completed_instances: newInstanceCount }
   }
   
-  const { error } = await supabase
-    .from('chores')
-    .update(updateData as any)
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('chores') as any)
+    .update(updateData)
     .eq('id', chore.id)
+
   if (error) {
     return { success: false, message: error.message }
   }
@@ -300,13 +301,14 @@ export async function decrementChoreInstance(
   
   const newInstanceCount = Math.max(0, (chore.completed_instances ?? 0) - 1)
 
-  const { error } = await supabase
-    .from('chores')
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('chores') as any)
     .update({
       completed_instances: newInstanceCount,
       status: 'pending',
-    } as any)
+    })
     .eq('id', chore.id)
+
   if (error) {
     return { success: false, message: error.message }
   }
@@ -333,14 +335,14 @@ export async function updateChore(formData: FormData) {
     throw new Error('Chore name is required.')
   }
 
-  const { error } = await supabase
-    .from('chores')
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('chores') as any)
     .update({
       ...rawData,
       assigned_to: rawData.assigned_to === '' ? null : rawData.assigned_to,
       room_id: rawData.room_id ? Number(rawData.room_id) : null,
       due_date: rawData.due_date === '' ? null : rawData.due_date,
-    } as any)
+    })
     .eq('id', Number(choreId))
 
   if (error) {
@@ -354,8 +356,8 @@ export async function updateChore(formData: FormData) {
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
 
-  const { error } = await supabase
-    .from('chores')
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('chores') as any)
     .delete()
     .eq('id', choreId)
 

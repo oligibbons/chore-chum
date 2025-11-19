@@ -23,7 +23,6 @@ async function getUserHousehold() {
     .eq('id', user.id)
     .single()
 
-  // SAFE CAST: To avoid 'never' type if inference fails
   const safeProfile = profile as { household_id: string | null } | null
 
   if (!safeProfile || !safeProfile.household_id) {
@@ -48,7 +47,6 @@ export async function getRoomsAndMembers(householdId: string) {
       .eq('household_id', householdId),
   ])
 
-  // SAFE CAST: To avoid 'never' array inference
   const roomsRaw = roomsData.data as any[] | null
   
   const rooms = (roomsRaw || []).map(room => ({
@@ -81,11 +79,11 @@ export async function createRoom(
     return { success: false, message: 'Room name must be at least 2 characters.' }
   }
 
-  // FIX: Cast to any
-  const { error } = await supabase.from('rooms').insert({
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('rooms') as any).insert({
     name: roomName.trim(),
     household_id: householdId,
-  } as any)
+  })
 
   if (error) {
     console.error('Error creating room:', error)
@@ -121,8 +119,8 @@ export async function deleteRoom(
   
   const supabase = await createSupabaseClient() 
 
-  const { error } = await supabase
-    .from('rooms')
+  // NUCLEAR FIX: Cast builder to 'any'
+  const { error } = await (supabase.from('rooms') as any)
     .delete()
     .eq('id', roomId)
     .eq('household_id', householdId)
