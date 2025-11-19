@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { User, LogOut, Copy, Check, Loader2 } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { User, LogOut, Copy, Check, Loader2, Camera } from 'lucide-react'
 import { updateProfile, leaveHousehold } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 type Props = {
   profile: DbProfile
@@ -15,11 +16,21 @@ export default function ProfileForm({ profile, household }: Props) {
   const [isPending, setIsPending] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
+  const [isUploading, setIsUploading] = useState(false)
+  
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const supabase = createSupabaseBrowserClient()
 
   const handleUpdate = async (formData: FormData) => {
     setIsPending(true)
     setMessage(null)
     
+    // Append the current (or new) avatar URL to the form data
+    if (avatarUrl) {
+      formData.set('avatarUrl', avatarUrl)
+    }
+
     const result = await updateProfile(formData)
     
     setMessage({
@@ -29,9 +40,39 @@ export default function ProfileForm({ profile, household }: Props) {
     setIsPending(false)
   }
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setIsUploading(true)
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('You must select an image to upload.')
+      }
+
+      const file = event.target.files[0]
+      const fileExt = file.name.split('.').pop()
+      const userId = profile.id
+      // Path: user_id/random_number.ext
+      const filePath = `${userId}/${Math.random()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
+      setAvatarUrl(data.publicUrl)
+
+    } catch (error: any) {
+      alert('Error uploading avatar: ' + error.message)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const handleCopyCode = () => {
     if (household?.invite_code) {
-      // Use the modern Clipboard API, falling back to execCommand if needed is handled by most browsers now
       navigator.clipboard.writeText(household.invite_code)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
@@ -47,18 +88,39 @@ export default function ProfileForm({ profile, household }: Props) {
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
       
-      {/* Left Column: Edit Profile */}
       <div className="lg:col-span-2 space-y-6">
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-          <div className="mb-6 flex items-center gap-4">
-            <Avatar 
-              url={profile.avatar_url} 
-              alt={profile.full_name || 'User'} 
-              size={64} 
-            />
-            <div>
+          
+          {/* Avatar Upload Section */}
+          <div className="mb-6 flex flex-col items-center gap-4 sm:flex-row">
+            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+              <Avatar 
+                url={avatarUrl} 
+                alt={profile.full_name || 'User'} 
+                size={80} 
+              />
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                <Camera className="h-6 w-6 text-white" />
+              </div>
+              {isUploading && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
+              )}
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                disabled={isUploading}
+              />
+            </div>
+            
+            <div className="text-center sm:text-left">
               <h2 className="font-heading text-xl font-semibold">Personal Info</h2>
-              <p className="text-sm text-text-secondary">Update your details so your housemates know who you are.</p>
+              <p className="text-sm text-text-secondary">Click the picture to upload a new photo.</p>
             </div>
           </div>
 
@@ -89,7 +151,7 @@ export default function ProfileForm({ profile, household }: Props) {
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={isPending}
+                disabled={isPending || isUploading}
                 className="flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 font-heading text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:opacity-70"
               >
                 {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Changes'}
@@ -99,10 +161,8 @@ export default function ProfileForm({ profile, household }: Props) {
         </div>
       </div>
 
-      {/* Right Column: Household Info */}
+      {/* Household Info (Right Column) */}
       <div className="lg:col-span-1 space-y-6">
-        
-        {/* Household Card */}
         {household ? (
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <h2 className="mb-4 font-heading text-xl font-semibold">Household</h2>
@@ -132,9 +192,6 @@ export default function ProfileForm({ profile, household }: Props) {
                   {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
                 </button>
               </div>
-              <p className="mt-2 text-xs text-text-secondary">
-                Share this code with others to join your household.
-              </p>
             </div>
 
             <div className="border-t border-border pt-4">

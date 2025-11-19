@@ -1,4 +1,3 @@
-// src/app/chore-actions.ts
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
@@ -24,8 +23,6 @@ type ChoreDisplayData = {
     overdue: ChoreWithDetails[]
     dueSoon: ChoreWithDetails[]
     upcoming: ChoreWithDetails[]
-    // Optional: Add a catch-all if you want a separate list for "No Due Date"
-    // For now, we will group them into 'upcoming' as per standard logic
 }
 
 function getNextDueDate(
@@ -116,7 +113,6 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
 
     const { chores } = fullData
     const now = new Date()
-    // Reset time to midnight for fair comparison
     now.setHours(0, 0, 0, 0)
     
     const twoDaysFromNow = new Date(now)
@@ -125,11 +121,9 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
     const getChoreStatus = (chore: ChoreWithDetails) => {
         if (chore.status === 'complete') return 'complete'
         
-        // Chores without a due date are treated as "Upcoming" (or backlog)
         if (!chore.due_date) return 'upcoming'
         
         const dueDate = new Date(chore.due_date)
-        // Reset time to midnight for comparison
         dueDate.setHours(0, 0, 0, 0)
 
         if (dueDate < now) return 'overdue'
@@ -153,7 +147,6 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
         } else if (status === 'upcoming') {
             categorizedData.upcoming.push(chore)
         }
-        // Completed chores are filtered out by omission here
     })
 
     return categorizedData
@@ -389,6 +382,40 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
   if (error) {
     console.error('Error deleting chore:', error)
     return { success: false, message: error.message }
+  }
+  
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function delayChore(choreId: number, days: number) {
+  const supabase = await createSupabaseClient()
+
+  // Get current chore due date
+  const { data: chore } = await supabase
+    .from('chores')
+    .select('due_date')
+    .eq('id', choreId)
+    .single()
+
+  if (!chore) throw new Error('Chore not found')
+
+  const safeChore = chore as { due_date: string | null }
+  
+  const baseDate = safeChore.due_date ? new Date(safeChore.due_date) : new Date()
+  
+  // Add days
+  baseDate.setDate(baseDate.getDate() + days)
+  
+  const newDueDate = baseDate.toISOString()
+
+  const { error } = await (supabase.from('chores') as any)
+    .update({ due_date: newDueDate })
+    .eq('id', choreId)
+
+  if (error) {
+    console.error('Error delaying chore:', error)
+    throw new Error('Could not delay chore')
   }
   
   revalidatePath('/dashboard')

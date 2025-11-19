@@ -11,17 +11,24 @@ export async function updateProfile(formData: FormData) {
   if (!user) throw new Error('Not authenticated')
 
   const fullName = formData.get('fullName') as string
+  const avatarUrl = formData.get('avatarUrl') as string
   
   if (!fullName || fullName.trim().length < 2) {
     return { success: false, message: 'Name must be at least 2 characters.' }
   }
 
   // NUCLEAR FIX: Cast builder to 'any'
+  const updateData: any = { 
+    full_name: fullName.trim(),
+    updated_at: new Date().toISOString()
+  }
+
+  if (avatarUrl) {
+    updateData.avatar_url = avatarUrl
+  }
+
   const { error } = await (supabase.from('profiles') as any)
-    .update({ 
-      full_name: fullName.trim(),
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('id', user.id)
 
   if (error) {
@@ -29,7 +36,7 @@ export async function updateProfile(formData: FormData) {
   }
 
   revalidatePath('/profile')
-  revalidatePath('/dashboard') // Update dashboard so assignments show new name
+  revalidatePath('/dashboard')
   return { success: true, message: 'Profile updated successfully' }
 }
 
@@ -49,5 +56,5 @@ export async function leaveHousehold() {
   }
 
   revalidatePath('/dashboard')
-  redirect('/dashboard') // Will redirect to household selection screen
+  redirect('/dashboard')
 }
