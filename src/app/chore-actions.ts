@@ -12,7 +12,6 @@ import {
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
 
-// Define the type for a new chore row
 type ChoreInsert = Database['public']['Tables']['chores']['Insert']
 
 type ActionResponse = {
@@ -21,14 +20,12 @@ type ActionResponse = {
   didComplete?: boolean
 }
 
-// NEW TYPE: Used for the Dashboard Page's categorized lists
 type ChoreDisplayData = {
     overdue: ChoreWithDetails[]
     dueSoon: ChoreWithDetails[]
     upcoming: ChoreWithDetails[]
 }
 
-// Helper to get user ID
 async function getUserId() {
   const supabase = await createSupabaseClient() 
   const {
@@ -37,7 +34,6 @@ async function getUserId() {
   return user?.id
 }
 
-// Helper function to calculate the next due date
 function getNextDueDate(
   recurrenceType: string,
   currentDueDate: string | null
@@ -81,6 +77,8 @@ export async function getHouseholdData(
     .from('rooms')
     .select('*')
     .eq('household_id', householdId)
+  
+  // FIX: Safe casting for the complex join
   const { data: chores } = await supabase
     .from('chores')
     .select(
@@ -97,11 +95,10 @@ export async function getHouseholdData(
     household: household as DbHousehold,
     members: members || [],
     rooms: rooms || [],
-    chores: (chores as any as ChoreWithDetails[]) || [],
+    chores: (chores as any[] || []) as ChoreWithDetails[],
   }
 }
 
-// EXPORTED: Used by dashboard/page.tsx to get the categorized data
 export async function getChoreDisplayData(householdId: string): Promise<ChoreDisplayData> {
     const fullData = await getHouseholdData(householdId)
 
@@ -114,7 +111,6 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
     const twoDaysFromNow = new Date()
     twoDaysFromNow.setDate(now.getDate() + 2)
 
-    // Helper to determine status
     const getChoreStatus = (chore: ChoreWithDetails) => {
         if (chore.status === 'complete') return 'complete'
         if (!chore.due_date) return 'upcoming'
@@ -147,42 +143,29 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
     return categorizedData
 }
 
-// EXPORTED: Wrapper used by ChoreItem for completion
 export async function completeChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
     const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
-    // If it's a multi-instance chore, increment it. Otherwise, toggle status.
-    //
-    // <-- FIX: Use '?? 1' to handle possible null value for target_instances
     if ((chore.target_instances ?? 1) > 1) {
         return incrementChoreInstance(chore as DbChore)
     } else {
-        // Toggle the status to complete (since ChoreItem only calls this when incomplete)
         return toggleChoreStatus(chore as DbChore)
     }
 }
 
-// EXPORTED: Wrapper used by ChoreItem for uncompletion
 export async function uncompleteChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
     const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
-    // If it's a multi-instance chore, decrement it. Otherwise, toggle status.
-    //
-    // <-- FIX: Use '?? 1' to handle possible null value for target_instances
     if ((chore.target_instances ?? 1) > 1) {
         return decrementChoreInstance(chore as DbChore)
     } else {
-        // Toggle the status to pending (since ChoreItem only calls this when complete)
         return toggleChoreStatus(chore as DbChore)
     }
 }
-
-
-// --- All other functions are actions, use the Action client ---
 
 export async function createChore(formData: FormData) {
   const supabase = await createSupabaseClient() 
@@ -210,10 +193,11 @@ export async function createChore(formData: FormData) {
     assigned_to: rawData.assigned_to === '' ? null : rawData.assigned_to,
     room_id: rawData.room_id ? Number(rawData.room_id) : null,
     due_date: rawData.due_date === '' ? null : rawData.due_date,
-    completed_instances: 0, // Ensure it's set to 0 on creation
+    completed_instances: 0,
   }
 
-  const { error } = await supabase.from('chores').insert(newChoreData)
+  // FIX: Cast to any
+  const { error } = await supabase.from('chores').insert(newChoreData as any)
 
   if (error) {
     console.error('Error creating chore:', error)
@@ -222,7 +206,6 @@ export async function createChore(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
-// Internal: used by toggleChoreStatus and uncompleteChore
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
@@ -246,9 +229,10 @@ export async function toggleChoreStatus(
       }
     }
   }
+  // FIX: Cast to any
   const { error } = await supabase
     .from('chores')
-    .update(updateData)
+    .update(updateData as any)
     .eq('id', chore.id)
   if (error) {
     return { success: false, message: error.message }
@@ -257,7 +241,6 @@ export async function toggleChoreStatus(
   return { success: true, didComplete }
 }
 
-// Internal: used by completeChore
 export async function incrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
@@ -265,7 +248,6 @@ export async function incrementChoreInstance(
   
   const supabase = await createSupabaseClient() 
   
-  // Use ?? to treat null as 0 before adding 1
   const newInstanceCount = (chore.completed_instances ?? 0) + 1
   const targetInstances = chore.target_instances ?? 1
 
@@ -289,9 +271,11 @@ export async function incrementChoreInstance(
   } else {
     updateData = { completed_instances: newInstanceCount }
   }
+  
+  // FIX: Cast to any
   const { error } = await supabase
     .from('chores')
-    .update(updateData)
+    .update(updateData as any)
     .eq('id', chore.id)
   if (error) {
     return { success: false, message: error.message }
@@ -300,21 +284,20 @@ export async function incrementChoreInstance(
   return { success: true, didComplete }
 }
 
-// Internal: used by uncompleteChore
 export async function decrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
   
-  // Also fix potential null here
   const newInstanceCount = Math.max(0, (chore.completed_instances ?? 0) - 1)
 
+  // FIX: Cast to any
   const { error } = await supabase
     .from('chores')
     .update({
       completed_instances: newInstanceCount,
       status: 'pending',
-    })
+    } as any)
     .eq('id', chore.id)
   if (error) {
     return { success: false, message: error.message }
@@ -342,6 +325,7 @@ export async function updateChore(formData: FormData) {
     throw new Error('Chore name is required.')
   }
 
+  // FIX: Cast to any
   const { error } = await supabase
     .from('chores')
     .update({
@@ -349,7 +333,7 @@ export async function updateChore(formData: FormData) {
       assigned_to: rawData.assigned_to === '' ? null : rawData.assigned_to,
       room_id: rawData.room_id ? Number(rawData.room_id) : null,
       due_date: rawData.due_date === '' ? null : rawData.due_date,
-    })
+    } as any)
     .eq('id', Number(choreId))
 
   if (error) {

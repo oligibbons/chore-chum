@@ -7,7 +7,7 @@ import { createSupabaseClient } from "@/lib/supabase/server";
 export async function signInWithEmail(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  // FIX: Must 'await' the async function
+  
   const supabase = await createSupabaseClient();
 
   const { error } = await supabase.auth.signInWithPassword({
@@ -27,7 +27,7 @@ export async function signUpWithEmail(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("full_name") as string;
-  // FIX: Must 'await' the async function
+  
   const supabase = await createSupabaseClient();
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -42,12 +42,12 @@ export async function signUpWithEmail(formData: FormData) {
     return redirect(`/?message=${authError.message}`);
   }
 
-  // FIX: Removed typo on this line
   if (authData.user) {
+    // FIX: Cast to 'any' to bypass the strict 'never' type inference error
     const { error: profileError } = await supabase.from("profiles").insert({
       id: authData.user.id,
       full_name: fullName,
-    });
+    } as any);
 
     if (profileError) {
       return redirect(`/?message=${profileError.message}`);
@@ -59,7 +59,6 @@ export async function signUpWithEmail(formData: FormData) {
 }
 
 export async function signOut() {
-  // FIX: Must 'await' the async function
   const supabase = await createSupabaseClient();
   await supabase.auth.signOut();
   

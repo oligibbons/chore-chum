@@ -5,13 +5,11 @@ import { createSupabaseClient } from '@/lib/supabase/server'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
 
-// This is still needed for createRoom
 export type FormState = {
   success: boolean
   message: string
 }
 
-// Helper function (no changes)
 async function getUserHousehold() {
   const supabase = await createSupabaseClient() 
   const {
@@ -25,14 +23,16 @@ async function getUserHousehold() {
     .eq('id', user.id)
     .single()
 
-  if (!profile || !profile.household_id) {
+  // SAFE CAST: To avoid 'never' type if inference fails
+  const safeProfile = profile as { household_id: string | null } | null
+
+  if (!safeProfile || !safeProfile.household_id) {
     throw new Error('User has no household')
   }
 
-  return { userId: user.id, householdId: profile.household_id }
+  return { userId: user.id, householdId: safeProfile.household_id }
 }
 
-// getRoomsAndMembers function (no changes)
 export async function getRoomsAndMembers(householdId: string) {
   const supabase = await createSupabaseClient() 
 
@@ -48,9 +48,12 @@ export async function getRoomsAndMembers(householdId: string) {
       .eq('household_id', householdId),
   ])
 
-  const rooms = (roomsData.data || []).map(room => ({
+  // SAFE CAST: To avoid 'never' array inference
+  const roomsRaw = roomsData.data as any[] | null
+  
+  const rooms = (roomsRaw || []).map(room => ({
     ...room,
-    chore_count: (room.chore_count as any)?.[0]?.count ?? 0
+    chore_count: room.chore_count?.[0]?.count ?? 0
   }))
 
   return { 
@@ -59,8 +62,6 @@ export async function getRoomsAndMembers(householdId: string) {
   }
 }
 
-
-// createRoom function (no changes, this is correct)
 export async function createRoom(
   prevState: FormState, 
   formData: FormData
@@ -80,10 +81,11 @@ export async function createRoom(
     return { success: false, message: 'Room name must be at least 2 characters.' }
   }
 
+  // FIX: Cast to any
   const { error } = await supabase.from('rooms').insert({
     name: roomName.trim(),
     household_id: householdId,
-  })
+  } as any)
 
   if (error) {
     console.error('Error creating room:', error)
@@ -99,16 +101,12 @@ export async function createRoom(
   return { success: true, message: 'Room created!' }
 }
 
-// --- THIS IS THE FIX ---
-// Change signature from 'Promise<FormState>' to 'Promise<void>'
-// and remove the 'return' statements (or throw errors).
 export async function deleteRoom(
   formData: FormData
-): Promise<void> { // <-- FIX #1: Return type is void
+): Promise<void> { 
   
   const roomIdStr = formData.get('roomId') as string
   if (!roomIdStr) {
-    // We can't return a FormState, so we throw an error
     throw new Error('Room ID not provided.')
   }
   const roomId = Number(roomIdStr)
@@ -118,7 +116,7 @@ export async function deleteRoom(
     const userHousehold = await getUserHousehold()
     householdId = userHousehold.householdId
   } catch (error: any) {
-    throw error // Re-throw the auth error
+    throw error 
   }
   
   const supabase = await createSupabaseClient() 
@@ -131,13 +129,9 @@ export async function deleteRoom(
 
   if (error) {
     console.error('Error deleting room:', error)
-    // FIX #2: Throw an error instead of returning state
     throw new Error('Could not delete room.')
   }
 
-  // 2. Revalidate paths
   revalidatePath('/rooms')
   revalidatePath('/dashboard')
-  
-  // FIX #3: No successful 'return' statement
 }
