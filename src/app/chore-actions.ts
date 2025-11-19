@@ -23,7 +23,7 @@ type ChoreDisplayData = {
     overdue: ChoreWithDetails[]
     dueSoon: ChoreWithDetails[]
     upcoming: ChoreWithDetails[]
-    completed: ChoreWithDetails[] // Added completed array
+    completed: ChoreWithDetails[]
 }
 
 function getNextDueDate(
@@ -152,10 +152,8 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
         }
     })
 
-    // Sort completed chores by updated_at desc (most recently completed first)
-    // Assuming you have an updated_at field or similar on chores, if not created_at might be a proxy but less accurate for completion time.
-    // Since we don't strictly have a 'completed_at', we might just show them as is or sort by due date.
-    // Ideally we'd sort by when they were completed, but we'll stick to due date for now or just default order.
+    // Sort completed: most recent first (using created_at as a proxy for now)
+    categorizedData.completed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     return categorizedData
 }
@@ -182,6 +180,11 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
     if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
 
     const chore = rawChore as any
+
+    // If it's a recurring chore that generated a new instance, uncompleting the *old* completed one 
+    // is simple (just mark as pending). However, we now have a duplicate "next" chore.
+    // For simplicity in this version, we will just mark this specific chore as pending.
+    // Users can delete the generated "next" chore manually if they made a mistake.
 
     if ((chore.target_instances ?? 1) > 1) {
         return decrementChoreInstance(chore as DbChore)
@@ -247,35 +250,70 @@ export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
-  let updateData: Partial<DbChore> = {}
-  let didComplete = false
-  if (chore.status === 'complete') {
-    updateData = { status: 'pending' }
-  } else {
-    didComplete = true
-    if (chore.recurrence_type !== 'none') {
-      updateData = {
-        status: 'pending',
-        completed_instances: 0,
-        due_date: getNextDueDate(chore.recurrence_type, chore.due_date),
-      }
-    } else {
-      updateData = { 
-        status: 'complete',
-        completed_instances: chore.target_instances || 1
-      }
-    }
-  }
   
-  const { error } = await (supabase.from('chores') as any)
-    .update(updateData)
-    .eq('id', chore.id)
+  if (chore.status === 'complete') {
+    // Uncompleting: just set back to pending
+    const { error } = await (supabase.from('chores') as any)
+      .update({ status: 'pending' })
+      .eq('id', chore.id)
 
-  if (error) {
-    return { success: false, message: error.message }
+    if (error) return { success: false, message: error.message }
+    revalidatePath('/dashboard')
+    return { success: true, didComplete: false }
+  } else {
+    // Completing
+    const isRecurring = chore.recurrence_type !== 'none'
+    const didComplete = true
+    
+    if (isRecurring) {
+      // 1. Mark CURRENT chore as complete
+      const { error: updateError } = await (supabase.from('chores') as any)
+        .update({ 
+          status: 'complete',
+          completed_instances: chore.target_instances || 1 
+        })
+        .eq('id', chore.id)
+
+      if (updateError) return { success: false, message: updateError.message }
+
+      // 2. Create NEXT chore instance
+      const nextDueDate = getNextDueDate(chore.recurrence_type, chore.due_date)
+      
+      const newChoreData: ChoreInsert = {
+        name: chore.name,
+        household_id: chore.household_id,
+        created_by: chore.created_by,
+        status: 'pending',
+        assigned_to: chore.assigned_to,
+        room_id: chore.room_id,
+        due_date: nextDueDate,
+        target_instances: chore.target_instances,
+        recurrence_type: chore.recurrence_type, // Propagate recurrence settings
+        completed_instances: 0,
+      }
+
+      const { error: createError } = await (supabase.from('chores') as any).insert(newChoreData)
+      
+      if (createError) {
+        console.error('Error creating next recurring instance:', createError)
+        // We don't fail the whole action if the next one fails, but we log it.
+      }
+
+    } else {
+      // Not recurring, just mark complete
+      const { error } = await (supabase.from('chores') as any)
+        .update({ 
+          status: 'complete',
+          completed_instances: chore.target_instances || 1 
+        })
+        .eq('id', chore.id)
+        
+      if (error) return { success: false, message: error.message }
+    }
+
+    revalidatePath('/dashboard')
+    return { success: true, didComplete }
   }
-  revalidatePath('/dashboard')
-  return { success: true, didComplete }
 }
 
 export async function incrementChoreInstance(
@@ -288,36 +326,20 @@ export async function incrementChoreInstance(
   const newInstanceCount = (chore.completed_instances ?? 0) + 1
   const targetInstances = chore.target_instances ?? 1
 
-  let updateData: Partial<DbChore> = {}
-  let didComplete = false
-
+  // Check if this increment finishes the chore
   if (newInstanceCount >= targetInstances) {
-    didComplete = true
-    if (chore.recurrence_type !== 'none') {
-      updateData = {
-        status: 'pending',
-        completed_instances: 0,
-        due_date: getNextDueDate(chore.recurrence_type, chore.due_date),
-      }
-    } else {
-      updateData = {
-        status: 'complete',
-        completed_instances: targetInstances,
-      }
-    }
+    // It's finished! Treat it like a normal completion now.
+    return toggleChoreStatus(chore)
   } else {
-    updateData = { completed_instances: newInstanceCount }
-  }
-  
-  const { error } = await (supabase.from('chores') as any)
-    .update(updateData)
-    .eq('id', chore.id)
+    // Just update the counter
+    const { error } = await (supabase.from('chores') as any)
+      .update({ completed_instances: newInstanceCount })
+      .eq('id', chore.id)
 
-  if (error) {
-    return { success: false, message: error.message }
+    if (error) return { success: false, message: error.message }
+    revalidatePath('/dashboard')
+    return { success: true, didComplete: false }
   }
-  revalidatePath('/dashboard')
-  return { success: true, didComplete }
 }
 
 export async function decrementChoreInstance(
