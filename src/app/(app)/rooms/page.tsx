@@ -17,14 +17,12 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     redirect('/') 
   }
 
-  // 1. Renamed to rawProfile and added explicit casting
   const { data: rawProfile, error: profileError } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
 
-  // 2. Cast to a concrete type to satisfy TypeScript
   const profile = rawProfile as { household_id: string | null } | null
 
   if (profileError || !profile || !profile.household_id) {
@@ -33,7 +31,7 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
 
   const householdId = profile.household_id
 
-  const { data: rooms, error: roomsError } = await supabase
+  const { data: roomsData, error: roomsError } = await supabase
     .from('rooms')
     .select('*, chore_count:chores(count)')
     .eq('household_id', householdId)
@@ -44,9 +42,13 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     return []
   }
 
+  // FIX: Explicitly cast to 'any[]' to prevent TypeScript from inferring 'never[]'
+  // due to the complex join query above.
+  const rooms = roomsData as any[] | null
+
   const processedRooms = (rooms || []).map(room => ({
     ...room,
-    chore_count: (room.chore_count as any)?.[0]?.count ?? 0
+    chore_count: room.chore_count?.[0]?.count ?? 0
   }))
 
   return processedRooms as RoomWithChoreCount[]
