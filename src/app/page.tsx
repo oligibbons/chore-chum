@@ -1,5 +1,5 @@
 import AuthForm from '@/components/AuthForm'
-import { ClipboardCheck } from 'lucide-react'
+import Logo from '@/components/Logo'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,20 +10,23 @@ export default async function HomePage() {
         <div className="grid grid-cols-1 gap-12 md:grid-cols-2 md:items-center md:gap-16">
           
           {/* Left Column: Branding */}
-          <div className="flex flex-col items-center space-y-6 text-center md:items-start md:text-left">
-            <div className="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-light text-brand shadow-sm rotate-3 transform transition-transform hover:rotate-6">
-              <ClipboardCheck className="h-10 w-10" />
+          <div className="flex flex-col items-center space-y-8 text-center md:items-start md:text-left">
+            {/* The Logo Hero */}
+            <div className="transform transition-transform hover:scale-105 hover:rotate-[-2deg]">
+                <Logo iconClassName="h-24 w-24" className="text-5xl" />
             </div>
             
-            <h1 className="text-5xl font-heading font-extrabold tracking-tight text-foreground lg:text-6xl">
-              Stop arguing.
-              <br />
-              <span className="text-brand">Start organising.</span>
-            </h1>
-            
-            <p className="text-lg text-text-secondary max-w-md leading-relaxed">
-              The friendly household manager. Assign chores, track progress, and keep your home running smoothly without the friction.
-            </p>
+            <div className="space-y-4">
+              <h1 className="text-5xl font-heading font-extrabold tracking-tight text-foreground lg:text-6xl leading-[1.1]">
+                Stop arguing.
+                <br />
+                <span className="text-brand">Start organising.</span>
+              </h1>
+              
+              <p className="text-lg text-text-secondary max-w-md leading-relaxed">
+                The friendly household manager. Assign chores, track progress, and keep your home running smoothly without the friction.
+              </p>
+            </div>
           </div>
 
           {/* Right Column: Auth Card */}
