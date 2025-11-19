@@ -1,17 +1,15 @@
-// src/components/ChoreDisplay.tsx
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
 import ChoreItem from './ChoreItem'
-import { AlertOctagon, AlertTriangle, Calendar } from 'lucide-react' // Icons for headers
+import { AlertOctagon, AlertTriangle, Calendar, CheckCircle2 } from 'lucide-react'
 
 type Props = {
   title: string
   chores: ChoreWithDetails[]
-  status: 'overdue' | 'due' | 'upcoming'
+  status: 'overdue' | 'due' | 'upcoming' | 'completed'
 }
 
-// Helper to get styling for each column
 const getStatusConfig = (status: Props['status']) => {
   switch (status) {
     case 'overdue':
@@ -23,6 +21,11 @@ const getStatusConfig = (status: Props['status']) => {
       return {
         icon: <AlertTriangle className="h-5 w-5 text-status-due" />,
         pillClasses: 'bg-status-due/10 text-status-due',
+      }
+    case 'completed':
+      return {
+        icon: <CheckCircle2 className="h-5 w-5 text-status-complete" />,
+        pillClasses: 'bg-status-complete/10 text-status-complete',
       }
     default:
       return {
@@ -39,11 +42,13 @@ export default function ChoreDisplay({
 }: Props) {
   const config = getStatusConfig(status)
 
+  if (status === 'completed' && chores.length === 0) {
+     return null; // Don't show completed section if empty
+  }
+
   return (
-    // NEW: Column layout
     <div className="flex flex-col space-y-4">
       
-      {/* NEW: Playful header with pill count */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           {config.icon}
@@ -58,20 +63,18 @@ export default function ChoreDisplay({
         </span>
       </div>
 
-      {/* Chore list or empty state */}
       {chores.length > 0 ? (
         <ul className="space-y-3">
           {chores.map((chore) => (
             <ChoreItem
               key={chore.id}
               chore={chore}
-              status={status}
+              status={status === 'completed' ? 'upcoming' : status} // Pass visual status to item
               showActions={true}
             />
           ))}
         </ul>
       ) : (
-        // NEW: Clean "empty" state card
         <div className="rounded-xl border-2 border-dashed border-border bg-card/50 p-8 text-center">
           <p className="font-medium text-text-secondary">
             {status === 'overdue'

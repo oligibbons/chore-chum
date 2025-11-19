@@ -23,6 +23,7 @@ type ChoreDisplayData = {
     overdue: ChoreWithDetails[]
     dueSoon: ChoreWithDetails[]
     upcoming: ChoreWithDetails[]
+    completed: ChoreWithDetails[] // Added completed array
 }
 
 function getNextDueDate(
@@ -83,7 +84,6 @@ export async function getHouseholdData(
     .select('*')
     .eq('household_id', householdId)
     
-  // FIX: Explicitly request the 'assigned_to' profile relation.
   const { data: chores } = await supabase
     .from('chores')
     .select(
@@ -108,7 +108,7 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
     const fullData = await getHouseholdData(householdId)
 
     if (!fullData) {
-        return { overdue: [], dueSoon: [], upcoming: [] }
+        return { overdue: [], dueSoon: [], upcoming: [], completed: [] }
     }
 
     const { chores } = fullData
@@ -136,6 +136,7 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
         overdue: [],
         dueSoon: [],
         upcoming: [],
+        completed: [],
     }
 
     chores.forEach(chore => {
@@ -146,8 +147,15 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
             categorizedData.dueSoon.push(chore)
         } else if (status === 'upcoming') {
             categorizedData.upcoming.push(chore)
+        } else if (status === 'complete') {
+            categorizedData.completed.push(chore)
         }
     })
+
+    // Sort completed chores by updated_at desc (most recently completed first)
+    // Assuming you have an updated_at field or similar on chores, if not created_at might be a proxy but less accurate for completion time.
+    // Since we don't strictly have a 'completed_at', we might just show them as is or sort by due date.
+    // Ideally we'd sort by when they were completed, but we'll stick to due date for now or just default order.
 
     return categorizedData
 }
@@ -226,7 +234,6 @@ export async function createChore(formData: FormData) {
     completed_instances: 0,
   }
 
-  // NUCLEAR FIX: Cast builder to 'any'
   const { error } = await (supabase.from('chores') as any).insert(newChoreData)
 
   if (error) {
