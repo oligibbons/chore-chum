@@ -5,9 +5,16 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // typescript: {
-  //   ignoreBuildErrors: true, // Uncomment if you still hit minor TS issues
-  // },
+  // Allow images from your Supabase project
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'qulinlikdlmhlquilemz.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;
