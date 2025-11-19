@@ -6,28 +6,25 @@ import { Dialog, Transition } from '@headlessui/react'
 import { X, Loader2, User, Home, Calendar, Repeat, Hash } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
+import { useRouter } from 'next/navigation'
 
 type Props = {
   isOpen: boolean
-  onClose: () => void
-  householdId: string // Kept in props to avoid breaking parent usage, but unused in form
-  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
 
-// --- New Form Component ---
-type FormProps = {
-  onClose: () => void
-  members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
-  rooms: DbRoom[]
-}
-
-function ChoreForm({ onClose, members, rooms }: FormProps) {
-  // Use local state for pending
+function ChoreForm({ 
+  closeModal, 
+  members, 
+  rooms 
+}: { 
+  closeModal: () => void, 
+  members: Props['members'], 
+  rooms: Props['rooms'] 
+}) {
   const [pending, setPending] = useState(false)
 
-  // Handle submission manually
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setPending(true)
@@ -35,21 +32,15 @@ function ChoreForm({ onClose, members, rooms }: FormProps) {
     const formData = new FormData(event.currentTarget)
     try {
       await createChore(formData)
-      onClose() // Close modal on success
+      closeModal() // Close modal on success
     } catch (error) {
       console.error(error)
-      setPending(false) // Stop loading on error
+      setPending(false)
     }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6"
-    >
-      {/* --- FORM CONTENT --- */}
-      {/* Hidden input for householdId removed - handled securely on server */}
-
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Chore Name */}
       <div>
         <label htmlFor="name" className="block font-heading text-sm font-medium text-text-primary">
@@ -178,7 +169,7 @@ function ChoreForm({ onClose, members, rooms }: FormProps) {
       <div className="flex items-center justify-end space-x-4 pt-4">
         <button
           type="button"
-          onClick={onClose}
+          onClick={closeModal}
           className="rounded-xl px-5 py-3 font-heading text-base font-semibold text-text-secondary transition-all hover:bg-gray-100"
         >
           Cancel
@@ -199,21 +190,22 @@ function ChoreForm({ onClose, members, rooms }: FormProps) {
   )
 }
 
-
-// Main Modal Component (wrapper)
 export default function AddChoreModal({
   isOpen,
-  onClose,
-  householdId,
   members,
   rooms,
 }: Props) {
+  const router = useRouter()
+
+  const handleClose = () => {
+    // Removing the query param closes the modal
+    router.push('/dashboard')
+    router.refresh() 
+  }
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        
-        {/* Backdrop overlay */}
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -226,7 +218,6 @@ export default function AddChoreModal({
           <div className="fixed inset-0 bg-black/30" />
         </Transition.Child>
 
-        {/* Modal content */}
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
@@ -239,17 +230,12 @@ export default function AddChoreModal({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-card p-8 text-left align-middle shadow-xl transition-all">
-                
-                {/* Modal Header */}
                 <div className="flex items-center justify-between">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-2xl font-heading font-semibold"
-                  >
+                  <Dialog.Title as="h3" className="text-2xl font-heading font-semibold">
                     Add a New Chore
                   </Dialog.Title>
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="rounded-full p-2 text-text-secondary transition-colors hover:bg-background"
                   >
                     <X className="h-5 w-5" />
@@ -258,7 +244,7 @@ export default function AddChoreModal({
                 
                 <div className="mt-6">
                   <ChoreForm
-                    onClose={onClose}
+                    closeModal={handleClose}
                     members={members}
                     rooms={rooms}
                   />

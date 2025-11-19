@@ -117,8 +117,8 @@ export default async function DashboardPage(props: DashboardProps) {
       {searchParams.modal === 'add-chore' && (
         <AddChoreModal
           isOpen={true}
-          onClose={() => redirect('/dashboard')}
-          householdId={householdId}
+          // FIX: Removed onClose={redirect} to prevent server-side serialization error
+          // FIX: Removed householdId as it is now handled securely on server
           members={roomData.members}
           rooms={roomData.rooms}
         />
@@ -127,7 +127,7 @@ export default async function DashboardPage(props: DashboardProps) {
       {searchParams.modal === 'edit-chore' && editChore && (
         <EditChoreModal
           isOpen={true}
-          onClose={() => redirect('/dashboard')}
+          // FIX: Removed onClose={redirect} to prevent server-side serialization error
           chore={editChore}
           members={roomData.members}
           rooms={roomData.rooms}

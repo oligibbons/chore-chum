@@ -7,21 +7,18 @@ import { X, Loader2, User, Home, Calendar, Repeat, Hash } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useFormStatus } from 'react-dom'
+import { useRouter } from 'next/navigation'
 
-// --- New EditForm Component ---
 type EditFormProps = {
-  onClose: () => void
+  closeModal: () => void
   chore: ChoreWithDetails
-  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
 
-function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
-  // useFormStatus must be used inside a <form>
+function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   const { pending } = useFormStatus()
 
-  // Helper to format date for input
   const formatDateForInput = (dateString: string | null) => {
     if (!dateString) return ''
     return new Date(dateString).toISOString().split('T')[0]
@@ -29,10 +26,8 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
 
   return (
     <div className="space-y-6">
-      {/* Hidden Chore ID */}
       <input type="hidden" name="choreId" value={chore.id} />
 
-      {/* Chore Name */}
       <div>
         <label htmlFor="name" className="block font-heading text-sm font-medium text-text-primary">
           Chore Name
@@ -49,9 +44,7 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
         </div>
       </div>
 
-      {/* Grid for details */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Assigned To */}
         <div>
           <label htmlFor="assignedTo" className="block font-heading text-sm font-medium text-text-primary">
             Assign To
@@ -74,7 +67,6 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
           </div>
         </div>
 
-        {/* Room */}
         <div>
           <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
             Room
@@ -98,9 +90,7 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
         </div>
       </div>
 
-      {/* Grid for date/recurrence */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Due Date */}
         <div>
           <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
             Due Date
@@ -117,7 +107,6 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
           </div>
         </div>
 
-        {/* Recurrence */}
         <div>
           <label htmlFor="recurrence_type" className="block font-heading text-sm font-medium text-text-primary">
             Recurs
@@ -139,7 +128,6 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
         </div>
       </div>
 
-      {/* Instances */}
       <div>
         <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
           Instances
@@ -157,11 +145,10 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
         </div>
       </div>
 
-      {/* --- FORM ACTIONS --- */}
       <div className="flex items-center justify-end space-x-4 pt-4">
         <button
           type="button"
-          onClick={onClose}
+          onClick={closeModal}
           className="rounded-xl px-5 py-3 font-heading text-base font-semibold text-text-secondary transition-all hover:bg-gray-100"
         >
           Cancel
@@ -182,39 +169,37 @@ function EditForm({ onClose, chore, members, rooms }: EditFormProps) {
   )
 }
 
-
-// --- Main Modal Component ---
 type Props = {
   isOpen: boolean
-  onClose: () => void
   chore: ChoreWithDetails
-  // --- THIS IS THE FIX ---
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
 }
 
 export default function EditChoreModal({
   isOpen,
-  onClose,
   chore,
   members,
   rooms,
 }: Props) {
-
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleClose = () => {
+    router.push('/dashboard')
+    router.refresh()
+  }
 
   const handleFormSubmit = async (formData: FormData) => {
     setIsSubmitting(true)
     await updateChore(formData)
     setIsSubmitting(false)
-    onClose() // Close the modal on success
+    handleClose()
   }
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        
-        {/* Backdrop overlay */}
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -227,7 +212,6 @@ export default function EditChoreModal({
           <div className="fixed inset-0 bg-black/30" />
         </Transition.Child>
 
-        {/* Modal content */}
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
@@ -240,17 +224,12 @@ export default function EditChoreModal({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-card p-8 text-left align-middle shadow-xl transition-all">
-                
-                {/* Modal Header */}
                 <div className="flex items-center justify-between">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-2xl font-heading font-semibold"
-                  >
+                  <Dialog.Title as="h3" className="text-2xl font-heading font-semibold">
                     Edit Chore
                   </Dialog.Title>
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="rounded-full p-2 text-text-secondary transition-colors hover:bg-background"
                   >
                     <X className="h-5 w-5" />
@@ -260,7 +239,7 @@ export default function EditChoreModal({
                 <div className="mt-6">
                   <form action={handleFormSubmit}>
                     <EditForm 
-                      onClose={onClose}
+                      closeModal={handleClose}
                       chore={chore}
                       members={members}
                       rooms={rooms}
