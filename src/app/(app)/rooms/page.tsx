@@ -14,26 +14,25 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/') // Should be caught by middleware
+    redirect('/') 
   }
 
-  const { data: profile, error: profileError } = await supabase
+  // 1. Renamed to rawProfile and added explicit casting
+  const { data: rawProfile, error: profileError } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
 
-  // --- THIS IS THE REDIRECT LOGIC ---
-  // If the user has no profile or no household, send them to the
-  // dashboard, which will show them the HouseholdManager.
-  // This is now correct.
+  // 2. Cast to a concrete type to satisfy TypeScript
+  const profile = rawProfile as { household_id: string | null } | null
+
   if (profileError || !profile || !profile.household_id) {
     redirect('/dashboard')
   }
 
   const householdId = profile.household_id
 
-  // Fetch rooms
   const { data: rooms, error: roomsError } = await supabase
     .from('rooms')
     .select('*, chore_count:chores(count)')
@@ -53,14 +52,11 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
   return processedRooms as RoomWithChoreCount[]
 }
 
-
 export default async function RoomsPage() {
   const rooms = await getRooms()
 
   return (
     <div className="space-y-8">
-      
-      {/* --- NEW: Sleek Page Header --- */}
       <header className="mb-6">
         <h2 className="text-4xl font-heading font-bold">
           Household Rooms
@@ -70,7 +66,6 @@ export default async function RoomsPage() {
           to a specific place.
         </p>
       </header>
-      {/* --- END NEW HEADER --- */}
 
       <RoomManager rooms={rooms} />
     </div>
