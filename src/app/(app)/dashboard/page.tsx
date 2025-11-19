@@ -14,13 +14,14 @@ import { ChoreWithDetails } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage({
-  searchParams,
-}: {
+// Define props for Next.js 15
+type DashboardProps = {
   searchParams: Promise<{ modal?: string; choreId?: string }>
-}) {
-  // 1. Await the params before using them (Next.js 15 requirement)
-  const params = await searchParams
+}
+
+export default async function DashboardPage(props: DashboardProps) {
+  // 1. Await searchParams (Next.js 15 requirement)
+  const searchParams = await props.searchParams
   
   const supabase = await createSupabaseClient()
   
@@ -32,12 +33,17 @@ export default async function DashboardPage({
     redirect('/') 
   }
 
-  const { data: profile } = await supabase
+  // 2. Safe profile query with explicit casting to fix the "never" error
+  const { data: rawProfile } = await supabase
     .from('profiles')
     .select('household_id, full_name')
     .eq('id', user.id)
     .single()
 
+  // Cast to a known shape to ensure TS understands it
+  const profile = rawProfile as { household_id: string | null; full_name: string | null } | null
+
+  // Now this check is type-safe
   if (!profile || !profile.household_id) {
     return (
       <div className="py-12 flex items-center justify-center">
@@ -55,11 +61,9 @@ export default async function DashboardPage({
   ])
 
   let editChore: ChoreWithDetails | null = null
-  
-  // 2. Use the awaited 'params' object here
-  if (params.modal === 'edit-chore' && params.choreId) {
+  if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
     const allChores = [...data.overdue, ...data.dueSoon, ...data.upcoming]
-    editChore = allChores.find(c => c.id === Number(params.choreId)) || null
+    editChore = allChores.find(c => c.id === Number(searchParams.choreId)) || null
   }
 
   return (
@@ -110,8 +114,7 @@ export default async function DashboardPage({
         <Plus className="h-8 w-8 text-white" />
       </Link>
 
-      {/* 3. Use 'params' here as well */}
-      {params.modal === 'add-chore' && (
+      {searchParams.modal === 'add-chore' && (
         <AddChoreModal
           isOpen={true}
           onClose={() => redirect('/dashboard')}
@@ -121,7 +124,7 @@ export default async function DashboardPage({
         />
       )}
 
-      {params.modal === 'edit-chore' && editChore && (
+      {searchParams.modal === 'edit-chore' && editChore && (
         <EditChoreModal
           isOpen={true}
           onClose={() => redirect('/dashboard')}
