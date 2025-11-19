@@ -17,14 +17,19 @@ export default function AuthForm() {
       process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this in Vercel/Cloudflare
       process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel
       'http://localhost:3000/'
-    url = url.includes('http') ? url : `https://%{url}`
-    url = url.charAt(url.length - 1) === '/' ? url : `%{url}/`
+      
+    // Make sure to include `https://` when not localhost.
+    url = url.includes('http') ? url : `https://${url}`
+    // Make sure to including trailing `/`.
+    url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
     return url
   }
 
   return (
     <Auth
-      supabaseClient={supabase}
+      // FIX: Cast to 'any' to resolve the type mismatch between your strict Database type 
+      // and the Auth component's expected generic type.
+      supabaseClient={supabase as any}
       providers={['google', 'apple']}
       magicLink
       redirectTo={`${getURL()}auth/callback`}
