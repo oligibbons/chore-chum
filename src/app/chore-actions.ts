@@ -24,6 +24,8 @@ type ChoreDisplayData = {
     overdue: ChoreWithDetails[]
     dueSoon: ChoreWithDetails[]
     upcoming: ChoreWithDetails[]
+    // Optional: Add a catch-all if you want a separate list for "No Due Date"
+    // For now, we will group them into 'upcoming' as per standard logic
 }
 
 function getNextDueDate(
@@ -36,7 +38,6 @@ function getNextDueDate(
     const startDate = new Date(currentDueDate)
     let rule: RRule | undefined
     
-    // Validations to prevent RRule crashes
     if (isNaN(startDate.getTime())) return null
 
     switch (recurrenceType) {
@@ -54,7 +55,6 @@ function getNextDueDate(
     }
     
     const allDates = rule.all()
-    // The first date is the start date, so we take the second one
     return allDates.length > 1 ? allDates[1].toISOString() : null
   } catch (error) {
     console.error('Error calculating next due date:', error)
@@ -86,12 +86,13 @@ export async function getHouseholdData(
     .select('*')
     .eq('household_id', householdId)
     
+  // FIX: Explicitly request the 'assigned_to' profile relation.
   const { data: chores } = await supabase
     .from('chores')
     .select(
       `
       *,
-      profiles (id, full_name, avatar_url),
+      profiles:profiles!chores_assigned_to_fkey (id, full_name, avatar_url),
       rooms (id, name)
     `
     )
@@ -115,14 +116,21 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
 
     const { chores } = fullData
     const now = new Date()
-    const twoDaysFromNow = new Date()
+    // Reset time to midnight for fair comparison
+    now.setHours(0, 0, 0, 0)
+    
+    const twoDaysFromNow = new Date(now)
     twoDaysFromNow.setDate(now.getDate() + 2)
 
     const getChoreStatus = (chore: ChoreWithDetails) => {
         if (chore.status === 'complete') return 'complete'
+        
+        // Chores without a due date are treated as "Upcoming" (or backlog)
         if (!chore.due_date) return 'upcoming'
         
         const dueDate = new Date(chore.due_date)
+        // Reset time to midnight for comparison
+        dueDate.setHours(0, 0, 0, 0)
 
         if (dueDate < now) return 'overdue'
         if (dueDate <= twoDaysFromNow) return 'due-soon'
@@ -145,6 +153,7 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
         } else if (status === 'upcoming') {
             categorizedData.upcoming.push(chore)
         }
+        // Completed chores are filtered out by omission here
     })
 
     return categorizedData
@@ -156,7 +165,6 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
     
     if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
 
-    // Force cast data to 'any' so we can access properties without TS complaining
     const chore = rawChore as any
 
     if ((chore.target_instances ?? 1) > 1) {
@@ -184,20 +192,15 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
 export async function createChore(formData: FormData) {
   const supabase = await createSupabaseClient() 
   
-  // 1. Get the current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // 2. SECURE FETCH: Get the household_id directly from the DB profile.
-  // We do NOT trust the client-side 'householdId' hidden input anymore.
-  // This ensures the insert matches the RLS policy "household_id = get_my_household_id()"
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
   
-  // Type guard for the profile response
   const safeProfile = profile as { household_id: string | null } | null
 
   if (!safeProfile || !safeProfile.household_id) {
@@ -206,7 +209,6 @@ export async function createChore(formData: FormData) {
   
   const householdId = safeProfile.household_id
 
-  // 3. Parse form data
   const rawName = formData.get('name') as string
   const rawAssignedTo = formData.get('assignedTo') as string
   const rawRoomId = formData.get('roomId') as string
@@ -223,7 +225,6 @@ export async function createChore(formData: FormData) {
     household_id: householdId,
     created_by: user.id,
     status: 'pending',
-    // Handle empty strings from form inputs
     assigned_to: rawAssignedTo && rawAssignedTo !== '' ? rawAssignedTo : null,
     room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
     due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
@@ -237,8 +238,6 @@ export async function createChore(formData: FormData) {
 
   if (error) {
     console.error('Error creating chore:', error)
-    // Return structured error instead of throwing blind generic error if possible,
-    // but throwing here triggers the error boundary which is acceptable for now.
     throw new Error(`Could not create chore: ${error.message}`)
   }
   revalidatePath('/dashboard')
@@ -268,7 +267,6 @@ export async function toggleChoreStatus(
     }
   }
   
-  // NUCLEAR FIX: Cast builder to 'any'
   const { error } = await (supabase.from('chores') as any)
     .update(updateData)
     .eq('id', chore.id)
@@ -311,7 +309,6 @@ export async function incrementChoreInstance(
     updateData = { completed_instances: newInstanceCount }
   }
   
-  // NUCLEAR FIX: Cast builder to 'any'
   const { error } = await (supabase.from('chores') as any)
     .update(updateData)
     .eq('id', chore.id)
@@ -330,7 +327,6 @@ export async function decrementChoreInstance(
   
   const newInstanceCount = Math.max(0, (chore.completed_instances ?? 0) - 1)
 
-  // NUCLEAR FIX: Cast builder to 'any'
   const { error } = await (supabase.from('chores') as any)
     .update({
       completed_instances: newInstanceCount,
@@ -371,7 +367,6 @@ export async function updateChore(formData: FormData) {
     recurrence_type: rawRecurrence || 'none',
   }
 
-  // NUCLEAR FIX: Cast builder to 'any'
   const { error } = await (supabase.from('chores') as any)
     .update(updateData)
     .eq('id', Number(choreId))
@@ -387,7 +382,6 @@ export async function updateChore(formData: FormData) {
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
 
-  // NUCLEAR FIX: Cast builder to 'any'
   const { error } = await (supabase.from('chores') as any)
     .delete()
     .eq('id', choreId)

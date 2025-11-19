@@ -11,6 +11,7 @@ import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
 import EditChoreModal from '@/components/EditChoreModal'
 import { ChoreWithDetails } from '@/types/database'
+import RealtimeChores from '@/components/RealtimeChores'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,6 +70,9 @@ export default async function DashboardPage(props: DashboardProps) {
   return (
     <div className="space-y-8">
       
+      {/* Realtime Listener: This triggers a router.refresh() when chores change */}
+      <RealtimeChores householdId={householdId} />
+
       <header className="mb-6">
         <h2 className="text-4xl font-heading font-bold">
           Welcome back, {userName}! 👋
@@ -117,8 +121,6 @@ export default async function DashboardPage(props: DashboardProps) {
       {searchParams.modal === 'add-chore' && (
         <AddChoreModal
           isOpen={true}
-          // FIX: Removed onClose={redirect} to prevent server-side serialization error
-          // FIX: Removed householdId as it is now handled securely on server
           members={roomData.members}
           rooms={roomData.rooms}
         />
@@ -127,7 +129,6 @@ export default async function DashboardPage(props: DashboardProps) {
       {searchParams.modal === 'edit-chore' && editChore && (
         <EditChoreModal
           isOpen={true}
-          // FIX: Removed onClose={redirect} to prevent server-side serialization error
           chore={editChore}
           members={roomData.members}
           rooms={roomData.rooms}
