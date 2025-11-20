@@ -15,9 +15,15 @@ type EditFormProps = {
   rooms: DbRoom[]
 }
 
+// Define the exact type for our time options
+type TimeOption = 'morning' | 'afternoon' | 'evening' | 'any';
+
 function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   const [pending, setPending] = useState(false)
-  const [timeOfDay, setTimeOfDay] = useState(chore.time_of_day || 'any')
+  // Cast initial state to match our literal type, handling nulls safely
+  const [timeOfDay, setTimeOfDay] = useState<TimeOption>(
+    (chore.time_of_day as TimeOption) || 'any'
+  )
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -46,6 +52,8 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     if (!dateString) return ''
     return new Date(dateString).toISOString().split('T')[0]
   }
+  
+  const timeOptions: TimeOption[] = ['any', 'morning', 'afternoon', 'evening'];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -134,7 +142,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
             Time of Day (Optional)
          </label>
          <div className="flex gap-2">
-            {['any', 'morning', 'afternoon', 'evening'].map((t) => (
+            {timeOptions.map((t) => (
                 <button
                     key={t}
                     type="button"

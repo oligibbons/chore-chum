@@ -14,6 +14,8 @@ type Props = {
   rooms: DbRoom[]
 }
 
+type TimeOption = 'morning' | 'afternoon' | 'evening' | 'any';
+
 function ChoreForm({ 
   closeModal, 
   members, 
@@ -24,7 +26,7 @@ function ChoreForm({
   rooms: Props['rooms'] 
 }) {
   const [pending, setPending] = useState(false)
-  const [timeOfDay, setTimeOfDay] = useState('any')
+  const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -48,6 +50,8 @@ function ChoreForm({
       setPending(false)
     }
   }
+
+  const timeOptions: TimeOption[] = ['any', 'morning', 'afternoon', 'evening'];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -139,7 +143,7 @@ function ChoreForm({
             Time of Day (Optional)
          </label>
          <div className="flex gap-2">
-            {['any', 'morning', 'afternoon', 'evening'].map((t) => (
+            {timeOptions.map((t) => (
                 <button
                     key={t}
                     type="button"
