@@ -1,20 +1,40 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useFormState, useFormStatus } from 'react-dom'
 import { User, LogOut, Copy, Check, Loader2, Camera } from 'lucide-react'
-import { updateProfile, leaveHousehold } from '@/app/profile-actions'
+import { updateProfile, leaveHousehold, ProfileFormState } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 type Props = {
   profile: DbProfile
   household: Pick<DbHousehold, 'name' | 'invite_code'> | null
 }
 
+const initialState: ProfileFormState = {
+  success: false,
+  message: '',
+}
+
+function SaveButton() {
+  const { pending } = useFormStatus()
+  
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 font-heading text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:opacity-70"
+    >
+      {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Changes'}
+    </button>
+  )
+}
+
 export default function ProfileForm({ profile, household }: Props) {
-  const [isPending, setIsPending] = useState(false)
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [state, formAction] = useFormState(updateProfile, initialState)
   const [copied, setCopied] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
   const [isUploading, setIsUploading] = useState(false)
@@ -22,50 +42,41 @@ export default function ProfileForm({ profile, household }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createSupabaseBrowserClient()
 
-  const handleUpdate = async (formData: FormData) => {
-    setIsPending(true)
-    setMessage(null)
-    
-    // Append the current (or new) avatar URL to the form data
-    if (avatarUrl) {
-      formData.set('avatarUrl', avatarUrl)
+  // Listen for Server Action State changes to trigger Toasts
+  useEffect(() => {
+    if (state.message) {
+      if (state.success) {
+        toast.success(state.message)
+      } else {
+        toast.error(state.message)
+      }
     }
-
-    const result = await updateProfile(formData)
-    
-    setMessage({
-      text: result.message,
-      type: result.success ? 'success' : 'error'
-    })
-    setIsPending(false)
-  }
+  }, [state])
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setIsUploading(true)
       if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('You must select an image to upload.')
+        return
       }
 
       const file = event.target.files[0]
       const fileExt = file.name.split('.').pop()
       const userId = profile.id
-      // Path: user_id/random_number.ext
       const filePath = `${userId}/${Math.random()}.${fileExt}`
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file)
 
-      if (uploadError) {
-        throw uploadError
-      }
+      if (uploadError) throw uploadError
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
       setAvatarUrl(data.publicUrl)
+      toast.success("Photo uploaded! Don't forget to save.")
 
     } catch (error: any) {
-      alert('Error uploading avatar: ' + error.message)
+      toast.error('Error uploading avatar: ' + error.message)
     } finally {
       setIsUploading(false)
     }
@@ -75,13 +86,18 @@ export default function ProfileForm({ profile, household }: Props) {
     if (household?.invite_code) {
       navigator.clipboard.writeText(household.invite_code)
       setCopied(true)
+      toast.success("Invite code copied to clipboard")
       setTimeout(() => setCopied(false), 2000)
     }
   }
 
   const handleLeave = async () => {
     if (confirm('Are you sure you want to leave this household? You will lose access to all chores.')) {
-      await leaveHousehold()
+      try {
+        await leaveHousehold()
+      } catch (error: any) {
+        toast.error(error.message)
+      }
     }
   }
 
@@ -99,7 +115,6 @@ export default function ProfileForm({ profile, household }: Props) {
                 alt={profile.full_name || 'User'} 
                 size={80} 
               />
-              {/* Hover Overlay */}
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                 <Camera className="h-6 w-6 text-white" />
               </div>
@@ -124,7 +139,10 @@ export default function ProfileForm({ profile, household }: Props) {
             </div>
           </div>
 
-          <form action={handleUpdate} className="space-y-4">
+          <form action={formAction} className="space-y-4">
+            {/* Hidden input to pass the avatar URL to the Server Action */}
+            <input type="hidden" name="avatarUrl" value={avatarUrl || ''} />
+
             <div>
               <label htmlFor="fullName" className="block font-heading text-sm font-medium text-text-primary">
                 Full Name
@@ -142,20 +160,8 @@ export default function ProfileForm({ profile, household }: Props) {
               </div>
             </div>
 
-            {message && (
-              <p className={`text-sm ${message.type === 'success' ? 'text-status-complete' : 'text-status-overdue'}`}>
-                {message.text}
-              </p>
-            )}
-
             <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isPending || isUploading}
-                className="flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 font-heading text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:opacity-70"
-              >
-                {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Changes'}
-              </button>
+              <SaveButton />
             </div>
           </form>
         </div>

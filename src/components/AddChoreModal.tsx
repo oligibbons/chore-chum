@@ -1,4 +1,3 @@
-// src/components/AddChoreModal.tsx
 'use client'
 
 import { Fragment, useState, FormEvent } from 'react'
@@ -7,6 +6,7 @@ import { X, Loader2, User, Home, Calendar, Repeat, Hash } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 type Props = {
   isOpen: boolean
@@ -30,11 +30,19 @@ function ChoreForm({
     setPending(true)
     
     const formData = new FormData(event.currentTarget)
+    
     try {
-      await createChore(formData)
-      closeModal() // Close modal on success
+      const result = await createChore(formData)
+      
+      if (result.success) {
+        toast.success(result.message)
+        closeModal()
+      } else {
+        toast.error(result.message)
+        setPending(false)
+      }
     } catch (error) {
-      console.error(error)
+      toast.error("An unexpected error occurred")
       setPending(false)
     }
   }
@@ -214,7 +222,6 @@ export default function AddChoreModal({
   const router = useRouter()
 
   const handleClose = () => {
-    // Removing the query param closes the modal
     router.push('/dashboard')
     router.refresh() 
   }

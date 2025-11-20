@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { X, Loader2, CalendarClock } from 'lucide-react'
 import { delayChore } from '@/app/chore-actions'
+import { toast } from 'sonner'
 
 type Props = {
   isOpen: boolean
@@ -18,10 +19,16 @@ export default function DelayChoreModal({ isOpen, onClose, choreId }: Props) {
   const handleDelay = async () => {
     setPending(true)
     try {
-      await delayChore(choreId, days)
-      onClose()
+      const result = await delayChore(choreId, days)
+      
+      if (result.success) {
+        toast.success(result.message)
+        onClose()
+      } else {
+        toast.error(result.message)
+      }
     } catch (error) {
-      console.error(error)
+      toast.error('Failed to delay chore')
     } finally {
       setPending(false)
     }

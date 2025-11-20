@@ -14,6 +14,7 @@ import { ChoreWithDetails } from '@/types/database'
 import RealtimeChores from '@/components/RealtimeChores'
 import RoomFilter from '@/components/RoomFilter'
 import ZenMode from '@/components/ZenMode'
+import Leaderboard from '@/components/Leaderboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,7 +60,7 @@ export default async function DashboardPage(props: DashboardProps) {
     getRoomsAndMembers(householdId),
   ])
 
-  // Collect all chores for Zen Mode
+  // Collect all chores for Zen Mode & Leaderboard
   const allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
   // Filter chores by room if a filter is active for the main dashboard view
@@ -79,7 +80,7 @@ export default async function DashboardPage(props: DashboardProps) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24">
       <RealtimeChores householdId={householdId} />
       
       {/* Zen Mode Component - Hidden unless ?view=zen is active */}
@@ -87,7 +88,7 @@ export default async function DashboardPage(props: DashboardProps) {
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <header>
-          <h2 className="text-4xl font-heading font-bold">
+          <h2 className="text-4xl font-heading font-bold text-foreground">
             Welcome back, {userName}! 👋
           </h2>
           <p className="mt-1 text-lg text-text-secondary">
@@ -111,45 +112,53 @@ export default async function DashboardPage(props: DashboardProps) {
         <RoomFilter rooms={roomData.rooms} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
         
-        <div className="lg:col-span-1">
-          <ChoreDisplay 
-            title="Overdue" 
-            chores={overdueChores} 
-            status="overdue" 
-          />
+        {/* Main Columns: Overdue, Due Soon, Upcoming */}
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+                <ChoreDisplay 
+                    title="Overdue" 
+                    chores={overdueChores} 
+                    status="overdue" 
+                />
+            </div>
+
+            <div className="md:col-span-1">
+                <ChoreDisplay 
+                    title="Due Soon" 
+                    chores={dueSoonChores} 
+                    status="due" 
+                />
+            </div>
+
+            <div className="md:col-span-1">
+                <ChoreDisplay 
+                    title="Upcoming" 
+                    chores={upcomingChores} 
+                    status="upcoming" 
+                />
+            </div>
         </div>
 
-        <div className="lg:col-span-1">
-          <ChoreDisplay 
-            title="Due Soon" 
-            chores={dueSoonChores} 
-            status="due" 
-          />
-        </div>
-
-        <div className="lg:col-span-1">
-          <ChoreDisplay 
-            title="Upcoming" 
-            chores={upcomingChores} 
-            status="upcoming" 
-          />
-        </div>
-
-        <div className="lg:col-span-1">
-          <ChoreDisplay 
-            title="Completed" 
-            chores={completedChores} 
-            status="completed" 
-          />
+        {/* Sidebar Column: Leaderboard & Completed */}
+        <div className="lg:col-span-1 flex flex-col gap-6">
+            <Leaderboard members={roomData.members} chores={allChoresRaw} />
+            
+            <div className="pt-4 border-t border-border">
+                <ChoreDisplay 
+                    title="Completed" 
+                    chores={completedChores} 
+                    status="completed" 
+                />
+            </div>
         </div>
       </div>
 
       <Link 
         href="?modal=add-chore"
         scroll={false} 
-        className="fixed bottom-8 right-8 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-brand shadow-lg transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-8 right-8 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-brand shadow-lg transition-transform hover:scale-105 active:scale-95 hover:bg-brand-dark"
         aria-label="Add new chore"
       >
         <Plus className="h-8 w-8 text-white" />

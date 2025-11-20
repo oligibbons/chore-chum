@@ -1,25 +1,35 @@
 // src/types/database.ts
 
+import { SupabaseClient } from '@supabase/supabase-js'
 import { Database } from './supabase'
 
-// These are the individual types from your Supabase schema
-export type DbChore = Database['public']['Tables']['chores']['Row']
-export type DbProfile = Database['public']['Tables']['profiles']['Row']
-export type DbRoom = Database['public']['Tables']['rooms']['Row']
-export type DbHousehold = Database['public']['Tables']['households']['Row']
-export type DbActivityLog = Database['public']['Tables']['activity_logs']['Row']
+// --- Supabase Helpers ---
 
-// This is our new, "combined" type.
-// It's a Chore, but we also include the full 'profiles' object
-// and the full 'rooms' object it's linked to.
+// Use this type in your server actions and client components
+// instead of just 'SupabaseClient' to ensure type safety without casting.
+export type TypedSupabaseClient = SupabaseClient<Database>
+
+// Shortcuts for Table Row, Insert, and Update types
+// Usage: type Chore = Tables<'chores'>
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
+export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
+export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
+
+// --- Application Specific Types ---
+
+export type DbChore = Tables<'chores'>
+export type DbProfile = Tables<'profiles'>
+export type DbRoom = Tables<'rooms'>
+export type DbHousehold = Tables<'households'>
+export type DbActivityLog = Tables<'activity_logs'>
+
+// Combined type: Chore + Profile + Room
 export type ChoreWithDetails = DbChore & {
-  // profiles can be null (if not assigned)
   profiles: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'> | null
-  // rooms can be null (if not specified)
   rooms: Pick<DbRoom, 'id' | 'name'> | null
 }
 
-// This will be the full data package for the household dashboard
+// Combined type: Household Data Package
 export type HouseholdData = {
   household: Pick<DbHousehold, 'id' | 'name' | 'invite_code'>
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
@@ -27,12 +37,12 @@ export type HouseholdData = {
   chores: ChoreWithDetails[]
 }
 
-// NEW TYPE FOR ROOMS PAGE
+// Combined type: Room with counts
 export type RoomWithChoreCount = DbRoom & {
   chore_count: number
 }
 
-// Combined type for Activity Logs
+// Combined type: Activity Log with User info
 export type ActivityLogWithUser = DbActivityLog & {
   profiles: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'> | null
 }

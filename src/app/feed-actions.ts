@@ -7,13 +7,11 @@ import { ActivityLogWithUser } from '@/types/database'
 export async function getActivityFeed(householdId: string): Promise<ActivityLogWithUser[]> {
   const supabase = await createSupabaseClient()
 
-  // We select the log and join with profiles to get the user's name/avatar
-  // Note: We use the foreign key name 'activity_logs_user_id_fkey' defined in the schema
   const { data, error } = await supabase
     .from('activity_logs')
     .select(`
       *,
-      profiles:profiles!activity_logs_user_id_fkey (id, full_name, avatar_url)
+      profiles:user_id (id, full_name, avatar_url)
     `)
     .eq('household_id', householdId)
     .order('created_at', { ascending: false })
@@ -24,6 +22,8 @@ export async function getActivityFeed(householdId: string): Promise<ActivityLogW
     return []
   }
 
-  // Cast to our combined type
-  return (data || []) as ActivityLogWithUser[]
+  // Supabase types with Joins can be complex to infer automatically, 
+  // but this cast is now safer because our ActivityLogWithUser type 
+  // matches the query structure exactly.
+  return (data || []) as unknown as ActivityLogWithUser[]
 }

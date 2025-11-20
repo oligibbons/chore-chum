@@ -1,19 +1,17 @@
-// src/components/RoomManager.tsx
-
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
+import { useEffect } from 'react'
 import { createRoom, deleteRoom, FormState } from '@/app/room-actions'
-import { Plus, Trash2, Loader2, Home, ArrowRight } from 'lucide-react'
+import { Trash2, Loader2, Home, ArrowRight } from 'lucide-react'
 import { RoomWithChoreCount } from '@/types/database'
+import { toast } from 'sonner'
 
-// Initial state for our forms
 const initialState: FormState = {
   success: false,
   message: '',
 }
 
-// A new, sleek Submit Button
 function SubmitButton({ 
   text, 
   icon, 
@@ -52,9 +50,29 @@ function SubmitButton({
   )
 }
 
-// Main component: Redesigned as a two-column card layout
 export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) {
   const [createState, createAction] = useFormState(createRoom, initialState)
+
+  // Handle Create Toast
+  useEffect(() => {
+    if (createState.message) {
+      if (createState.success) {
+        toast.success(createState.message)
+      } else {
+        toast.error(createState.message)
+      }
+    }
+  }, [createState])
+
+  // Handle Delete
+  const handleDelete = async (formData: FormData) => {
+    try {
+      await deleteRoom(formData)
+      toast.success("Room deleted successfully")
+    } catch (error) {
+      toast.error("Could not delete room. Make sure it has no chores.")
+    }
+  }
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -89,11 +107,6 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
                 className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
               />
             </div>
-            {createState.message && (
-              <p className={`text-sm ${createState.success ? 'text-status-complete' : 'text-status-overdue'}`}>
-                {createState.message}
-              </p>
-            )}
             <div className="pt-2">
               <SubmitButton text="Create Room" icon={<ArrowRight className="h-5 w-5" />} />
             </div>
@@ -114,7 +127,6 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
               </p>
             </div>
           ) : (
-            // NEW: Room items are now sleek cards
             rooms.map((room) => (
               <div
                 key={room.id}
@@ -132,7 +144,7 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
                     </div>
                 </div>
                 
-                <form action={deleteRoom}>
+                <form action={handleDelete}>
                   <input type="hidden" name="roomId" value={room.id} />
                   <button
                     type="submit"

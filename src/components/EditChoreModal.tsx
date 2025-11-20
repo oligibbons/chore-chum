@@ -1,13 +1,12 @@
-// src/components/EditChoreModal.tsx
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { X, Loader2, User, Home, Calendar, Repeat, Hash } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
-import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 type EditFormProps = {
   closeModal: () => void
@@ -17,7 +16,29 @@ type EditFormProps = {
 }
 
 function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
-  const { pending } = useFormStatus()
+  const [pending, setPending] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setPending(true)
+
+    const formData = new FormData(event.currentTarget)
+    
+    try {
+      const result = await updateChore(formData)
+      
+      if (result.success) {
+        toast.success(result.message)
+        closeModal()
+      } else {
+        toast.error(result.message)
+        setPending(false)
+      }
+    } catch (error) {
+      toast.error('Failed to update chore')
+      setPending(false)
+    }
+  }
 
   const formatDateForInput = (dateString: string | null) => {
     if (!dateString) return ''
@@ -25,7 +46,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <input type="hidden" name="choreId" value={chore.id} />
 
       <div>
@@ -180,7 +201,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
           )}
         </button>
       </div>
-    </div>
+    </form>
   )
 }
 
@@ -198,18 +219,10 @@ export default function EditChoreModal({
   rooms,
 }: Props) {
   const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleClose = () => {
     router.push('/dashboard')
     router.refresh()
-  }
-
-  const handleFormSubmit = async (formData: FormData) => {
-    setIsSubmitting(true)
-    await updateChore(formData)
-    setIsSubmitting(false)
-    handleClose()
   }
 
   return (
@@ -252,14 +265,12 @@ export default function EditChoreModal({
                 </div>
                 
                 <div className="mt-6">
-                  <form action={handleFormSubmit}>
-                    <EditForm 
-                      closeModal={handleClose}
-                      chore={chore}
-                      members={members}
-                      rooms={rooms}
-                    />
-                  </form>
+                  <EditForm 
+                    closeModal={handleClose}
+                    chore={chore}
+                    members={members}
+                    rooms={rooms}
+                  />
                 </div>
 
               </Dialog.Panel>

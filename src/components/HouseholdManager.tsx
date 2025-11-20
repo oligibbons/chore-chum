@@ -2,20 +2,20 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
+import { useEffect } from 'react'
 import {
   createHousehold,
   joinHousehold,
   FormState,
 } from '@/app/household-actions'
 import { Home, Users, Loader2, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
 
-// Initial state for our forms
 const initialState: FormState = {
   success: false,
   message: '',
 }
 
-// A new, sleek Submit Button
 function SubmitButton({ text, icon }: { text: string, icon: React.ReactNode }) {
   const { pending } = useFormStatus()
 
@@ -37,15 +37,37 @@ function SubmitButton({ text, icon }: { text: string, icon: React.ReactNode }) {
   )
 }
 
-// Main component: Redesigned as a two-card layout
 export default function HouseholdManager() {
   const [createState, createAction] = useFormState(createHousehold, initialState)
   const [joinState, joinAction] = useFormState(joinHousehold, initialState)
 
+  // --- Effects for Toasts ---
+  
+  useEffect(() => {
+    if (createState.message) {
+      if (createState.success) {
+        toast.success(createState.message)
+      } else {
+        toast.error(createState.message)
+      }
+    }
+  }, [createState])
+
+  useEffect(() => {
+    if (joinState.message) {
+      if (joinState.success) {
+        toast.success(joinState.message)
+      } else {
+        toast.error(joinState.message)
+      }
+    }
+  }, [joinState])
+
+  // --------------------------
+
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8">
       
-      {/* Page Header */}
       <div className="text-center">
         <h1 className="text-4xl font-heading font-bold">
           Welcome to ChoreChum!
@@ -55,10 +77,9 @@ export default function HouseholdManager() {
         </p>
       </div>
 
-      {/* Grid for the two cards */}
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         
-        {/* --- Card 1: Create a Household --- */}
+        {/* --- Card 1: Create --- */}
         <div className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-card">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
             <Home className="h-6 w-6" />
@@ -87,17 +108,11 @@ export default function HouseholdManager() {
                 className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
               />
             </div>
-            {/* This will now correctly show the error message */}
-            {createState.message && (
-              <p className={`text-sm ${createState.success ? 'text-status-complete' : 'text-status-overdue'}`}>
-                {createState.message}
-              </p>
-            )}
             <SubmitButton text="Create Household" icon={<ArrowRight className="h-5 w-5" />} />
           </form>
         </div>
 
-        {/* --- Card 2: Join a Household --- */}
+        {/* --- Card 2: Join --- */}
         <div className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-card">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
             <Users className="h-6 w-6" />
@@ -126,11 +141,6 @@ export default function HouseholdManager() {
                 className="mt-1 block w-full rounded-xl border-border bg-background p-3 uppercase transition-all focus:border-brand focus:ring-brand"
               />
             </div>
-            {joinState.message && (
-              <p className={`text-sm ${joinState.success ? 'text-status-complete' : 'text-status-overdue'}`}>
-                {joinState.message}
-              </p>
-            )}
             <SubmitButton text="Join Household" icon={<ArrowRight className="h-5 w-5" />} />
           </form>
         </div>

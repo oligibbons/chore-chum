@@ -1,23 +1,21 @@
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
-import { Database } from '@/types/supabase'
-import {
-  HouseholdData,
-  ChoreWithDetails,
-  DbChore,
-  DbHousehold,
+import { 
+  HouseholdData, 
+  ChoreWithDetails, 
+  DbChore, 
+  DbHousehold, 
+  TablesInsert,
+  TablesUpdate,
+  DbProfile
 } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
 
-type ChoreInsert = Database['public']['Tables']['chores']['Insert']
-type ActivityLogInsert = Database['public']['Tables']['activity_logs']['Insert']
-
 type ActionResponse = {
   success: boolean
-  message?: string
-  didComplete?: boolean
+  message: string
 }
 
 type ChoreDisplayData = {
@@ -37,7 +35,7 @@ async function logActivity(
   const supabase = await createSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   
-  const logData: ActivityLogInsert = {
+  const logData: TablesInsert<'activity_logs'> = {
     household_id: householdId,
     user_id: user?.id || null,
     action_type: actionType,
@@ -45,8 +43,7 @@ async function logActivity(
     details: details,
   }
 
-  // Explicit cast to avoid inference issues on insert
-  await (supabase.from('activity_logs') as any).insert(logData)
+  await supabase.from('activity_logs').insert(logData)
 }
 
 function getNextDueDate(
@@ -89,6 +86,7 @@ export async function getHouseholdData(
   householdId: string
 ): Promise<HouseholdData | null> {
   const supabase = await createSupabaseClient() 
+  
   const { data: household } = await supabase
     .from('households')
     .select('id, name, invite_code')
@@ -109,21 +107,19 @@ export async function getHouseholdData(
     
   const { data: chores } = await supabase
     .from('chores')
-    .select(
-      `
+    .select(`
       *,
-      profiles:profiles!chores_assigned_to_fkey (id, full_name, avatar_url),
-      rooms (id, name)
-    `
-    )
+      profiles:assigned_to (id, full_name, avatar_url),
+      rooms:room_id (id, name)
+    `)
     .eq('household_id', householdId)
     .order('due_date', { ascending: true, nullsFirst: true })
 
   return {
-    household: household as unknown as DbHousehold,
-    members: (members || []) as any[],
-    rooms: (rooms || []) as any[],
-    chores: (chores as any[] || []) as ChoreWithDetails[],
+    household: household as unknown as DbHousehold, // Supabase types can be strict about distinct types, generic cast is safe here
+    members: (members || []) as unknown as Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[],
+    rooms: rooms || [],
+    chores: (chores as unknown as ChoreWithDetails[]) || [],
   }
 }
 
@@ -175,7 +171,6 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
         }
     })
 
-    // Sort completed: most recent first (using created_at as a proxy for now)
     categorizedData.completed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     return categorizedData
@@ -183,11 +178,9 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
 
 export async function completeChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
-    const { data: rawChore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
+    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     
-    if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
-
-    const chore = rawChore as DbChore
+    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
     if ((chore.target_instances ?? 1) > 1) {
         return incrementChoreInstance(chore)
@@ -198,11 +191,9 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
 
 export async function uncompleteChore(choreId: number): Promise<ActionResponse> {
     const supabase = await createSupabaseClient()
-    const { data: rawChore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
+    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     
-    if (error || !rawChore) return { success: false, message: error?.message || 'Chore not found' }
-
-    const chore = rawChore as DbChore
+    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
     if ((chore.target_instances ?? 1) > 1) {
         return decrementChoreInstance(chore)
@@ -211,26 +202,23 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
     }
 }
 
-export async function createChore(formData: FormData) {
+export async function createChore(formData: FormData): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
   
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  if (!user) return { success: false, message: 'Not authenticated' }
 
-  // Use raw data + cast pattern
-  const { data: rawProfile } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
   
-  const safeProfile = rawProfile as { household_id: string | null } | null
-
-  if (!safeProfile || !safeProfile.household_id) {
-    throw new Error('You must be part of a household to create a chore.')
+  if (!profile?.household_id) {
+    return { success: false, message: 'You must be part of a household.' }
   }
   
-  const householdId = safeProfile.household_id
+  const householdId = profile.household_id
 
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
@@ -240,11 +228,9 @@ export async function createChore(formData: FormData) {
   const rawInstances = formData.get('instances') as string
   const rawRecurrence = formData.get('recurrence_type') as string
 
-  if (!rawName) {
-    throw new Error('Chore name is required.')
-  }
+  if (!rawName) return { success: false, message: 'Chore name is required.' }
 
-  const newChoreData: ChoreInsert = {
+  const newChoreData: TablesInsert<'chores'> = {
     name: rawName,
     notes: rawNotes || null,
     household_id: householdId,
@@ -258,19 +244,19 @@ export async function createChore(formData: FormData) {
     completed_instances: 0,
   }
 
-  const { error } = await (supabase.from('chores') as any).insert(newChoreData)
+  const { error } = await supabase.from('chores').insert(newChoreData)
 
   if (error) {
     console.error('Error creating chore:', error)
-    throw new Error(`Could not create chore: ${error.message}`)
+    return { success: false, message: error.message }
   }
 
-  // Log it
   await logActivity(householdId, 'create', rawName)
 
   revalidatePath('/dashboard')
   revalidatePath('/feed')
   revalidatePath('/calendar')
+  return { success: true, message: 'Chore created successfully' }
 }
 
 export async function toggleChoreStatus(
@@ -280,7 +266,8 @@ export async function toggleChoreStatus(
   
   if (chore.status === 'complete') {
     // Uncompleting
-    const { error } = await (supabase.from('chores') as any)
+    const { error } = await supabase
+      .from('chores')
       .update({ status: 'pending' })
       .eq('id', chore.id)
 
@@ -289,16 +276,16 @@ export async function toggleChoreStatus(
     revalidatePath('/dashboard')
     revalidatePath('/feed')
     revalidatePath('/calendar')
-    return { success: true, didComplete: false }
+    return { success: true, message: 'Chore marked as pending' }
 
   } else {
     // Completing
     const isRecurring = chore.recurrence_type !== 'none'
-    const didComplete = true
     
     if (isRecurring) {
       // 1. Mark CURRENT chore as complete
-      const { error: updateError } = await (supabase.from('chores') as any)
+      const { error: updateError } = await supabase
+        .from('chores')
         .update({ 
           status: 'complete',
           completed_instances: chore.target_instances || 1 
@@ -310,7 +297,7 @@ export async function toggleChoreStatus(
       // 2. Create NEXT chore instance
       const nextDueDate = getNextDueDate(chore.recurrence_type, chore.due_date)
       
-      const newChoreData: ChoreInsert = {
+      const newChoreData: TablesInsert<'chores'> = {
         name: chore.name,
         notes: chore.notes,
         household_id: chore.household_id,
@@ -324,15 +311,12 @@ export async function toggleChoreStatus(
         completed_instances: 0,
       }
 
-      const { error: createError } = await (supabase.from('chores') as any).insert(newChoreData)
-      
-      if (createError) {
-        console.error('Error creating next recurring instance:', createError)
-      }
+      await supabase.from('chores').insert(newChoreData)
 
     } else {
       // Not recurring, just mark complete
-      const { error } = await (supabase.from('chores') as any)
+      const { error } = await supabase
+        .from('chores')
         .update({ 
           status: 'complete',
           completed_instances: chore.target_instances || 1 
@@ -347,14 +331,14 @@ export async function toggleChoreStatus(
     revalidatePath('/dashboard')
     revalidatePath('/feed')
     revalidatePath('/calendar')
-    return { success: true, didComplete }
+    return { success: true, message: 'Chore completed!' }
   }
 }
 
 export async function incrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
-  if (chore.status === 'complete') return { success: false }
+  if (chore.status === 'complete') return { success: false, message: 'Already complete' }
   
   const supabase = await createSupabaseClient() 
   
@@ -364,7 +348,8 @@ export async function incrementChoreInstance(
   if (newInstanceCount >= targetInstances) {
     return toggleChoreStatus(chore)
   } else {
-    const { error } = await (supabase.from('chores') as any)
+    const { error } = await supabase
+      .from('chores')
       .update({ completed_instances: newInstanceCount })
       .eq('id', chore.id)
 
@@ -373,7 +358,7 @@ export async function incrementChoreInstance(
     revalidatePath('/dashboard')
     revalidatePath('/feed')
     revalidatePath('/calendar')
-    return { success: true, didComplete: false }
+    return { success: true, message: 'Progress updated' }
   }
 }
 
@@ -384,27 +369,27 @@ export async function decrementChoreInstance(
   
   const newInstanceCount = Math.max(0, (chore.completed_instances ?? 0) - 1)
 
-  const { error } = await (supabase.from('chores') as any)
+  const { error } = await supabase
+    .from('chores')
     .update({
       completed_instances: newInstanceCount,
       status: 'pending',
     })
     .eq('id', chore.id)
 
-  if (error) {
-    return { success: false, message: error.message }
-  }
+  if (error) return { success: false, message: error.message }
+  
   revalidatePath('/dashboard')
   revalidatePath('/feed')
   revalidatePath('/calendar')
-  return { success: false }
+  return { success: true, message: 'Progress updated' }
 }
 
-export async function updateChore(formData: FormData) {
+export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
 
   const choreId = formData.get('choreId') as string
-  if (!choreId) throw new Error('Chore ID is missing.')
+  if (!choreId) return { success: false, message: 'Chore ID missing' }
 
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
@@ -414,15 +399,15 @@ export async function updateChore(formData: FormData) {
   const rawInstances = formData.get('instances') as string
   const rawRecurrence = formData.get('recurrence_type') as string
 
-  if (!rawName) {
-    throw new Error('Chore name is required.')
-  }
+  if (!rawName) return { success: false, message: 'Name required' }
   
-  // Use raw data + cast to fix potential 'never' type error
-  const { data: rawChore } = await supabase.from('chores').select('household_id, name').eq('id', Number(choreId)).single()
-  const currentChore = rawChore as { household_id: string; name: string } | null
+  const { data: currentChore } = await supabase
+    .from('chores')
+    .select('household_id, name')
+    .eq('id', Number(choreId))
+    .single()
 
-  const updateData = {
+  const updateData: TablesUpdate<'chores'> = {
     name: rawName,
     notes: rawNotes || null,
     assigned_to: rawAssignedTo && rawAssignedTo !== '' ? rawAssignedTo : null,
@@ -432,13 +417,13 @@ export async function updateChore(formData: FormData) {
     recurrence_type: rawRecurrence || 'none',
   }
 
-  const { error } = await (supabase.from('chores') as any)
+  const { error } = await supabase
+    .from('chores')
     .update(updateData)
     .eq('id', Number(choreId))
 
   if (error) {
-    console.error('Error updating chore:', error)
-    throw new Error(`Could not update chore: ${error.message}`)
+    return { success: false, message: error.message }
   }
   
   if (currentChore) {
@@ -448,21 +433,24 @@ export async function updateChore(formData: FormData) {
   revalidatePath('/dashboard')
   revalidatePath('/feed')
   revalidatePath('/calendar')
+  return { success: true, message: 'Chore updated' }
 }
 
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
   const supabase = await createSupabaseClient() 
 
-  // Use raw data + cast to fix potential 'never' type error
-  const { data: rawChore } = await supabase.from('chores').select('household_id, name').eq('id', choreId).single()
-  const chore = rawChore as { household_id: string; name: string } | null
+  const { data: chore } = await supabase
+    .from('chores')
+    .select('household_id, name')
+    .eq('id', choreId)
+    .single()
 
-  const { error } = await (supabase.from('chores') as any)
+  const { error } = await supabase
+    .from('chores')
     .delete()
     .eq('id', choreId)
 
   if (error) {
-    console.error('Error deleting chore:', error)
     return { success: false, message: error.message }
   }
   
@@ -473,43 +461,40 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
   revalidatePath('/dashboard')
   revalidatePath('/feed')
   revalidatePath('/calendar')
-  return { success: true }
+  return { success: true, message: 'Chore deleted' }
 }
 
-export async function delayChore(choreId: number, days: number) {
+export async function delayChore(choreId: number, days: number): Promise<ActionResponse> {
   const supabase = await createSupabaseClient()
 
-  // Use raw data + cast
-  const { data: rawChore } = await supabase
+  const { data: chore } = await supabase
     .from('chores')
     .select('household_id, name, due_date')
     .eq('id', choreId)
     .single()
-
-  const safeChore = rawChore as { household_id: string, name: string, due_date: string | null } | null
   
-  if (!safeChore) throw new Error('Chore not found')
+  if (!chore) return { success: false, message: 'Chore not found' }
 
-  const baseDate = safeChore.due_date ? new Date(safeChore.due_date) : new Date()
+  const baseDate = chore.due_date ? new Date(chore.due_date) : new Date()
   
   // Add days
   baseDate.setDate(baseDate.getDate() + days)
   
   const newDueDate = baseDate.toISOString()
 
-  const { error } = await (supabase.from('chores') as any)
+  const { error } = await supabase
+    .from('chores')
     .update({ due_date: newDueDate })
     .eq('id', choreId)
 
   if (error) {
-    console.error('Error delaying chore:', error)
-    throw new Error('Could not delay chore')
+    return { success: false, message: error.message }
   }
   
-  await logActivity(safeChore.household_id, 'delay', safeChore.name, { days })
+  await logActivity(chore.household_id, 'delay', chore.name, { days })
 
   revalidatePath('/dashboard')
   revalidatePath('/feed')
   revalidatePath('/calendar')
-  return { success: true }
+  return { success: true, message: `Delayed by ${days} ${days === 1 ? 'day' : 'days'}` }
 }

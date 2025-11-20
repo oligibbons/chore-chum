@@ -1,13 +1,15 @@
+// src/components/ChoreItem.tsx
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
 import { Check, Clock, User, Home, Calendar, Loader2, RotateCw, FileText } from 'lucide-react'
-import { useTransition, useState } from 'react'
+import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
 import Avatar from './Avatar'
 import DelayChoreModal from './DelayChoreModal'
 import confetti from 'canvas-confetti'
+import { toast } from 'sonner' // Requires: npm install sonner
 
 type Props = {
   chore: ChoreWithDetails
@@ -27,58 +29,91 @@ const formatDate = (dateString: string | null | undefined): string => {
 export default function ChoreItem({ chore, showActions, status }: Props) {
   const [isPending, startTransition] = useTransition()
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
-  
-  const isCompleted = chore.completed_instances === (chore.target_instances ?? 1)
+
+  // Optimistic State: Allows the UI to update immediately while the server processes
+  const [optimisticChore, setOptimisticChore] = useOptimistic(
+    chore,
+    (state, newStatus: string) => ({
+      ...state,
+      status: newStatus,
+      // If we are marking complete, we optimistically increment the count
+      completed_instances: newStatus === 'complete' 
+        ? (state.target_instances ?? 1) 
+        : (state.completed_instances ?? 1) > 0 ? (state.completed_instances ?? 1) - 1 : 0
+    })
+  )
+
+  const isCompleted = 
+    optimisticChore.status === 'complete' || 
+    (optimisticChore.completed_instances === (optimisticChore.target_instances ?? 1))
 
   // --- Dynamic Styling Logic ---
-  let cardClasses = 'border-border bg-card' // Default
+  let cardClasses = 'border-border bg-card'
   let buttonClasses = 'border-border text-text-secondary hover:text-brand hover:border-brand'
   let statusIconColor = 'text-text-secondary'
 
   if (isCompleted) {
-    // Green for Success
     cardClasses = 'border-status-complete/30 bg-status-complete/5'
     buttonClasses = 'bg-status-complete text-white border-status-complete ring-2 ring-status-complete/20'
     statusIconColor = 'text-status-complete'
   } else {
     switch (status) {
       case 'overdue':
-        // Red for Danger
         cardClasses = 'border-status-overdue/30 bg-status-overdue/5'
         buttonClasses = 'border-status-overdue text-status-overdue hover:bg-status-overdue hover:text-white'
         statusIconColor = 'text-status-overdue'
         break
       case 'due':
-        // Amber for Warning
         cardClasses = 'border-status-due/40 bg-status-due/5'
         buttonClasses = 'border-status-due text-status-due hover:bg-status-due hover:text-white'
         statusIconColor = 'text-status-due'
         break
       default:
-        // Standard Gray/White
         cardClasses = 'border-border bg-card hover:border-brand/30'
     }
   }
 
-  const handleToggleCompletion = () => {
-    if (isCompleted) {
-      startTransition(() => {
-        uncompleteChore(chore.id)
-      })
-    } else {
-      // Fire confetti!
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.7 },
-        colors: ['#a78bfa', '#fbbf24', '#34d399', '#f87171'], // Purple, Amber, Green, Red
-        disableForReducedMotion: true
-      })
-      
-      startTransition(() => {
-        completeChore(chore.id)
-      })
-    }
+  const handleToggleCompletion = async () => {
+    // 1. Optimistic Update
+    const nextStatus = isCompleted ? 'pending' : 'complete'
+    
+    startTransition(async () => {
+      // Optimistically update UI
+      setOptimisticChore(nextStatus)
+
+      // 2. Visual Feedback (Confetti)
+      if (nextStatus === 'complete') {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.7 },
+          colors: ['#a78bfa', '#fbbf24', '#34d399', '#f87171'],
+          disableForReducedMotion: true
+        })
+      }
+
+      // 3. Server Action
+      try {
+        const result = isCompleted 
+          ? await uncompleteChore(chore.id) 
+          : await completeChore(chore.id)
+
+        if (!result.success) {
+          toast.error(result.message || 'Failed to update chore')
+          // Note: The optimistic state will automatically revert if we don't revalidate
+          // but typically Next.js revalidates on action completion.
+        } else {
+          // Success Toast
+          if (nextStatus === 'complete') {
+            toast.success("Chore completed! Great job. 🎉")
+          } else {
+             toast.info("Chore marked as incomplete.")
+          }
+        }
+      } catch (error) {
+        toast.error("Something went wrong. Please try again.")
+      }
+    })
   }
 
   return (
@@ -120,7 +155,6 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
                 {chore.name}
               </h4>
               
-              {/* NEW: Notes display */}
               {chore.notes && (
                 <div className="flex items-start gap-1 text-sm text-text-secondary mt-0.5">
                     <FileText className="h-3 w-3 mt-0.5 flex-shrink-0" />
@@ -130,7 +164,7 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
 
               {(chore.target_instances ?? 1) > 1 && (
                 <span className="text-sm font-medium text-text-secondary mt-1">
-                  {chore.completed_instances ?? 0} / {chore.target_instances ?? 1} completed
+                  {optimisticChore.completed_instances ?? 0} / {chore.target_instances ?? 1} completed
                 </span>
               )}
             </div>
@@ -172,7 +206,6 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
           </div>
 
           <div className="flex items-center gap-1">
-            {/* Delay Button */}
             {!isCompleted && showActions && (
               <button 
                 onClick={() => setIsDelayModalOpen(true)}

@@ -2,7 +2,7 @@
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
-import { Database } from '@/types/supabase'
+import { TablesInsert } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 
 export type FormState = {
@@ -23,13 +23,11 @@ async function getUserHousehold() {
     .eq('id', user.id)
     .single()
 
-  const safeProfile = profile as { household_id: string | null } | null
-
-  if (!safeProfile || !safeProfile.household_id) {
+  if (!profile || !profile.household_id) {
     throw new Error('User has no household')
   }
 
-  return { userId: user.id, householdId: safeProfile.household_id }
+  return { userId: user.id, householdId: profile.household_id }
 }
 
 export async function getRoomsAndMembers(householdId: string) {
@@ -47,9 +45,9 @@ export async function getRoomsAndMembers(householdId: string) {
       .eq('household_id', householdId),
   ])
 
-  const roomsRaw = roomsData.data as any[] | null
-  
-  const rooms = (roomsRaw || []).map(room => ({
+  // Supabase returns 'count' as an array of objects like [{count: 5}] when using the foreign table aggregation
+  // We need to flatten this safely.
+  const rooms = (roomsData.data || []).map((room: any) => ({
     ...room,
     chore_count: room.chore_count?.[0]?.count ?? 0
   }))
@@ -79,11 +77,12 @@ export async function createRoom(
     return { success: false, message: 'Room name must be at least 2 characters.' }
   }
 
-  // NUCLEAR FIX: Cast builder to 'any'
-  const { error } = await (supabase.from('rooms') as any).insert({
+  const newRoom: TablesInsert<'rooms'> = {
     name: roomName.trim(),
     household_id: householdId,
-  })
+  }
+
+  const { error } = await supabase.from('rooms').insert(newRoom)
 
   if (error) {
     console.error('Error creating room:', error)
@@ -119,8 +118,8 @@ export async function deleteRoom(
   
   const supabase = await createSupabaseClient() 
 
-  // NUCLEAR FIX: Cast builder to 'any'
-  const { error } = await (supabase.from('rooms') as any)
+  const { error } = await supabase
+    .from('rooms')
     .delete()
     .eq('id', roomId)
     .eq('household_id', householdId)
