@@ -2,7 +2,8 @@
 
 import { Inter, Lexend } from "next/font/google";
 import type { Metadata, Viewport } from "next";
-import { Toaster } from "sonner"; // RECOMMENDED: npm install sonner
+import { Toaster } from "sonner"; 
+import ServiceWorkerManager from '@/components/ServiceWorkerManager';
 import "./global.css";
 
 const inter = Inter({
@@ -18,14 +19,19 @@ const lexend = Lexend({
 export const metadata: Metadata = {
   title: "ChoreChum",
   description: "Your friendly household chore manager.",
-  manifest: "/manifest.json", // Good practice for PWA
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ChoreChum",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#8b5cf6",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Prevents input zooming on mobile
+  maximumScale: 1, 
 };
 
 export default function RootLayout({
@@ -38,6 +44,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${lexend.variable} bg-background font-sans text-foreground antialiased`}
       >
+        <ServiceWorkerManager />
         {children}
         <Toaster 
           position="top-center" 

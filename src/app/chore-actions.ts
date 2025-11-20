@@ -13,6 +13,7 @@ import {
 } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
+import { notifyHousehold } from '@/app/push-actions'
 
 type ActionResponse = {
   success: boolean
@@ -33,7 +34,6 @@ async function logActivity(
   entityName: string,
   details: any = null
 ) {
-  // FIX: Explicitly type the client to ensure schema visibility
   const supabase: TypedSupabaseClient = await createSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   
@@ -46,6 +46,20 @@ async function logActivity(
   }
 
   await supabase.from('activity_logs').insert(logData)
+}
+
+// --- Helper: Get Current User Name ---
+async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .eq('id', user.id)
+    .single()
+    
+  return profile
 }
 
 function getNextDueDate(
@@ -210,9 +224,10 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Not authenticated' }
 
+  // Fetch profile directly to get name for notification
   const { data: profile } = await supabase
     .from('profiles')
-    .select('household_id')
+    .select('household_id, full_name')
     .eq('id', user.id)
     .single()
   
@@ -221,6 +236,7 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   }
   
   const householdId = profile.household_id
+  const userName = profile.full_name?.split(' ')[0] || 'Someone'
 
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
@@ -255,6 +271,17 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 
   await logActivity(householdId, 'create', rawName)
 
+  // Send Push Notification
+  await notifyHousehold(
+    householdId,
+    {
+      title: 'New Chore Added',
+      body: `${userName} added "${rawName}" to the list.`,
+      url: '/dashboard'
+    },
+    user.id // Exclude sender
+  )
+
   revalidatePath('/dashboard')
   revalidatePath('/feed')
   revalidatePath('/calendar')
@@ -264,7 +291,9 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase: TypedSupabaseClient = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient()
+  const actorProfile = await getCurrentUserProfile(supabase)
+  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
   
   if (chore.status === 'complete') {
     // Uncompleting
@@ -329,6 +358,17 @@ export async function toggleChoreStatus(
     }
 
     await logActivity(chore.household_id, 'complete', chore.name)
+
+    // Notify Household
+    await notifyHousehold(
+        chore.household_id,
+        {
+          title: 'Chore Completed! 🎉',
+          body: `${userName} completed "${chore.name}".`,
+          url: '/feed'
+        },
+        actorProfile?.id
+    )
 
     revalidatePath('/dashboard')
     revalidatePath('/feed')
@@ -468,6 +508,8 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
 
 export async function delayChore(choreId: number, days: number): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient()
+  const actorProfile = await getCurrentUserProfile(supabase)
+  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
 
   const { data: chore } = await supabase
     .from('chores')
@@ -494,6 +536,17 @@ export async function delayChore(choreId: number, days: number): Promise<ActionR
   }
   
   await logActivity(chore.household_id, 'delay', chore.name, { days })
+
+  // Notify Household (including sender maybe? No, usually exclude sender)
+  await notifyHousehold(
+    chore.household_id,
+    {
+      title: 'Chore Delayed ⏰',
+      body: `${userName} delayed "${chore.name}" by ${days} days.`,
+      url: '/calendar'
+    },
+    actorProfile?.id
+  )
 
   revalidatePath('/dashboard')
   revalidatePath('/feed')
