@@ -224,7 +224,6 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Not authenticated' }
 
-  // Fetch profile directly to get name for notification
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id, full_name')
@@ -271,7 +270,6 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 
   await logActivity(householdId, 'create', rawName)
 
-  // Send Push Notification
   await notifyHousehold(
     householdId,
     {
@@ -279,7 +277,7 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
       body: `${userName} added "${rawName}" to the list.`,
       url: '/dashboard'
     },
-    user.id // Exclude sender
+    user.id 
   )
 
   revalidatePath('/dashboard')
@@ -291,12 +289,11 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase: TypedSupabaseClient = await createSupabaseClient()
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
   const actorProfile = await getCurrentUserProfile(supabase)
   const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
   
   if (chore.status === 'complete') {
-    // Uncompleting
     const { error } = await supabase
       .from('chores')
       .update({ status: 'pending' })
@@ -310,11 +307,9 @@ export async function toggleChoreStatus(
     return { success: true, message: 'Chore marked as pending' }
 
   } else {
-    // Completing
     const isRecurring = chore.recurrence_type !== 'none'
     
     if (isRecurring) {
-      // 1. Mark CURRENT chore as complete
       const { error: updateError } = await supabase
         .from('chores')
         .update({ 
@@ -325,7 +320,6 @@ export async function toggleChoreStatus(
 
       if (updateError) return { success: false, message: updateError.message }
 
-      // 2. Create NEXT chore instance
       const nextDueDate = getNextDueDate(chore.recurrence_type, chore.due_date)
       
       const newChoreData: TablesInsert<'chores'> = {
@@ -345,7 +339,6 @@ export async function toggleChoreStatus(
       await supabase.from('chores').insert(newChoreData)
 
     } else {
-      // Not recurring, just mark complete
       const { error } = await supabase
         .from('chores')
         .update({ 
@@ -359,7 +352,6 @@ export async function toggleChoreStatus(
 
     await logActivity(chore.household_id, 'complete', chore.name)
 
-    // Notify Household
     await notifyHousehold(
         chore.household_id,
         {
@@ -429,6 +421,8 @@ export async function decrementChoreInstance(
 
 export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient() 
+  const actorProfile = await getCurrentUserProfile(supabase)
+  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
 
   const choreId = formData.get('choreId') as string
   if (!choreId) return { success: false, message: 'Chore ID missing' }
@@ -470,6 +464,16 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   
   if (currentChore) {
     await logActivity(currentChore.household_id, 'update', currentChore.name)
+
+    await notifyHousehold(
+        currentChore.household_id,
+        {
+          title: 'Chore Updated 📝',
+          body: `${userName} updated "${rawName}".`,
+          url: '/dashboard'
+        },
+        actorProfile?.id
+    )
   }
 
   revalidatePath('/dashboard')
@@ -480,6 +484,8 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
 
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient() 
+  const actorProfile = await getCurrentUserProfile(supabase)
+  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
 
   const { data: chore } = await supabase
     .from('chores')
@@ -498,6 +504,16 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
   
   if (chore) {
     await logActivity(chore.household_id, 'delete', chore.name)
+
+    await notifyHousehold(
+        chore.household_id,
+        {
+          title: 'Chore Deleted 🗑️',
+          body: `${userName} removed "${chore.name}" from the list.`,
+          url: '/dashboard'
+        },
+        actorProfile?.id
+    )
   }
 
   revalidatePath('/dashboard')
@@ -521,7 +537,6 @@ export async function delayChore(choreId: number, days: number): Promise<ActionR
 
   const baseDate = chore.due_date ? new Date(chore.due_date) : new Date()
   
-  // Add days
   baseDate.setDate(baseDate.getDate() + days)
   
   const newDueDate = baseDate.toISOString()
@@ -537,7 +552,6 @@ export async function delayChore(choreId: number, days: number): Promise<ActionR
   
   await logActivity(chore.household_id, 'delay', chore.name, { days })
 
-  // Notify Household (including sender maybe? No, usually exclude sender)
   await notifyHousehold(
     chore.household_id,
     {

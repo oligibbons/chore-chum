@@ -20,24 +20,25 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function ServiceWorkerManager() {
-  const [isSupported, setIsSupported] = useState(false)
+  const [isPushSupported, setIsPushSupported] = useState(false)
   const [subscription, setSubscription] = useState<PushSubscription | null>(null)
 
   useEffect(() => {
-    // Feature detection for PWA/Push support
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      setIsSupported(true)
-      
-      // Register Service Worker
+    // 1. Always try to register the Service Worker (Required for PWA installation on all devices)
+    if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
         .then(async (registration) => {
           console.log('Service Worker registered with scope:', registration.scope)
           
-          // Check if already subscribed
-          const existingSub = await registration.pushManager.getSubscription()
-          if (existingSub) {
-            setSubscription(existingSub)
+          // 2. Separately check for Push API support (iOS 16.4+ / Desktop / Android)
+          if ('PushManager' in window) {
+            setIsPushSupported(true)
+            
+            const existingSub = await registration.pushManager.getSubscription()
+            if (existingSub) {
+              setSubscription(existingSub)
+            }
           }
         })
         .catch((err) => {
@@ -46,12 +47,11 @@ export default function ServiceWorkerManager() {
     }
   }, [])
 
-  // Global function to trigger permission request (can be called from Profile/Settings)
-  // We attach it to the window object so other components can reach it easily without complex context
+  // Global function to trigger permission request
   useEffect(() => {
     (window as any).requestPushPermission = async () => {
-      if (!isSupported) {
-        toast.error("Your device doesn't support push notifications.")
+      if (!isPushSupported) {
+        toast.error("Your device supports the app, but not push notifications (iOS 16.4+ required).")
         return
       }
 
@@ -60,8 +60,6 @@ export default function ServiceWorkerManager() {
         if (permission === 'granted') {
           const registration = await navigator.serviceWorker.ready
           
-          // You must Generate VAPID keys and put the PUBLIC key here
-          // Run: npx web-push generate-vapid-keys
           const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
 
           const sub = await registration.pushManager.subscribe({
@@ -87,7 +85,7 @@ export default function ServiceWorkerManager() {
         toast.error("Failed to enable notifications")
       }
     }
-  }, [isSupported])
+  }, [isPushSupported])
 
   return null
 }

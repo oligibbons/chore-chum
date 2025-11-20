@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
-import { User, LogOut, Copy, Check, Loader2, Camera, Mail, Home, ShieldAlert, Upload } from 'lucide-react'
+import { User, LogOut, Copy, Check, Loader2, Camera, Mail, Home, ShieldAlert, Upload, Bell } from 'lucide-react'
 import { updateProfile, leaveHousehold, ProfileFormState } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
@@ -182,6 +182,28 @@ export default function ProfileForm({ profile, household, email }: Props) {
             </form>
           </div>
         </div>
+
+        {/* Card 2: Preferences (Notifications) */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+           <h2 className="mb-4 font-heading text-xl font-semibold flex items-center gap-2">
+              <Bell className="h-5 w-5 text-brand" />
+              Preferences
+           </h2>
+           
+           <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-text-primary">Push Notifications</p>
+                <p className="text-sm text-text-secondary">Get alerted about new and completed chores.</p>
+              </div>
+              <button 
+                onClick={() => (window as any).requestPushPermission?.()}
+                className="rounded-lg bg-brand-light px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors"
+              >
+                Enable
+              </button>
+           </div>
+        </div>
+
       </div>
 
       {/* Right Column: Household & Danger */}

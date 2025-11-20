@@ -2,8 +2,9 @@
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
-import { TablesInsert } from '@/types/database'
+import { TablesInsert, TypedSupabaseClient } from '@/types/database'
 import { revalidatePath } from 'next/cache'
+import { notifyHousehold } from '@/app/push-actions'
 
 export type FormState = {
   success: boolean
@@ -13,6 +14,14 @@ export type FormState = {
 
 function generateInviteCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
+}
+
+// Helper to get profile for notification names
+async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('id', user.id).single()
+  return profile
 }
 
 export async function createHousehold(
@@ -129,13 +138,17 @@ export async function joinHousehold(
       return { success: false, message: 'You must be logged in.', timestamp: Date.now() }
     }
 
+    // Get profile for notifications (Added)
+    const actorProfile = await getCurrentUserProfile(supabase)
+    const userName = actorProfile?.full_name || 'Someone'
+
     if (!inviteCode || inviteCode.trim().length < 6) {
       return { success: false, message: 'Invite code must be 6 characters.', timestamp: Date.now() }
     }
 
     const { data: householdData, error: householdError } = await supabase
       .from('households')
-      .select('id')
+      .select('id, name') // Added name selection for the notification
       .eq('invite_code', inviteCode)
       .single()
 
@@ -160,6 +173,17 @@ export async function joinHousehold(
         timestamp: Date.now()
       }
     }
+
+    // Notify Household Members (Added)
+    await notifyHousehold(
+      householdData.id,
+      {
+        title: 'New Member! 👋',
+        body: `${userName} just joined ${householdData.name}.`,
+        url: '/feed'
+      },
+      actorProfile?.id // Exclude the person joining
+    )
 
     revalidatePath('/dashboard')
     return { success: true, message: 'Joined household successfully!', timestamp: Date.now() }

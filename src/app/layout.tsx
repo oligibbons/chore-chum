@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   title: "ChoreChum",
   description: "Your friendly household chore manager.",
   manifest: "/manifest.json",
+  icons: {
+    icon: '/app-icon.svg',
+    shortcut: '/app-icon.svg',
+    apple: '/icon-192.png', // Crucial for iOS PWA install
+    other: {
+      rel: 'apple-touch-icon-precomposed',
+      url: '/icon-192.png',
+    },
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
