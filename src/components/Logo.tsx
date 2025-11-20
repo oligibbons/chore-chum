@@ -1,3 +1,4 @@
+// src/components/Logo.tsx
 import AppIcon from './AppIcon'
 
 export default function Logo({ 
@@ -11,12 +12,10 @@ export default function Logo({
 }) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {/* New App Icon Component */}
-      <div className={`${iconClassName}`}>
+      <div className={`${iconClassName} flex-shrink-0`}>
         <AppIcon className="w-full h-full" />
       </div>
 
-      {/* Text */}
       {showText && (
         <span className="font-heading font-bold text-xl tracking-tight text-foreground">
           Chore<span className="text-brand">Chum</span>
