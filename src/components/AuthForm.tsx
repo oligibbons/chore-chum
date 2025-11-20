@@ -1,113 +1,161 @@
-// src/components/AuthForm.tsx
 'use client'
 
 import { useState } from 'react'
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { useFormState, useFormStatus } from 'react-dom'
+import { signInWithEmail, signUpWithEmail, AuthFormState } from '@/app/actions'
+import { Loader2, Mail, Lock, User, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
+import { useEffect } from 'react'
+
+const initialState: AuthFormState = {
+  success: false,
+  message: '',
+}
+
+function SubmitButton({ text }: { text: string }) {
+  const { pending } = useFormStatus()
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="group flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 font-heading text-base font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:opacity-70"
+    >
+      {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+        <>
+          {text} 
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </>
+      )}
+    </button>
+  )
+}
 
 export default function AuthForm() {
-  const [supabase] = useState(() =>
-    createSupabaseBrowserClient()
-  )
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  
+  // Separate states for signin/signup so errors don't persist when switching
+  const [signInState, signInAction] = useFormState(signInWithEmail, initialState)
+  const [signUpState, signUpAction] = useFormState(signUpWithEmail, initialState)
 
-  // Get the origin URL for the redirect
-  const getURL = () => {
-    let url =
-      process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this in Vercel/Cloudflare
-      process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel
-      'http://localhost:3000/'
-      
-    // Make sure to include `https://` when not localhost.
-    url = url.includes('http') ? url : `https://${url}`
-    // Make sure to including trailing `/`.
-    url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
-    return url
-  }
+  // Toast Effects
+  useEffect(() => {
+    if (signInState.message && !signInState.success) toast.error(signInState.message)
+  }, [signInState])
+
+  useEffect(() => {
+    if (signUpState.message) {
+      if (signUpState.success) toast.success(signUpState.message)
+      else toast.error(signUpState.message)
+    }
+  }, [signUpState])
 
   return (
-    <Auth
-      // FIX: Cast to 'any' to resolve the type mismatch between your strict Database type 
-      // and the Auth component's expected generic type.
-      supabaseClient={supabase as any}
-      providers={['google', 'apple']}
-      magicLink
-      redirectTo={`${getURL()}auth/callback`}
-      appearance={{
-        theme: ThemeSupa,
-        // --- NEW "CHARMING" THEME ---
-        variables: {
-          default: {
-            colors: {
-              brand: 'hsl(252, 75%, 60%)',
-              brandAccent: 'hsl(252, 75%, 50%)',
-              brandButtonText: 'white',
-              defaultButtonBackground: 'white',
-              defaultButtonBackgroundHover: 'hsl(210, 40%, 98%)',
-              defaultButtonBorder: 'hsl(214, 32%, 91%)',
-              defaultButtonText: 'hsl(215, 10%, 45%)',
-              inputBackground: 'hsl(210, 40%, 98%)',
-              inputBorder: 'hsl(214, 32%, 91%)',
-              inputBorderHover: 'hsl(252, 75%, 60%)',
-              inputBorderFocus: 'hsl(252, 75%, 60%)',
-              inputText: 'hsl(224, 20%, 13%)',
-              messageText: 'hsl(215, 10%, 45%)',
-              messageTextDanger: 'hsl(350, 78%, 60%)',
-            },
-            fonts: {
-              bodyFontFamily: 'var(--font-inter), sans-serif',
-              buttonFontFamily: 'var(--font-lexend), sans-serif',
-              labelFontFamily: 'var(--font-lexend), sans-serif',
-            },
-            fontSizes: {
-              baseLabelSize: '0.875rem',
-            },
-            radii: {
-              borderRadiusButton: '12px',
-              inputBorderRadius: '12px',
-            },
-          },
-        },
-      }}
-      localization={{
-        variables: {
-          sign_in: {
-            email_label: 'Email address',
-            password_label: 'Password',
-            email_input_placeholder: 'Your email address',
-            password_input_placeholder: 'Your password',
-            button_label: 'Sign in',
-            social_provider_text: 'Sign in with {{provider}}',
-            link_text: 'Already have an account? Sign in',
-          },
-          sign_up: {
-            email_label: 'Email address',
-            password_label: 'Password',
-            email_input_placeholder: 'Your email address',
-            password_input_placeholder: 'Your password',
-            button_label: 'Sign up',
-            social_provider_text: 'Sign up with {{provider}}',
-            link_text: "Don't have an account? Sign up",
-            confirmation_text:
-              'Check your email for the confirmation link',
-          },
-          magic_link: {
-            email_input_label: 'Email address',
-            email_input_placeholder: 'Your email address',
-            button_label: 'Send magic link',
-            link_text: 'Send a magic link instead',
-            confirmation_text: 'Check your email for the magic link',
-          },
-          forgotten_password: {
-            email_label: 'Email address',
-            email_input_placeholder: 'Your email address',
-            button_label: "Send reset instructions",
-            link_text: 'Forgot your password?',
-            confirmation_text:
-              'Check your email for the password reset link',
-          },
-        },
-      }}
-    />
+    <div className="w-full max-w-sm mx-auto">
+      {/* Toggle */}
+      <div className="mb-8 flex rounded-xl bg-gray-100 p-1 border border-border">
+        <button
+          onClick={() => setMode('signin')}
+          className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${
+            mode === 'signin' ? 'bg-white text-brand shadow-sm' : 'text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          Sign In
+        </button>
+        <button
+          onClick={() => setMode('signup')}
+          className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${
+            mode === 'signup' ? 'bg-white text-brand shadow-sm' : 'text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          Sign Up
+        </button>
+      </div>
+
+      {/* Forms */}
+      {mode === 'signin' ? (
+        <form action={signInAction} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div>
+            <label className="sr-only" htmlFor="email">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder="Email address"
+                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="sr-only" htmlFor="password">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                placeholder="Password"
+                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+              />
+            </div>
+          </div>
+          <SubmitButton text="Sign In" />
+        </form>
+      ) : (
+        <form action={signUpAction} className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
+          <div>
+            <label className="sr-only" htmlFor="fullName">Full Name</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <input
+                id="fullName"
+                name="full_name"
+                type="text"
+                required
+                placeholder="Full Name"
+                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="sr-only" htmlFor="email">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder="Email address"
+                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="sr-only" htmlFor="password">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                minLength={6}
+                placeholder="Password (min 6 chars)"
+                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+              />
+            </div>
+          </div>
+          <SubmitButton text="Create Account" />
+        </form>
+      )}
+      
+      <p className="mt-6 text-center text-xs text-text-secondary">
+        By continuing, you agree to our Terms of Service and Privacy Policy.
+      </p>
+    </div>
   )
 }

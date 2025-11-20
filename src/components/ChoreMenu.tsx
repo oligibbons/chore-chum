@@ -7,6 +7,7 @@ import { MoreVertical, Trash2, Edit } from 'lucide-react'
 import { ChoreWithDetails } from '@/types/database'
 import { deleteChore } from '@/app/chore-actions'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 type Props = {
   chore: ChoreWithDetails
@@ -17,8 +18,13 @@ export default function ChoreMenu({ chore }: Props) {
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this chore? This cannot be undone.')) {
-      startTransition(() => {
-        deleteChore(chore.id)
+      startTransition(async () => {
+        const result = await deleteChore(chore.id)
+        if (result.success) {
+            toast.success(result.message)
+        } else {
+            toast.error(result.message || 'Failed to delete chore')
+        }
       })
     }
   }
@@ -26,7 +32,6 @@ export default function ChoreMenu({ chore }: Props) {
   return (
     <Menu as="div" className="relative inline-block text-left">
       <div>
-        {/* Subtle menu button */}
         <Menu.Button 
           disabled={isPending}
           className="rounded-full p-2 text-text-secondary transition-all hover:bg-background hover:text-text-primary disabled:opacity-50"
@@ -45,8 +50,8 @@ export default function ChoreMenu({ chore }: Props) {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        {/* Modern Menu Card: White, rounded, border, and shadow */}
-        <Menu.Items className="absolute right-0 z-30 mt-1 w-48 origin-top-right divide-y divide-border rounded-xl bg-card shadow-card ring-1 ring-border focus:outline-none">
+        {/* FIXED: Added 'bg-white' explicitly and increased z-index/shadow for better visibility */}
+        <Menu.Items className="absolute right-0 z-50 mt-1 w-48 origin-top-right divide-y divide-border rounded-xl bg-white shadow-xl ring-1 ring-black/5 focus:outline-none">
           <div className="p-1">
             <Menu.Item>
               {({ active, close }) => (

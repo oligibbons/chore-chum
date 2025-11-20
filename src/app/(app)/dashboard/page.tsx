@@ -5,7 +5,7 @@ import { createSupabaseClient } from '@/lib/supabase/server'
 import { getChoreDisplayData } from '@/app/chore-actions'
 import ChoreDisplay from '@/components/ChoreDisplay'
 import HouseholdManager from '@/components/HouseholdManager'
-import { Plus, Zap } from 'lucide-react'
+import { Plus, Flower2 } from 'lucide-react'
 import Link from 'next/link'
 import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
@@ -60,10 +60,8 @@ export default async function DashboardPage(props: DashboardProps) {
     getRoomsAndMembers(householdId),
   ])
 
-  // Collect all chores for Zen Mode & Leaderboard
   const allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
-  // Filter chores by room if a filter is active for the main dashboard view
   const filterByRoom = (chores: ChoreWithDetails[]) => {
     if (!roomIdFilter) return chores
     return chores.filter(c => c.room_id === roomIdFilter)
@@ -83,7 +81,6 @@ export default async function DashboardPage(props: DashboardProps) {
     <div className="space-y-8 pb-24">
       <RealtimeChores householdId={householdId} />
       
-      {/* Zen Mode Component - Hidden unless ?view=zen is active */}
       <ZenMode chores={allChoresRaw} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -96,25 +93,23 @@ export default async function DashboardPage(props: DashboardProps) {
           </p>
         </header>
         
-        {/* Zen Mode Trigger Button */}
+        {/* UPDATED: Zen Mode Trigger Button to match Zen aesthetic */}
         <Link 
           href="?view=zen"
           scroll={false}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-md transition-transform hover:scale-105 active:scale-95"
+          className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-blue-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-200/50 transition-all hover:scale-105 hover:shadow-lg active:scale-95"
         >
-          <Zap className="h-4 w-4 text-yellow-400" fill="currentColor" />
+          <Flower2 className="h-4 w-4 transition-transform group-hover:rotate-45" fill="currentColor" />
           Zen Mode
         </Link>
       </div>
       
-      {/* Room Filter Section */}
       <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8">
         <RoomFilter rooms={roomData.rooms} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
         
-        {/* Main Columns: Overdue, Due Soon, Upcoming */}
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
                 <ChoreDisplay 
@@ -141,7 +136,6 @@ export default async function DashboardPage(props: DashboardProps) {
             </div>
         </div>
 
-        {/* Sidebar Column: Leaderboard & Completed */}
         <div className="lg:col-span-1 flex flex-col gap-6">
             <Leaderboard members={roomData.members} chores={allChoresRaw} />
             
