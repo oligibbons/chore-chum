@@ -7,6 +7,7 @@ import Logo from '@/components/Logo'
 import { Home, LayoutGrid, User, Calendar, Activity } from 'lucide-react'
 import { createSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import PullToRefresh from '@/components/PullToRefresh'
 
 export default async function AppLayout({
   children,
@@ -82,9 +83,11 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-8">
-        {children}
-      </main>
+      <PullToRefresh>
+        <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-8">
+          {children}
+        </main>
+      </PullToRefresh>
     </div>
   )
 }
