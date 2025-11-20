@@ -12,7 +12,7 @@ import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
 import EditChoreModal from '@/components/EditChoreModal'
 import { ChoreWithDetails } from '@/types/database'
-import RealtimeChores from '@/components/RealtimeChores'
+// Removed RealtimeChores import as it's now in layout
 import RoomFilter from '@/components/RoomFilter'
 import ZenMode from '@/components/ZenMode'
 import Leaderboard from '@/components/Leaderboard'
@@ -74,7 +74,7 @@ export default async function DashboardPage(props: DashboardProps) {
       return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
   }).length
   const completedTodayCount = data.completed.filter(c => {
-      const d = new Date(c.created_at) // Using created_at as 'completed_at' approximation for now, or we'd need a separate field
+      const d = new Date(c.created_at) 
       const today = new Date()
       return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
   }).length
@@ -98,7 +98,7 @@ export default async function DashboardPage(props: DashboardProps) {
 
   return (
     <div className="space-y-8 pb-24">
-      <RealtimeChores householdId={householdId} />
+      {/* RealtimeChores removed - handled in layout */}
       
       <ZenMode chores={allChoresRaw} />
 

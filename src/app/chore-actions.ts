@@ -18,7 +18,7 @@ import { notifyHousehold } from '@/app/push-actions'
 type ActionResponse = {
   success: boolean
   message: string
-  motivation?: string // New field for cheeky messages
+  motivation?: string 
 }
 
 type ChoreDisplayData = {
@@ -60,7 +60,7 @@ async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
     .eq('id', user.id)
     .single()
     
-  return profile
+  return profile as unknown as DbProfile
 }
 
 // --- Helper: Brutal Motivation Generator ---
@@ -94,9 +94,12 @@ async function updateStreak(supabase: TypedSupabaseClient, userId: string) {
     yesterday.setDate(yesterday.getDate() - 1)
     const yesterdayStr = yesterday.toISOString().split('T')[0]
 
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    const { data: rawProfile } = await supabase.from('profiles').select('*').eq('id', userId).single()
     
-    if (!profile) return
+    if (!rawProfile) return
+
+    // FIX: Cast to DbProfile to avoid TS error on new columns
+    const profile = rawProfile as unknown as DbProfile
 
     const lastDate = profile.last_chore_date ? new Date(profile.last_chore_date).toISOString().split('T')[0] : null
     
@@ -258,10 +261,13 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
     
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
-    if ((chore.target_instances ?? 1) > 1) {
-        return incrementChoreInstance(chore)
+    // Cast chore to DbChore to access new fields if necessary
+    const safeChore = chore as unknown as DbChore
+
+    if ((safeChore.target_instances ?? 1) > 1) {
+        return incrementChoreInstance(safeChore)
     } else {
-        return toggleChoreStatus(chore)
+        return toggleChoreStatus(safeChore)
     }
 }
 
@@ -271,10 +277,12 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
     
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
 
-    if ((chore.target_instances ?? 1) > 1) {
-        return decrementChoreInstance(chore)
+    const safeChore = chore as unknown as DbChore
+
+    if ((safeChore.target_instances ?? 1) > 1) {
+        return decrementChoreInstance(safeChore)
     } else {
-        return toggleChoreStatus(chore)
+        return toggleChoreStatus(safeChore)
     }
 }
 
@@ -305,7 +313,6 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   const rawInstances = formData.get('instances') as string
   const rawRecurrence = formData.get('recurrence_type') as string
   
-  // New Fields
   const rawTimeOfDay = formData.get('timeOfDay') as string
   const rawExactTime = formData.get('exactTime') as string
 
@@ -375,7 +382,6 @@ export async function toggleChoreStatus(
     // Completing
     const isRecurring = chore.recurrence_type !== 'none'
     
-    // 1. Update Streak (if completing)
     if (actorProfile) {
         await updateStreak(supabase, actorProfile.id)
     }
@@ -425,7 +431,6 @@ export async function toggleChoreStatus(
 
     await logActivity(chore.household_id, 'complete', chore.name)
 
-    // Send cheeky completion notification
     await notifyHousehold(
         chore.household_id,
         {
@@ -497,9 +502,7 @@ export async function decrementChoreInstance(
 
 export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient() 
-  const actorProfile = await getCurrentUserProfile(supabase)
-  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
-
+  
   const choreId = formData.get('choreId') as string
   if (!choreId) return { success: false, message: 'Chore ID missing' }
 
@@ -510,8 +513,6 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const rawDueDate = formData.get('dueDate') as string
   const rawInstances = formData.get('instances') as string
   const rawRecurrence = formData.get('recurrence_type') as string
-  
-  // New Fields
   const rawTimeOfDay = formData.get('timeOfDay') as string
   const rawExactTime = formData.get('exactTime') as string
 
@@ -556,9 +557,7 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
 
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient() 
-  const actorProfile = await getCurrentUserProfile(supabase)
-  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
-
+  
   const { data: chore } = await supabase
     .from('chores')
     .select('household_id, name')
@@ -586,7 +585,6 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
 export async function delayChore(choreId: number, days: number): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient()
   const actorProfile = await getCurrentUserProfile(supabase)
-  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
 
   const { data: chore } = await supabase
     .from('chores')
@@ -613,7 +611,6 @@ export async function delayChore(choreId: number, days: number): Promise<ActionR
   
   await logActivity(chore.household_id, 'delay', chore.name, { days })
 
-  // Brutal motivation for delaying
   return { 
       success: true, 
       message: `Delayed by ${days} days`,

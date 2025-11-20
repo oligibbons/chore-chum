@@ -8,6 +8,7 @@ import { Home, LayoutGrid, User, Calendar, Activity } from 'lucide-react'
 import { createSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PullToRefresh from '@/components/PullToRefresh'
+import RealtimeChores from '@/components/RealtimeChores' // ADDED
 
 export default async function AppLayout({
   children,
@@ -21,8 +22,17 @@ export default async function AppLayout({
     redirect('/')
   }
 
+  // Fetch household_id for Realtime listener
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('household_id')
+    .eq('id', user.id)
+    .single()
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {/* Global Realtime Listener */}
+      {profile?.household_id && <RealtimeChores householdId={profile.household_id} />}
       
       <header className="sticky top-0 z-20 w-full border-b border-border bg-card/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between p-4">
