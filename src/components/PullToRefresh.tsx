@@ -1,3 +1,4 @@
+// src/components/PullToRefresh.tsx
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -11,49 +12,58 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
   const [refreshing, setRefreshing] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
-  const PULL_THRESHOLD = 120 // Pixels to pull down to trigger
-  const MAX_PULL = 160 // Max visual pull distance
+  const PULL_THRESHOLD = 120 
+  const MAX_PULL = 160 
+
+  useEffect(() => {
+    // Prevent native iOS bounce while this component is mounted
+    document.body.style.overscrollBehaviorY = 'none'
+    return () => {
+      document.body.style.overscrollBehaviorY = 'auto'
+    }
+  }, [])
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
-      if (window.scrollY === 0) {
+      // Only track if we are at the top of the page
+      if (window.scrollY <= 5) {
         setStartY(e.touches[0].clientY)
+      } else {
+        setStartY(0)
       }
     }
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (startY === 0) return
+
       const y = e.touches[0].clientY
       const diff = y - startY
 
-      // Only pull if we are at the top and pulling down
-      if (window.scrollY === 0 && diff > 0 && !refreshing) {
-        // Add resistance to the pull (logarithmic)
+      if (diff > 0 && !refreshing) {
+        // Add resistance
         const damped = Math.min(diff * 0.5, MAX_PULL)
         setCurrentY(damped)
         
-        // Prevent default scrolling behavior while pulling
+        // Prevent browser navigation/bounce actions
         if (e.cancelable) e.preventDefault() 
       }
     }
 
     const handleTouchEnd = async () => {
-      if (currentY > 80) { // Threshold to trigger refresh
+      if (startY === 0) return
+
+      if (currentY > 80) { // Trigger threshold
         setRefreshing(true)
-        setCurrentY(60) // Snap to loading position
+        setCurrentY(60) // Snap to loading spinner position
         
-        // Trigger the Next.js refresh
         router.refresh()
         
-        // Wait a moment for visual feedback, then reset
-        // (In a real app, you might want to wait for the new data to arrive, 
-        // but router.refresh is async without a promise return in older Next versions.
-        // A simple timeout feels responsive enough here.)
+        // Reset after delay
         setTimeout(() => {
           setRefreshing(false)
           setCurrentY(0)
-        }, 1000)
+        }, 1500)
       } else {
-        // Snap back if not pulled enough
         setCurrentY(0)
       }
       setStartY(0)
@@ -62,7 +72,7 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
     const el = contentRef.current
     if (!el) return
 
-    // Passive: false is needed to allow preventDefault in touchmove
+    // Use non-passive listener to allow preventDefault
     el.addEventListener('touchstart', handleTouchStart, { passive: true })
     el.addEventListener('touchmove', handleTouchMove, { passive: false })
     el.addEventListener('touchend', handleTouchEnd)
@@ -75,11 +85,18 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
   }, [startY, currentY, refreshing, router])
 
   return (
-    <div ref={contentRef} className="min-h-screen transition-transform duration-200 ease-out" style={{ transform: `translateY(${currentY}px)` }}>
+    <div ref={contentRef} className="min-h-screen transition-transform duration-300 ease-out will-change-transform" style={{ transform: `translateY(${currentY}px)` }}>
       
-      {/* Loading Indicator (Hidden above the fold) */}
-      <div className="absolute top-0 left-0 right-0 flex justify-center -mt-10">
-        <div className={`flex items-center justify-center h-8 w-8 rounded-full bg-white shadow-md border border-gray-100 transition-all ${refreshing ? 'opacity-100 rotate-180' : 'opacity-0'}`}>
+      {/* Loading Spinner */}
+      <div 
+        className="absolute top-0 left-0 right-0 flex justify-center -mt-12 pointer-events-none"
+        aria-hidden="true"
+      >
+        <div className={`
+            flex items-center justify-center h-10 w-10 rounded-full bg-white shadow-md border border-border 
+            transition-all duration-300
+            ${refreshing ? 'opacity-100 rotate-180 scale-110' : 'opacity-0 scale-75'}
+        `}>
            <Loader2 className={`h-5 w-5 text-brand ${refreshing ? 'animate-spin' : ''}`} />
         </div>
       </div>

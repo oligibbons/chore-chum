@@ -7,6 +7,7 @@ import ChoreDisplay from '@/components/ChoreDisplay'
 import HouseholdManager from '@/components/HouseholdManager'
 import { Plus, Flower2 } from 'lucide-react'
 import Link from 'next/link'
+import FloatingActionLink from '@/components/FloatingActionLink' // IMPORT THIS
 import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
 import EditChoreModal from '@/components/EditChoreModal'
@@ -19,7 +20,7 @@ import Leaderboard from '@/components/Leaderboard'
 export const dynamic = 'force-dynamic'
 
 type DashboardProps = {
-  searchParams: Promise<{ modal?: string; choreId?: string; roomId?: string }>
+  searchParams: Promise<{ modal?: string; choreId?: string; roomId?: string; view?: string }>
 }
 
 export default async function DashboardPage(props: DashboardProps) {
@@ -93,7 +94,6 @@ export default async function DashboardPage(props: DashboardProps) {
           </p>
         </header>
         
-        {/* UPDATED: Zen Mode Trigger Button to match Zen aesthetic */}
         <Link 
           href="?view=zen"
           scroll={false}
@@ -149,14 +149,15 @@ export default async function DashboardPage(props: DashboardProps) {
         </div>
       </div>
 
-      <Link 
+      {/* UPDATED: Using FloatingActionLink to escape PullToRefresh transform */}
+      <FloatingActionLink 
         href="?modal=add-chore"
         scroll={false} 
-        className="fixed bottom-8 right-8 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-brand shadow-lg transition-transform hover:scale-105 active:scale-95 hover:bg-brand-dark"
+        className="fixed bottom-8 right-8 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-brand shadow-lg transition-transform hover:scale-105 active:scale-95 hover:bg-brand-dark"
         aria-label="Add new chore"
       >
         <Plus className="h-8 w-8 text-white" />
-      </Link>
+      </FloatingActionLink>
 
       {searchParams.modal === 'add-chore' && (
         <AddChoreModal
