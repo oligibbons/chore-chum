@@ -1,10 +1,9 @@
 import webPush from 'web-push'
 
-// Configure the VAPID details once when the module loads
-// These env vars must be set in your .env.local and Vercel project settings
+// Configure VAPID
 if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webPush.setVapidDetails(
-    'mailto:support@chorechum.com', // Replace with your actual support email
+    'mailto:support@chorechum.com', 
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   )
@@ -18,10 +17,6 @@ export type PushPayload = {
   url?: string
 }
 
-/**
- * Sends a push notification to a specific subscription.
- * Returns true if successful, false if the subscription is invalid (410/404).
- */
 export async function sendNotification(
   subscription: webPush.PushSubscription,
   payload: PushPayload
@@ -33,8 +28,8 @@ export async function sendNotification(
     )
     return true
   } catch (error: any) {
+    // 410 Gone and 404 Not Found mean the subscription is no longer valid
     if (error.statusCode === 410 || error.statusCode === 404) {
-      // The subscription has expired or is no longer valid
       return false
     }
     console.error('Error sending push notification:', error)
