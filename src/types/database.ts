@@ -4,21 +4,28 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { Database } from './supabase'
 
 // --- Supabase Helpers ---
-
-// Use this type in your server actions and client components.
-// We use the simple single-argument version to let Supabase infer 'public' automatically.
 export type TypedSupabaseClient = SupabaseClient<Database>
 
-// Shortcuts for Table Row, Insert, and Update types
-// Usage: type Chore = Tables<'chores'>
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
 export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
 export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
 
 // --- Application Specific Types ---
 
-export type DbChore = Tables<'chores'>
-export type DbProfile = Tables<'profiles'>
+// EXTENDED DbChore with new manual fields until you regenerate types
+export type DbChore = Tables<'chores'> & {
+  time_of_day?: 'morning' | 'afternoon' | 'evening' | 'any' | null
+  exact_time?: string | null
+  custom_recurrence?: { type: 'interval'; days: number } | { type: 'specific'; days: number[] } | null
+}
+
+// EXTENDED DbProfile for Streaks
+export type DbProfile = Tables<'profiles'> & {
+  current_streak?: number
+  longest_streak?: number
+  last_chore_date?: string | null
+}
+
 export type DbRoom = Tables<'rooms'>
 export type DbHousehold = Tables<'households'>
 export type DbActivityLog = Tables<'activity_logs'>
@@ -29,20 +36,17 @@ export type ChoreWithDetails = DbChore & {
   rooms: Pick<DbRoom, 'id' | 'name'> | null
 }
 
-// Combined type: Household Data Package
 export type HouseholdData = {
   household: Pick<DbHousehold, 'id' | 'name' | 'invite_code'>
-  members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
+  members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url' | 'current_streak'>[]
   rooms: DbRoom[]
   chores: ChoreWithDetails[]
 }
 
-// Combined type: Room with counts
 export type RoomWithChoreCount = DbRoom & {
   chore_count: number
 }
 
-// Combined type: Activity Log with User info
 export type ActivityLogWithUser = DbActivityLog & {
   profiles: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'> | null
 }

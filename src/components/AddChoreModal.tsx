@@ -2,7 +2,7 @@
 
 import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Hash } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Hash, Sun, Moon, Coffee, Clock } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -24,13 +24,15 @@ function ChoreForm({
   rooms: Props['rooms'] 
 }) {
   const [pending, setPending] = useState(false)
+  const [timeOfDay, setTimeOfDay] = useState('any')
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setPending(true)
     
     const formData = new FormData(event.currentTarget)
-    
+    formData.append('timeOfDay', timeOfDay)
+
     try {
       const result = await createChore(formData)
       
@@ -130,6 +132,34 @@ function ChoreForm({
           </div>
         </div>
       </div>
+      
+      {/* Time of Day Selection */}
+      <div>
+         <label className="block font-heading text-sm font-medium text-text-primary mb-2">
+            Time of Day (Optional)
+         </label>
+         <div className="flex gap-2">
+            {['any', 'morning', 'afternoon', 'evening'].map((t) => (
+                <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTimeOfDay(t)}
+                    className={`
+                        flex-1 flex flex-col items-center justify-center gap-1 p-2 rounded-xl border transition-all
+                        ${timeOfDay === t 
+                            ? 'bg-brand-light border-brand text-brand shadow-sm' 
+                            : 'bg-background border-border text-text-secondary hover:border-brand/50'}
+                    `}
+                >
+                    {t === 'morning' && <Coffee className="h-4 w-4" />}
+                    {t === 'afternoon' && <Sun className="h-4 w-4" />}
+                    {t === 'evening' && <Moon className="h-4 w-4" />}
+                    {t === 'any' && <Clock className="h-4 w-4" />}
+                    <span className="text-xs font-medium capitalize">{t}</span>
+                </button>
+            ))}
+         </div>
+      </div>
 
       {/* Grid for date/recurrence */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -144,6 +174,22 @@ function ChoreForm({
               type="date"
               id="dueDate"
               name="dueDate"
+              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+            />
+          </div>
+        </div>
+
+         {/* Exact Time */}
+         <div>
+          <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary">
+            Exact Time (Optional)
+          </label>
+          <div className="relative mt-1">
+            <Clock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+            <input
+              type="time"
+              id="exactTime"
+              name="exactTime"
               className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
             />
           </div>
@@ -169,25 +215,26 @@ function ChoreForm({
             </select>
           </div>
         </div>
-      </div>
-
-      {/* Instances */}
-      <div>
-        <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
-          Instances
-        </label>
-        <div className="relative mt-1">
-          <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-          <input
-            type="number"
-            id="instances"
-            name="instances"
-            defaultValue={1}
-            min={1}
-            className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-          />
+        
+        {/* Instances */}
+        <div>
+            <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
+            Instances
+            </label>
+            <div className="relative mt-1">
+            <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+            <input
+                type="number"
+                id="instances"
+                name="instances"
+                defaultValue={1}
+                min={1}
+                className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+            />
+            </div>
         </div>
       </div>
+
 
       {/* --- FORM ACTIONS --- */}
       <div className="flex items-center justify-end space-x-4 pt-4">

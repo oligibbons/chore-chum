@@ -1,15 +1,14 @@
-// src/components/ChoreItem.tsx
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
-import { Check, Clock, User, Home, Calendar, Loader2, RotateCw, FileText } from 'lucide-react'
+import { Check, Clock, User, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, Sparkles } from 'lucide-react'
 import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
 import Avatar from './Avatar'
 import DelayChoreModal from './DelayChoreModal'
 import confetti from 'canvas-confetti'
-import { toast } from 'sonner' // Requires: npm install sonner
+import { toast } from 'sonner'
 
 type Props = {
   chore: ChoreWithDetails
@@ -26,17 +25,20 @@ const formatDate = (dateString: string | null | undefined): string => {
   }).format(date)
 }
 
+const formatTime = (timeString: string) => {
+    const [hours, minutes] = timeString.split(':')
+    return new Date(0, 0, 0, +hours, +minutes).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
 export default function ChoreItem({ chore, showActions, status }: Props) {
   const [isPending, startTransition] = useTransition()
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
 
-  // Optimistic State: Allows the UI to update immediately while the server processes
   const [optimisticChore, setOptimisticChore] = useOptimistic(
     chore,
     (state, newStatus: string) => ({
       ...state,
       status: newStatus,
-      // If we are marking complete, we optimistically increment the count
       completed_instances: newStatus === 'complete' 
         ? (state.target_instances ?? 1) 
         : (state.completed_instances ?? 1) > 0 ? (state.completed_instances ?? 1) - 1 : 0
@@ -47,7 +49,6 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
     optimisticChore.status === 'complete' || 
     (optimisticChore.completed_instances === (optimisticChore.target_instances ?? 1))
 
-  // --- Dynamic Styling Logic ---
   let cardClasses = 'border-border bg-card'
   let buttonClasses = 'border-border text-text-secondary hover:text-brand hover:border-brand'
   let statusIconColor = 'text-text-secondary'
@@ -73,26 +74,30 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
     }
   }
 
+  const getTimeIcon = (tag?: string | null) => {
+    switch(tag) {
+        case 'morning': return <Coffee className="h-3 w-3" />
+        case 'afternoon': return <Sun className="h-3 w-3" />
+        case 'evening': return <Moon className="h-3 w-3" />
+        default: return null
+    }
+  }
+
   const handleToggleCompletion = async () => {
-    // 1. Optimistic Update
     const nextStatus = isCompleted ? 'pending' : 'complete'
     
     startTransition(async () => {
-      // Optimistically update UI
       setOptimisticChore(nextStatus)
 
-      // 2. Visual Feedback (Confetti)
       if (nextStatus === 'complete') {
         confetti({
-          particleCount: 100,
-          spread: 70,
+          particleCount: 50,
+          spread: 60,
           origin: { y: 0.7 },
-          colors: ['#a78bfa', '#fbbf24', '#34d399', '#f87171'],
           disableForReducedMotion: true
         })
       }
 
-      // 3. Server Action
       try {
         const result = isCompleted 
           ? await uncompleteChore(chore.id) 
@@ -100,15 +105,12 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
 
         if (!result.success) {
           toast.error(result.message || 'Failed to update chore')
-          // Note: The optimistic state will automatically revert if we don't revalidate
-          // but typically Next.js revalidates on action completion.
         } else {
-          // Success Toast
-          if (nextStatus === 'complete') {
-            toast.success("Chore completed! Great job. 🎉")
-          } else {
-             toast.info("Chore marked as incomplete.")
-          }
+          // Cheeky Motivation Popup
+          const toastFn = nextStatus === 'complete' ? toast.success : toast.info
+          toastFn(result.message, {
+              description: result.motivation
+          })
         }
       } catch (error) {
         toast.error("Something went wrong. Please try again.")
@@ -137,7 +139,6 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
                 active:scale-90 disabled:opacity-50
                 ${buttonClasses}
               `}
-              aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
             >
               {isPending ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -155,8 +156,24 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
                 {chore.name}
               </h4>
               
+              {/* Metadata Row */}
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {chore.time_of_day && chore.time_of_day !== 'any' && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary bg-background/50 px-1.5 py-0.5 rounded capitalize">
+                          {getTimeIcon(chore.time_of_day)}
+                          {chore.time_of_day}
+                      </span>
+                  )}
+                  {chore.exact_time && (
+                       <span className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary bg-background/50 px-1.5 py-0.5 rounded">
+                          <Clock className="h-3 w-3" />
+                          {formatTime(chore.exact_time)}
+                      </span>
+                  )}
+              </div>
+
               {chore.notes && (
-                <div className="flex items-start gap-1 text-sm text-text-secondary mt-0.5">
+                <div className="flex items-start gap-1 text-sm text-text-secondary mt-1">
                     <FileText className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <p className="line-clamp-2">{chore.notes}</p>
                 </div>

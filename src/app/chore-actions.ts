@@ -18,6 +18,7 @@ import { notifyHousehold } from '@/app/push-actions'
 type ActionResponse = {
   success: boolean
   message: string
+  motivation?: string // New field for cheeky messages
 }
 
 type ChoreDisplayData = {
@@ -48,18 +49,77 @@ async function logActivity(
   await supabase.from('activity_logs').insert(logData)
 }
 
-// --- Helper: Get Current User Name ---
+// --- Helper: Get Current User ---
 async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, full_name')
+    .select('*')
     .eq('id', user.id)
     .single()
     
   return profile
+}
+
+// --- Helper: Brutal Motivation Generator ---
+function getCheekyMotivation(isComplete: boolean, isOverdue: boolean): string {
+  const good = [
+    "Finally. Was that so hard?",
+    "Look at you, acting like a responsible adult.",
+    "You did it! Now go lay down.",
+    "Productivity looks ...okay on you.",
+    "One down, infinity to go.",
+    "Streak increased! Don't mess it up tomorrow."
+  ]
+  const bad = [
+    "Uncompleting it? Really?",
+    "Oh, so we're lying now?",
+    "Back to the pile of shame it goes.",
+    "I saw that. Everyone saw that."
+  ]
+  
+  if (isComplete) return good[Math.floor(Math.random() * good.length)]
+  return bad[Math.floor(Math.random() * bad.length)]
+}
+
+// --- Helper: Update Streak Logic ---
+async function updateStreak(supabase: TypedSupabaseClient, userId: string) {
+    const now = new Date()
+    const todayStr = now.toISOString().split('T')[0]
+    
+    // Get yesterday string
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    
+    if (!profile) return
+
+    const lastDate = profile.last_chore_date ? new Date(profile.last_chore_date).toISOString().split('T')[0] : null
+    
+    // If already done something today, ignore
+    if (lastDate === todayStr) return
+
+    let newStreak = (profile.current_streak || 0)
+    
+    if (lastDate === yesterdayStr) {
+        // Continued streak
+        newStreak += 1
+    } else {
+        // Broken streak (or first time)
+        newStreak = 1
+    }
+
+    const newLongest = Math.max(newStreak, profile.longest_streak || 0)
+
+    await supabase.from('profiles').update({
+        current_streak: newStreak,
+        longest_streak: newLongest,
+        last_chore_date: todayStr
+    }).eq('id', userId)
 }
 
 function getNextDueDate(
@@ -113,7 +173,7 @@ export async function getHouseholdData(
 
   const { data: members } = await supabase
     .from('profiles')
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, current_streak')
     .eq('household_id', householdId)
     
   const { data: rooms } = await supabase
@@ -244,6 +304,10 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   const rawDueDate = formData.get('dueDate') as string
   const rawInstances = formData.get('instances') as string
   const rawRecurrence = formData.get('recurrence_type') as string
+  
+  // New Fields
+  const rawTimeOfDay = formData.get('timeOfDay') as string
+  const rawExactTime = formData.get('exactTime') as string
 
   if (!rawName) return { success: false, message: 'Chore name is required.' }
 
@@ -259,6 +323,8 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
     target_instances: rawInstances ? Number(rawInstances) : 1,
     recurrence_type: rawRecurrence || 'none',
     completed_instances: 0,
+    time_of_day: rawTimeOfDay || 'any',
+    exact_time: rawExactTime || null,
   }
 
   const { error } = await supabase.from('chores').insert(newChoreData)
@@ -294,6 +360,7 @@ export async function toggleChoreStatus(
   const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
   
   if (chore.status === 'complete') {
+    // Uncompleting
     const { error } = await supabase
       .from('chores')
       .update({ status: 'pending' })
@@ -302,13 +369,17 @@ export async function toggleChoreStatus(
     if (error) return { success: false, message: error.message }
 
     revalidatePath('/dashboard')
-    revalidatePath('/feed')
-    revalidatePath('/calendar')
-    return { success: true, message: 'Chore marked as pending' }
+    return { success: true, message: 'Marked pending.', motivation: getCheekyMotivation(false, false) }
 
   } else {
+    // Completing
     const isRecurring = chore.recurrence_type !== 'none'
     
+    // 1. Update Streak (if completing)
+    if (actorProfile) {
+        await updateStreak(supabase, actorProfile.id)
+    }
+
     if (isRecurring) {
       const { error: updateError } = await supabase
         .from('chores')
@@ -334,6 +405,8 @@ export async function toggleChoreStatus(
         target_instances: chore.target_instances,
         recurrence_type: chore.recurrence_type, 
         completed_instances: 0,
+        time_of_day: chore.time_of_day,
+        exact_time: chore.exact_time
       }
 
       await supabase.from('chores').insert(newChoreData)
@@ -352,11 +425,12 @@ export async function toggleChoreStatus(
 
     await logActivity(chore.household_id, 'complete', chore.name)
 
+    // Send cheeky completion notification
     await notifyHousehold(
         chore.household_id,
         {
           title: 'Chore Completed! 🎉',
-          body: `${userName} completed "${chore.name}".`,
+          body: `${userName} crushed "${chore.name}".`,
           url: '/feed'
         },
         actorProfile?.id
@@ -365,7 +439,12 @@ export async function toggleChoreStatus(
     revalidatePath('/dashboard')
     revalidatePath('/feed')
     revalidatePath('/calendar')
-    return { success: true, message: 'Chore completed!' }
+    
+    return { 
+        success: true, 
+        message: 'Chore completed!', 
+        motivation: getCheekyMotivation(true, false) 
+    }
   }
 }
 
@@ -391,8 +470,7 @@ export async function incrementChoreInstance(
     
     revalidatePath('/dashboard')
     revalidatePath('/feed')
-    revalidatePath('/calendar')
-    return { success: true, message: 'Progress updated' }
+    return { success: true, message: 'Progress updated', motivation: "Keep going..." }
   }
 }
 
@@ -414,8 +492,6 @@ export async function decrementChoreInstance(
   if (error) return { success: false, message: error.message }
   
   revalidatePath('/dashboard')
-  revalidatePath('/feed')
-  revalidatePath('/calendar')
   return { success: true, message: 'Progress updated' }
 }
 
@@ -434,6 +510,10 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const rawDueDate = formData.get('dueDate') as string
   const rawInstances = formData.get('instances') as string
   const rawRecurrence = formData.get('recurrence_type') as string
+  
+  // New Fields
+  const rawTimeOfDay = formData.get('timeOfDay') as string
+  const rawExactTime = formData.get('exactTime') as string
 
   if (!rawName) return { success: false, message: 'Name required' }
   
@@ -451,6 +531,8 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
     due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
     target_instances: rawInstances ? Number(rawInstances) : 1,
     recurrence_type: rawRecurrence || 'none',
+    time_of_day: rawTimeOfDay || 'any',
+    exact_time: rawExactTime || null
   }
 
   const { error } = await supabase
@@ -464,16 +546,6 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   
   if (currentChore) {
     await logActivity(currentChore.household_id, 'update', currentChore.name)
-
-    await notifyHousehold(
-        currentChore.household_id,
-        {
-          title: 'Chore Updated 📝',
-          body: `${userName} updated "${rawName}".`,
-          url: '/dashboard'
-        },
-        actorProfile?.id
-    )
   }
 
   revalidatePath('/dashboard')
@@ -504,21 +576,10 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
   
   if (chore) {
     await logActivity(chore.household_id, 'delete', chore.name)
-
-    await notifyHousehold(
-        chore.household_id,
-        {
-          title: 'Chore Deleted 🗑️',
-          body: `${userName} removed "${chore.name}" from the list.`,
-          url: '/dashboard'
-        },
-        actorProfile?.id
-    )
   }
 
   revalidatePath('/dashboard')
   revalidatePath('/feed')
-  revalidatePath('/calendar')
   return { success: true, message: 'Chore deleted' }
 }
 
@@ -552,18 +613,10 @@ export async function delayChore(choreId: number, days: number): Promise<ActionR
   
   await logActivity(chore.household_id, 'delay', chore.name, { days })
 
-  await notifyHousehold(
-    chore.household_id,
-    {
-      title: 'Chore Delayed ⏰',
-      body: `${userName} delayed "${chore.name}" by ${days} days.`,
-      url: '/calendar'
-    },
-    actorProfile?.id
-  )
-
-  revalidatePath('/dashboard')
-  revalidatePath('/feed')
-  revalidatePath('/calendar')
-  return { success: true, message: `Delayed by ${days} ${days === 1 ? 'day' : 'days'}` }
+  // Brutal motivation for delaying
+  return { 
+      success: true, 
+      message: `Delayed by ${days} days`,
+      motivation: getCheekyMotivation(false, true) 
+  }
 }

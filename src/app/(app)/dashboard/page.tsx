@@ -7,7 +7,7 @@ import ChoreDisplay from '@/components/ChoreDisplay'
 import HouseholdManager from '@/components/HouseholdManager'
 import { Plus, Flower2 } from 'lucide-react'
 import Link from 'next/link'
-import FloatingActionLink from '@/components/FloatingActionLink' // IMPORT THIS
+import FloatingActionLink from '@/components/FloatingActionLink'
 import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
 import EditChoreModal from '@/components/EditChoreModal'
@@ -16,6 +16,8 @@ import RealtimeChores from '@/components/RealtimeChores'
 import RoomFilter from '@/components/RoomFilter'
 import ZenMode from '@/components/ZenMode'
 import Leaderboard from '@/components/Leaderboard'
+import StreakCampfire from '@/components/StreakCampfire'
+import DailyProgress from '@/components/DailyProgress'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,11 +41,11 @@ export default async function DashboardPage(props: DashboardProps) {
 
   const { data: rawProfile } = await supabase
     .from('profiles')
-    .select('household_id, full_name')
+    .select('household_id, full_name, current_streak')
     .eq('id', user.id)
     .single()
 
-  const profile = rawProfile as { household_id: string | null; full_name: string | null } | null
+  const profile = rawProfile as { household_id: string | null; full_name: string | null; current_streak: number } | null
 
   if (!profile || !profile.household_id) {
     return (
@@ -62,6 +64,22 @@ export default async function DashboardPage(props: DashboardProps) {
   ])
 
   const allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
+
+  // Stats Calculation
+  const overdueCount = data.overdue.length
+  const dueTodayCount = data.dueSoon.filter(c => {
+      if (!c.due_date) return false
+      const d = new Date(c.due_date)
+      const today = new Date()
+      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
+  }).length
+  const completedTodayCount = data.completed.filter(c => {
+      const d = new Date(c.created_at) // Using created_at as 'completed_at' approximation for now, or we'd need a separate field
+      const today = new Date()
+      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
+  }).length
+  
+  const totalDailyLoad = overdueCount + dueTodayCount + completedTodayCount
 
   const filterByRoom = (chores: ChoreWithDetails[]) => {
     if (!roomIdFilter) return chores
@@ -84,27 +102,37 @@ export default async function DashboardPage(props: DashboardProps) {
       
       <ZenMode chores={allChoresRaw} />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <header>
-          <h2 className="text-4xl font-heading font-bold text-foreground">
-            Welcome back, {userName}! 👋
-          </h2>
-          <p className="mt-1 text-lg text-text-secondary">
-            Here’s what’s on the list for today.
-          </p>
-        </header>
-        
-        <Link 
-          href="?view=zen"
-          scroll={false}
-          className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-blue-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-200/50 transition-all hover:scale-105 hover:shadow-lg active:scale-95"
-        >
-          <Flower2 className="h-4 w-4 transition-transform group-hover:rotate-45" fill="currentColor" />
-          Zen Mode
-        </Link>
+      {/* Header Section */}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h2 className="text-4xl font-heading font-bold text-foreground">
+                    Hi, {userName}!
+                </h2>
+                <p className="text-lg text-text-secondary">
+                    Let's get things done.
+                </p>
+            </div>
+            
+            {/* Zen & Streak Area */}
+            <div className="flex items-center gap-3 self-start md:self-auto">
+                <StreakCampfire streak={profile.current_streak || 0} />
+                <Link 
+                href="?view=zen"
+                scroll={false}
+                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-200/50 transition-all hover:scale-105 hover:shadow-lg active:scale-95"
+                >
+                <Flower2 className="h-4 w-4 transition-transform group-hover:rotate-45" fill="currentColor" />
+                Zen
+                </Link>
+            </div>
+        </div>
+
+        {/* Progress Ring */}
+        <DailyProgress total={totalDailyLoad} completed={completedTodayCount} />
       </div>
       
-      <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8">
+      <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8 border-b border-transparent transition-all data-[stuck=true]:border-border">
         <RoomFilter rooms={roomData.rooms} />
       </div>
 
@@ -149,7 +177,6 @@ export default async function DashboardPage(props: DashboardProps) {
         </div>
       </div>
 
-      {/* UPDATED: Using FloatingActionLink to escape PullToRefresh transform */}
       <FloatingActionLink 
         href="?modal=add-chore"
         scroll={false} 
