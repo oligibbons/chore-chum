@@ -4,7 +4,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase/server";
-import { TablesInsert } from "@/types/database";
 
 export type AuthFormState = {
   success: boolean
@@ -47,8 +46,11 @@ export async function signUpWithEmail(
     email,
     password,
     options: {
-      // Ensure this URL matches your environment configuration
       emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/auth/callback`,
+      // FIXED: Pass the name here so the Postgres Trigger can grab it
+      data: {
+        full_name: fullName,
+      },
     },
   });
 
@@ -56,22 +58,12 @@ export async function signUpWithEmail(
     return { success: false, message: authError.message }
   }
 
-  if (authData.user) {
-    const newProfile: TablesInsert<'profiles'> = {
-      id: authData.user.id,
-      full_name: fullName,
-      updated_at: new Date().toISOString(),
-    }
+  // REMOVED: The manual insert into 'profiles'. 
+  // The Postgres Trigger 'on_auth_user_created' now handles this automatically 
+  // with superuser privileges, bypassing the RLS error completely.
 
-    const { error: profileError } = await supabase
-        .from("profiles")
-        .insert(newProfile);
-
-    if (profileError) {
-      return { success: false, message: profileError.message }
-    }
-  } else {
-    // If signup requires email confirmation and no session is created immediately
+  if (!authData.session) {
+    // If no session, it means email confirmation is required
     return { success: true, message: 'Check your email for the confirmation link.' }
   }
 
