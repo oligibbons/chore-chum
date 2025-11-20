@@ -11,6 +11,7 @@ export async function createSupabaseClient(): Promise<TypedSupabaseClient> {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+  // FIX: Cast the result to TypedSupabaseClient to resolve the generic mismatch
   return createServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
@@ -32,5 +33,5 @@ export async function createSupabaseClient(): Promise<TypedSupabaseClient> {
         },
       },
     }
-  )
+  ) as unknown as TypedSupabaseClient
 }

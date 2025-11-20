@@ -7,7 +7,8 @@ import { Database } from './supabase'
 
 // Use this type in your server actions and client components
 // instead of just 'SupabaseClient' to ensure type safety without casting.
-export type TypedSupabaseClient = SupabaseClient<Database>
+// We explicitly default to the 'public' schema.
+export type TypedSupabaseClient = SupabaseClient<Database, 'public', Database['public']>
 
 // Shortcuts for Table Row, Insert, and Update types
 // Usage: type Chore = Tables<'chores'>
