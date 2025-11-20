@@ -2,10 +2,11 @@
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server'
-import { ActivityLogWithUser } from '@/types/database'
+import { ActivityLogWithUser, TypedSupabaseClient } from '@/types/database'
 
 export async function getActivityFeed(householdId: string): Promise<ActivityLogWithUser[]> {
-  const supabase = await createSupabaseClient()
+  // FIX: Explicitly type the client
+  const supabase: TypedSupabaseClient = await createSupabaseClient()
 
   const { data, error } = await supabase
     .from('activity_logs')
@@ -22,8 +23,5 @@ export async function getActivityFeed(householdId: string): Promise<ActivityLogW
     return []
   }
 
-  // Supabase types with Joins can be complex to infer automatically, 
-  // but this cast is now safer because our ActivityLogWithUser type 
-  // matches the query structure exactly.
   return (data || []) as unknown as ActivityLogWithUser[]
 }

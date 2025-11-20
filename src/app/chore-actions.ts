@@ -8,7 +8,8 @@ import {
   DbHousehold, 
   TablesInsert,
   TablesUpdate,
-  DbProfile
+  DbProfile,
+  TypedSupabaseClient
 } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
@@ -32,7 +33,8 @@ async function logActivity(
   entityName: string,
   details: any = null
 ) {
-  const supabase = await createSupabaseClient()
+  // FIX: Explicitly type the client to ensure schema visibility
+  const supabase: TypedSupabaseClient = await createSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   
   const logData: TablesInsert<'activity_logs'> = {
@@ -85,7 +87,7 @@ function getNextDueDate(
 export async function getHouseholdData(
   householdId: string
 ): Promise<HouseholdData | null> {
-  const supabase = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
   
   const { data: household } = await supabase
     .from('households')
@@ -116,7 +118,7 @@ export async function getHouseholdData(
     .order('due_date', { ascending: true, nullsFirst: true })
 
   return {
-    household: household as unknown as DbHousehold, // Supabase types can be strict about distinct types, generic cast is safe here
+    household: household as unknown as DbHousehold,
     members: (members || []) as unknown as Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[],
     rooms: rooms || [],
     chores: (chores as unknown as ChoreWithDetails[]) || [],
@@ -177,7 +179,7 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
 }
 
 export async function completeChore(choreId: number): Promise<ActionResponse> {
-    const supabase = await createSupabaseClient()
+    const supabase: TypedSupabaseClient = await createSupabaseClient()
     const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
@@ -190,7 +192,7 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
 }
 
 export async function uncompleteChore(choreId: number): Promise<ActionResponse> {
-    const supabase = await createSupabaseClient()
+    const supabase: TypedSupabaseClient = await createSupabaseClient()
     const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     
     if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
@@ -203,7 +205,7 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
 }
 
 export async function createChore(formData: FormData): Promise<ActionResponse> {
-  const supabase = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Not authenticated' }
@@ -262,7 +264,7 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 export async function toggleChoreStatus(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
   
   if (chore.status === 'complete') {
     // Uncompleting
@@ -340,7 +342,7 @@ export async function incrementChoreInstance(
 ): Promise<ActionResponse> {
   if (chore.status === 'complete') return { success: false, message: 'Already complete' }
   
-  const supabase = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
   
   const newInstanceCount = (chore.completed_instances ?? 0) + 1
   const targetInstances = chore.target_instances ?? 1
@@ -365,7 +367,7 @@ export async function incrementChoreInstance(
 export async function decrementChoreInstance(
   chore: DbChore
 ): Promise<ActionResponse> {
-  const supabase = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
   
   const newInstanceCount = Math.max(0, (chore.completed_instances ?? 0) - 1)
 
@@ -386,7 +388,7 @@ export async function decrementChoreInstance(
 }
 
 export async function updateChore(formData: FormData): Promise<ActionResponse> {
-  const supabase = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
 
   const choreId = formData.get('choreId') as string
   if (!choreId) return { success: false, message: 'Chore ID missing' }
@@ -437,7 +439,7 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
 }
 
 export async function deleteChore(choreId: number): Promise<ActionResponse> {
-  const supabase = await createSupabaseClient() 
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
 
   const { data: chore } = await supabase
     .from('chores')
@@ -465,7 +467,7 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
 }
 
 export async function delayChore(choreId: number, days: number): Promise<ActionResponse> {
-  const supabase = await createSupabaseClient()
+  const supabase: TypedSupabaseClient = await createSupabaseClient()
 
   const { data: chore } = await supabase
     .from('chores')
