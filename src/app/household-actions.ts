@@ -128,7 +128,12 @@ export async function joinHousehold(
   formData: FormData
 ): Promise<FormState> {
   const supabase = await createSupabaseClient() 
-  const inviteCode = (formData.get('inviteCode') as string).toUpperCase()
+  
+  // FIX: Trim whitespace to prevent copy-paste errors (e.g. "ABC123 ")
+  const inviteCode = (formData.get('inviteCode') as string).trim().toUpperCase()
+  
+  const actorProfile = await getCurrentUserProfile(supabase)
+  const userName = actorProfile?.full_name || 'Someone'
 
   try {
     const {
@@ -138,17 +143,13 @@ export async function joinHousehold(
       return { success: false, message: 'You must be logged in.', timestamp: Date.now() }
     }
 
-    // Get profile for notifications (Added)
-    const actorProfile = await getCurrentUserProfile(supabase)
-    const userName = actorProfile?.full_name || 'Someone'
-
-    if (!inviteCode || inviteCode.trim().length < 6) {
+    if (!inviteCode || inviteCode.length < 6) {
       return { success: false, message: 'Invite code must be 6 characters.', timestamp: Date.now() }
     }
 
     const { data: householdData, error: householdError } = await supabase
       .from('households')
-      .select('id, name') // Added name selection for the notification
+      .select('id, name')
       .eq('invite_code', inviteCode)
       .single()
 
@@ -174,7 +175,7 @@ export async function joinHousehold(
       }
     }
 
-    // Notify Household Members (Added)
+    // Notify Household Members
     await notifyHousehold(
       householdData.id,
       {
@@ -182,7 +183,7 @@ export async function joinHousehold(
         body: `${userName} just joined ${householdData.name}.`,
         url: '/feed'
       },
-      actorProfile?.id // Exclude the person joining
+      actorProfile?.id // Exclude the person joining from receiving their own notification
     )
 
     revalidatePath('/dashboard')
