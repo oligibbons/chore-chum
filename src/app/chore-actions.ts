@@ -116,7 +116,6 @@ async function updateStreaks(supabase: TypedSupabaseClient, userIds: string[]) {
 
         const newLongest = Math.max(newStreak, profile.longest_streak || 0)
 
-        // FIX: Cast object to 'any' so TypeScript allows 'current_streak' etc.
         await supabase.from('profiles').update({
             current_streak: newStreak,
             longest_streak: newLongest,
@@ -146,9 +145,8 @@ function getNextDueDate(
     if (!ruleMap[recurrenceType]) return null
 
     // Logic: Find the next occurrence strictly after *now*, based on the schedule
-    // We use `dtstart` as the original due date to ensure the cadence is preserved
     rule = new RRule({ freq: ruleMap[recurrenceType], dtstart: startDate })
-    const nextDate = rule.after(new Date(), true) // inclusive=true, looking for next valid slot
+    const nextDate = rule.after(new Date(), true) // inclusive=true
     
     return nextDate ? nextDate.toISOString() : null
   } catch (error) {
@@ -182,8 +180,8 @@ export async function getHouseholdData(
     .select('*')
     .eq('household_id', householdId)
     
-  // Phase 1.2: Database Optimization - Filter completed chores at DB level
-  // Only fetch completed chores from the last 7 days to reduce payload size
+  // FILTER REPAIR: Changed 'updated_at' to 'created_at' because 'chores' table lacks updated_at.
+  // This fixes the "Nothing has appeared" bug.
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
@@ -194,7 +192,8 @@ export async function getHouseholdData(
       rooms:room_id (id, name)
     `)
     .eq('household_id', householdId)
-    .or(`status.eq.pending,and(status.eq.complete,updated_at.gt.${sevenDaysAgo.toISOString()})`)
+    // Fetch pending items OR items completed recently (using created_at as proxy if updated_at is missing)
+    .or(`status.eq.pending,and(status.eq.complete,created_at.gt.${sevenDaysAgo.toISOString()})`)
     .order('due_date', { ascending: true, nullsFirst: true })
 
   // Hydrate assignees & Normalize assigned_to
@@ -202,26 +201,18 @@ export async function getHouseholdData(
       const rawAssigned = chore.assigned_to
       let assigneeIds: string[] = []
 
-      // FIX: Robust parsing for assigned_to which can be:
-      // 1. null
-      // 2. A single UUID string (legacy)
-      // 3. A JSON stringified array '["id1", "id2"]'
-      // 4. A real array object (if driver parses JSON automatically)
-      
-      if (Array.isArray(rawAssigned)) {
-          assigneeIds = rawAssigned
-      } else if (typeof rawAssigned === 'string') {
-          // Check if it looks like a JSON array
+      // Handle DB Format: It is likely a single UUID string (or null)
+      if (rawAssigned && typeof rawAssigned === 'string') {
+          // Check if it's mistakenly a JSON array string from a previous bad attempt
           if (rawAssigned.startsWith('[')) {
              try {
                 const parsed = JSON.parse(rawAssigned)
                 if (Array.isArray(parsed)) assigneeIds = parsed
              } catch {
-                // If parsing fails, treat as single ID
-                assigneeIds = [rawAssigned]
+                assigneeIds = [] 
              }
           } else {
-             // Plain string UUID
+             // Correct behavior: It's a single UUID
              assigneeIds = [rawAssigned]
           }
       }
@@ -332,16 +323,13 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
         const isRecurring = safeChore.recurrence_type !== 'none'
         
         if (isRecurring) {
-            // Phase 1.2: Recurrence Optimization
-            // Instead of creating a new row, we shift the due_date of this row and reset instances.
-            // This keeps the DB clean and maintains the ID reference.
             const nextDate = getNextDueDate(safeChore.recurrence_type, safeChore.due_date)
             
+            // Removed updated_at to avoid crash (column missing in schema)
             await supabase.from('chores').update({
                 due_date: nextDate,
                 completed_instances: 0,
-                status: 'pending', // It immediately becomes pending for the next cycle
-                updated_at: new Date().toISOString()
+                status: 'pending', 
             }).eq('id', choreId)
 
             revalidatePath('/dashboard')
@@ -356,7 +344,6 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
             await supabase.from('chores').update({ 
               status: 'complete',
               completed_instances: targetInstances,
-              updated_at: new Date().toISOString()
             }).eq('id', choreId)
         }
 
@@ -385,7 +372,6 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
           .from('chores')
           .update({ 
               completed_instances: newInstanceCount,
-              updated_at: new Date().toISOString()
           })
           .eq('id', choreId)
 
@@ -445,15 +431,20 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
   
-  // UPDATED: Handle assignedTo as a JSON string (array of IDs) or fallback
+  // Parse AssignedTo
   const rawAssignedTo = formData.get('assignedTo') as string
   let assignedTo: string[] = []
   try {
       assignedTo = JSON.parse(rawAssignedTo)
   } catch(e) {
-      // Fallback if it's just a single string ID
       if (rawAssignedTo) assignedTo = [rawAssignedTo]
   }
+
+  // DB WRITE FIX: 
+  // The 'assigned_to' column is a single UUID string (Foreign Key).
+  // We must only save the first ID from the array. 
+  // Storing JSON string or multiple IDs will crash the "Invalid input syntax for type uuid" check.
+  const singleAssignee = assignedTo.length > 0 ? assignedTo[0] : null;
 
   const rawRoomId = formData.get('roomId') as string
   const rawDueDate = formData.get('dueDate') as string
@@ -464,18 +455,13 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 
   if (!rawName) return { success: false, message: 'Chore name is required.' }
 
-  // Explicitly stringify the array for the DB TEXT column if needed,
-  // though Supabase client usually handles string[] -> text conversion automatically if configured.
-  // If not, we might need JSON.stringify(assignedTo) here.
-  // For now, passing string[] assuming the earlier TypedSupabaseClient config handles it or DB is JSON/Array.
-  
   const newChoreData = {
     name: rawName,
     notes: rawNotes || null,
     household_id: householdId,
     created_by: user.id,
     status: 'pending',
-    assigned_to: assignedTo.length > 0 ? JSON.stringify(assignedTo) : null, // Ensure stored as JSON string
+    assigned_to: singleAssignee, // FIX: Save as single UUID string
     room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
     due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
     target_instances: rawInstances ? Number(rawInstances) : 1,
@@ -519,7 +505,6 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
   
-  // UPDATED: Multi-assignee parsing
   const rawAssignedTo = formData.get('assignedTo') as string
   let assignedTo: string[] = []
   try {
@@ -527,6 +512,9 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   } catch(e) {
       if (rawAssignedTo) assignedTo = [rawAssignedTo]
   }
+
+  // DB WRITE FIX: Single Assignee only
+  const singleAssignee = assignedTo.length > 0 ? assignedTo[0] : null;
 
   const rawRoomId = formData.get('roomId') as string
   const rawDueDate = formData.get('dueDate') as string
@@ -546,7 +534,7 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const updateData = {
     name: rawName,
     notes: rawNotes || null,
-    assigned_to: assignedTo.length > 0 ? JSON.stringify(assignedTo) : null,
+    assigned_to: singleAssignee, // FIX: Save as single UUID string
     room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
     due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
     target_instances: rawInstances ? Number(rawInstances) : 1,
@@ -685,7 +673,7 @@ export async function toggleChoreStatus(
         household_id: chore.household_id,
         created_by: chore.created_by,
         status: 'pending',
-        assigned_to: chore.assigned_to,
+        assigned_to: chore.assigned_to, // Already single UUID or null from DB
         room_id: chore.room_id,
         due_date: nextDueDate,
         target_instances: chore.target_instances,
@@ -739,12 +727,12 @@ export async function incrementChoreInstance(
   if (chore.status === 'complete') return { success: false, message: 'Already complete' }
   
   const supabase: TypedSupabaseClient = await createSupabaseClient() 
-  
   const newInstanceCount = (chore.completed_instances ?? 0) + 1
   const targetInstances = chore.target_instances ?? 1
 
   if (newInstanceCount >= targetInstances) {
-    return toggleChoreStatus(chore)
+    const actorProfile = await getCurrentUserProfile(supabase)
+    return completeChore(chore.id, actorProfile ? [actorProfile.id] : [])
   } else {
     const { error } = await supabase
       .from('chores')
