@@ -2,7 +2,7 @@
 
 import { ChoreWithDetails } from '@/types/database'
 import ChoreItem from './ChoreItem'
-import { AlertOctagon, AlertTriangle, Calendar, CheckCircle2 } from 'lucide-react'
+import { AlertOctagon, AlertTriangle, Calendar, CheckCircle2, PartyPopper, Coffee } from 'lucide-react'
 
 type Props = {
   title: string
@@ -16,21 +16,29 @@ const getStatusConfig = (status: Props['status']) => {
       return {
         icon: <AlertOctagon className="h-5 w-5 text-status-overdue" />,
         pillClasses: 'bg-status-overdue/10 text-status-overdue',
+        emptyText: "Nothing overdue. Nice!",
+        emptyIcon: <CheckCircle2 className="h-8 w-8 text-green-400 mb-2 opacity-50" />
       }
     case 'due':
       return {
         icon: <AlertTriangle className="h-5 w-5 text-status-due" />,
         pillClasses: 'bg-status-due/10 text-status-due',
+        emptyText: "You're all caught up for today!",
+        emptyIcon: <Coffee className="h-8 w-8 text-brand/40 mb-2" />
       }
     case 'completed':
       return {
         icon: <CheckCircle2 className="h-5 w-5 text-status-complete" />,
         pillClasses: 'bg-status-complete/10 text-status-complete',
+        emptyText: "No completed chores yet.",
+        emptyIcon: <div className="h-8 w-8 rounded-full border-2 border-dashed border-gray-300 mb-2" />
       }
     default:
       return {
         icon: <Calendar className="h-5 w-5 text-text-secondary" />,
         pillClasses: 'bg-gray-100 text-text-secondary',
+        emptyText: "Nothing scheduled.",
+        emptyIcon: <Calendar className="h-8 w-8 text-gray-300 mb-2" />
       }
   }
 }
@@ -41,9 +49,6 @@ export default function ChoreDisplay({
   status,
 }: Props) {
   const config = getStatusConfig(status)
-
-  // REMOVED: The check that returned null if chores.length === 0
-  // This ensures the column always renders, maintaining the grid layout.
 
   return (
     <div className="flex flex-col space-y-4">
@@ -68,24 +73,16 @@ export default function ChoreDisplay({
             <ChoreItem
               key={chore.id}
               chore={chore}
-              // If status is completed, we pass 'upcoming' to ChoreItem purely to avoid 
-              // breaking its internal prop types, but ChoreItem will see the chore is 
-              // actually complete via its properties and style it green automatically.
               status={status === 'completed' ? 'upcoming' : status} 
               showActions={true}
             />
           ))}
         </ul>
       ) : (
-        <div className="rounded-xl border-2 border-dashed border-border bg-card/50 p-8 text-center">
-          <p className="font-medium text-text-secondary">
-            {status === 'overdue'
-              ? 'Nothing overdue. Nice!'
-              : status === 'due'
-              ? 'Nothing due soon!'
-              : status === 'completed'
-              ? 'No completed chores yet.'
-              : 'All caught up!'}
+        <div className="rounded-2xl border-2 border-dashed border-border/60 bg-card/30 p-8 text-center flex flex-col items-center justify-center min-h-[140px]">
+          {config.emptyIcon}
+          <p className="font-medium text-text-secondary text-sm">
+            {config.emptyText}
           </p>
         </div>
       )}

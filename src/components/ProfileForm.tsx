@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
-import { User, LogOut, Copy, Check, Loader2, Camera, Mail, Home, ShieldAlert, Upload, Bell } from 'lucide-react'
+import { User, Copy, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2 } from 'lucide-react'
 import { updateProfile, leaveHousehold, ProfileFormState } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
@@ -80,8 +80,22 @@ export default function ProfileForm({ profile, household, email }: Props) {
     }
   }
 
-  const handleCopyCode = () => {
-    if (household?.invite_code) {
+  const handleShareCode = async () => {
+    if (!household?.invite_code) return
+
+    // Native Share (Mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join my ChoreChum Household',
+          text: `Join my household on ChoreChum! Use code: ${household.invite_code}`,
+          url: window.location.origin
+        })
+      } catch (err) {
+        // Ignore abort errors
+      }
+    } else {
+      // Fallback to Copy
       navigator.clipboard.writeText(household.invite_code)
       setCopied(true)
       toast.success("Invite code copied")
@@ -236,11 +250,11 @@ export default function ProfileForm({ profile, household, email }: Props) {
                         {household.invite_code}
                         </code>
                         <button
-                            onClick={handleCopyCode}
+                            onClick={handleShareCode}
                             className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-background text-text-secondary transition-colors hover:border-brand hover:text-brand"
-                            title="Copy Code"
+                            title="Share Code"
                         >
-                        {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                        {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
                         </button>
                     </div>
                     <p className="text-xs text-text-secondary mt-1.5">
@@ -272,7 +286,6 @@ export default function ProfileForm({ profile, household, email }: Props) {
                 </button>
             )}
             
-            {/* Placeholder for Delete Account */}
              <button
                 disabled
                 className="mt-3 w-full rounded-lg border border-transparent px-4 py-2 text-sm font-semibold text-status-overdue/50 cursor-not-allowed"
