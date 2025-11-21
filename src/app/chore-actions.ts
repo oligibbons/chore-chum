@@ -5,6 +5,7 @@ import {
   HouseholdData, 
   ChoreWithDetails, 
   DbChore, 
+  DbHousehold, // Added missing import
   DbProfile,
   TypedSupabaseClient
 } from '@/types/database'
