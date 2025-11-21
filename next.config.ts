@@ -5,8 +5,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Allow images from your Supabase project
+  // Allow images from your Supabase project with aggressive caching
   images: {
+    minimumCacheTTL: 31536000, // 1 year cache for immutable avatars
     remotePatterns: [
       {
         protocol: 'https',

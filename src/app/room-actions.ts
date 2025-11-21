@@ -1,8 +1,7 @@
-// src/app/room-actions.ts
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
-import { TablesInsert } from '@/types/database'
+import { TablesInsert, TypedSupabaseClient } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 
 export type FormState = {
@@ -10,8 +9,7 @@ export type FormState = {
   message: string
 }
 
-async function getUserHousehold() {
-  const supabase = await createSupabaseClient() 
+async function getUserHousehold(supabase: TypedSupabaseClient) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -45,11 +43,10 @@ export async function getRoomsAndMembers(householdId: string) {
       .eq('household_id', householdId),
   ])
 
-  // Supabase returns 'count' as an array of objects like [{count: 5}] when using the foreign table aggregation
-  // We need to flatten this safely.
-  const rooms = (roomsData.data || []).map((room: any) => ({
+  // Handle the count aggregation safely
+  const rooms = (roomsData.data || []).map((room) => ({
     ...room,
-    chore_count: room.chore_count?.[0]?.count ?? 0
+    chore_count: (room.chore_count as any)?.[0]?.count ?? 0
   }))
 
   return { 
@@ -67,7 +64,7 @@ export async function createRoom(
   
   let householdId: string;
   try {
-    const userHousehold = await getUserHousehold()
+    const userHousehold = await getUserHousehold(supabase)
     householdId = userHousehold.householdId
   } catch (error: any) {
     return { success: false, message: error.message }
@@ -108,16 +105,16 @@ export async function deleteRoom(
   }
   const roomId = Number(roomIdStr)
 
+  const supabase = await createSupabaseClient() 
+
   let householdId: string;
   try {
-    const userHousehold = await getUserHousehold()
+    const userHousehold = await getUserHousehold(supabase)
     householdId = userHousehold.householdId
   } catch (error: any) {
     throw error 
   }
   
-  const supabase = await createSupabaseClient() 
-
   const { error } = await supabase
     .from('rooms')
     .delete()

@@ -1,4 +1,3 @@
-// src/components/ChoreItem.tsx
 'use client'
 
 import { ChoreWithDetails, DbProfile } from '@/types/database'
@@ -8,7 +7,7 @@ import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
 import Avatar from './Avatar'
 import DelayChoreModal from './DelayChoreModal'
-import CompleteChoreModal from './CompleteChoreModal' // NEW
+import CompleteChoreModal from './CompleteChoreModal'
 import confetti from 'canvas-confetti'
 import { toast } from 'sonner'
 import { useGameFeel } from '@/hooks/use-game-feel'
@@ -17,8 +16,8 @@ type Props = {
   chore: ChoreWithDetails
   showActions: boolean
   status: 'overdue' | 'due' | 'upcoming'
-  members?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] // NEW: Need members for the modal
-  currentUserId?: string // NEW: Need ID for default selection
+  members?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
+  currentUserId?: string
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -38,7 +37,7 @@ const formatTime = (timeString: string) => {
 export default function ChoreItem({ chore, showActions, status, members = [], currentUserId = '' }: Props) {
   const [isPending, startTransition] = useTransition()
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
-  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false) // NEW
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const { interact } = useGameFeel()
 
   const [optimisticChore, setOptimisticChore] = useOptimistic(
@@ -58,7 +57,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
 
   const isShared = (chore.assigned_to?.length ?? 0) > 1
 
-  // ... (Existing styling logic omitted for brevity, keep it as is) ...
   let cardClasses = 'border-border bg-card'
   let buttonClasses = 'border-border text-text-secondary hover:text-brand hover:border-brand'
   let statusIconColor = 'text-text-secondary'
@@ -112,10 +110,9 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
       }
 
       try {
-        // Default: if single assignee, complete for them
         const result = isCompleted 
           ? await uncompleteChore(chore.id) 
-          : await completeChore(chore.id, [currentUserId]) // Default to current user
+          : await completeChore(chore.id, [currentUserId])
 
         if (!result.success) toast.error(result.message || 'Failed to update chore')
         else {
@@ -143,6 +140,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
             <button
               onClick={handleToggleCompletion}
               disabled={isPending}
+              aria-label={isCompleted ? `Mark ${chore.name} as pending` : `Mark ${chore.name} as complete`}
               className={`
                 flex h-10 w-10 flex-shrink-0 items-center justify-center
                 rounded-full border-2 transition-all duration-200
@@ -180,16 +178,26 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
             </div>
           </div>
 
-          {/* Avatar Stack for Multiple Assignees */}
-          <div className="flex -space-x-3 overflow-hidden pl-1 py-1">
+          {/* Avatar Stack for Multiple Assignees with Accessibility */}
+          <div className="flex -space-x-3 overflow-hidden pl-1 py-1" role="group" aria-label="Assigned members">
             {chore.assignees && chore.assignees.length > 0 ? (
                 chore.assignees.map((p, i) => (
-                    <div key={p.id} className="ring-2 ring-background rounded-full z-0" style={{ zIndex: 10 - i }}>
+                    <div 
+                      key={p.id} 
+                      className="ring-2 ring-background rounded-full z-0" 
+                      style={{ zIndex: 10 - i }}
+                      aria-label={`Assigned to ${p.full_name || 'User'}`}
+                      role="img"
+                    >
                         <Avatar url={p.avatar_url ?? undefined} alt={p.full_name ?? ''} size={36} />
                     </div>
                 ))
             ) : (
-                <div className="h-9 w-9 rounded-full bg-background border border-border flex items-center justify-center">
+                <div 
+                  className="h-9 w-9 rounded-full bg-background border border-border flex items-center justify-center"
+                  aria-label="Assigned to anyone"
+                  role="img"
+                >
                     <User className="h-4 w-4 text-text-secondary" />
                 </div>
             )}
@@ -224,6 +232,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                 onClick={() => { interact('neutral'); setIsDelayModalOpen(true) }}
                 className="rounded-full p-2 text-text-secondary hover:bg-background hover:text-brand"
                 title="Delay Chore"
+                aria-label="Delay this chore"
               >
                 <Clock className="h-5 w-5" />
               </button>

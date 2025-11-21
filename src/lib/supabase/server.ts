@@ -1,6 +1,6 @@
 // src/lib/supabase/server.ts
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { TypedSupabaseClient } from '@/types/database'
@@ -12,8 +12,6 @@ export async function createSupabaseClient(): Promise<TypedSupabaseClient> {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-  // FIX: Use 'as any' intermediate cast to bypass library version mismatches,
-  // ensuring we get a working, typed client at the end.
   return createServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
@@ -29,9 +27,10 @@ export async function createSupabaseClient(): Promise<TypedSupabaseClient> {
             )
           } catch (error) {
             // The `setAll` method was called from a Server Component.
+            // This can be ignored if middleware is handling session refresh.
           }
         },
       },
     }
-  ) as any as TypedSupabaseClient
+  )
 }

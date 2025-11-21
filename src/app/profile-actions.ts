@@ -12,7 +12,7 @@ export type ProfileFormState = {
   timestamp?: number
 }
 
-// Helper to get profile
+// Helper to get profile safely
 async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -66,24 +66,49 @@ export async function leaveHousehold() {
   
   if (!profile || !profile.household_id) throw new Error('No household to leave')
 
-  // Notify household BEFORE removing the user from it
-  await notifyHousehold(
-    profile.household_id,
-    {
-      title: 'Member Left 🏠',
-      body: `${profile.full_name || 'Someone'} has left the household.`,
-      url: '/rooms'
-    },
-    profile.id
-  )
-
-  const { error } = await supabase
+  // Phase 1.3: Orphaned Data Handling
+  // Check how many members are left in the household
+  const { count } = await supabase
     .from('profiles')
-    .update({ household_id: null })
-    .eq('id', profile.id)
+    .select('id', { count: 'exact', head: true })
+    .eq('household_id', profile.household_id)
 
-  if (error) {
-    throw new Error(error.message)
+  const isLastMember = count === 1
+
+  if (isLastMember) {
+    // 1. Delete Household (Cascading delete handles chores/rooms usually, but we ensure cleanup)
+    const { error } = await supabase
+      .from('households')
+      .delete()
+      .eq('id', profile.household_id)
+
+    if (error) throw new Error(`Failed to close household: ${error.message}`)
+    
+    // Update profile just in case cascade didn't catch it or to be explicit
+    await supabase
+      .from('profiles')
+      .update({ household_id: null })
+      .eq('id', profile.id)
+
+  } else {
+    // Notify remaining members BEFORE leaving
+    await notifyHousehold(
+      profile.household_id,
+      {
+        title: 'Member Left 🏠',
+        body: `${profile.full_name || 'Someone'} has left the household.`,
+        url: '/rooms'
+      },
+      profile.id
+    )
+
+    // Just remove self
+    const { error } = await supabase
+      .from('profiles')
+      .update({ household_id: null })
+      .eq('id', profile.id)
+
+    if (error) throw new Error(error.message)
   }
 
   revalidatePath('/dashboard')

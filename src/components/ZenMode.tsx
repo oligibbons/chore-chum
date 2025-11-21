@@ -1,18 +1,21 @@
-// src/components/ZenMode.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChoreWithDetails } from '@/types/database'
-import { X, ArrowRight, Sparkles, Flower2, Timer, Sun, Moon, Coffee, Layers } from 'lucide-react'
+import { ChoreWithDetails, DbProfile } from '@/types/database'
+import { X, ArrowRight, Sparkles, Flower2, Timer, Sun, Moon, Coffee, Layers, Users } from 'lucide-react'
 import ChoreItem from './ChoreItem'
 import { useGameFeel } from '@/hooks/use-game-feel'
+import { notifyZenStart } from '@/app/push-actions'
+import Avatar from './Avatar'
 
 type Props = {
   chores: ChoreWithDetails[]
+  activeMembers?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] // Phase 3
+  currentUserId?: string
 }
 
-export default function ZenMode({ chores }: Props) {
+export default function ZenMode({ chores, activeMembers = [], currentUserId }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isZen = searchParams.get('view') === 'zen'
@@ -24,6 +27,14 @@ export default function ZenMode({ chores }: Props) {
 
   // Ensure we only work with pending items
   const pendingChores = chores.filter(c => c.status !== 'complete')
+
+  // --- Phase 3: The Beacon ---
+  useEffect(() => {
+    if (isZen) {
+      // Fire and forget the server action to notify others
+      notifyZenStart()
+    }
+  }, [isZen])
 
   // --- Timer & Scroll Lock ---
   useEffect(() => {
@@ -107,6 +118,9 @@ export default function ZenMode({ chores }: Props) {
         default: return <Sparkles className="h-4 w-4 text-teal-600" />
     }
   }
+
+  // Identify others working (excluding self)
+  const othersWorking = activeMembers.filter(m => m.id !== currentUserId)
 
   if (!isZen) return null
 
@@ -207,6 +221,24 @@ export default function ZenMode({ chores }: Props) {
                     </div>
                 </div>
             </div>
+            )}
+
+            {/* Phase 3: Social Momentum Pill */}
+            {othersWorking.length > 0 && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in duration-700">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-teal-900/10 backdrop-blur-md border border-teal-900/5 text-teal-800 shadow-lg">
+                        <div className="flex -space-x-2">
+                            {othersWorking.slice(0,3).map(m => (
+                                <Avatar key={m.id} url={m.avatar_url} alt={m.full_name || ''} size={24} />
+                            ))}
+                        </div>
+                        <span className="text-xs font-bold">
+                            {othersWorking.length === 1 
+                                ? `${othersWorking[0].full_name?.split(' ')[0]} is also working` 
+                                : `${othersWorking.length} others are working`}
+                        </span>
+                    </div>
+                </div>
             )}
 
         </div>

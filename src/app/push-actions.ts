@@ -81,3 +81,53 @@ export async function notifyHousehold(
     recipientIds.map(id => sendPushToUser(id, payload))
   )
 }
+
+// --- Phase 3: The Beacon ---
+export async function notifyZenStart() {
+  const supabase = await createSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('household_id, full_name')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.household_id) return
+
+  // 1. Debounce Check: Has this user triggered 'zen_start' in the last hour?
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  
+  const { count } = await supabase
+    .from('activity_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('action_type', 'zen_start')
+    .gt('created_at', oneHourAgo)
+
+  if (count && count > 0) {
+    return // Too soon, don't spam
+  }
+
+  // 2. Log Activity (Actions as the debounce marker)
+  await supabase.from('activity_logs').insert({
+    household_id: profile.household_id,
+    user_id: user.id,
+    action_type: 'zen_start',
+    entity_name: 'Zen Mode',
+    details: null
+  } as any)
+
+  // 3. Send Notification
+  const firstName = profile.full_name?.split(' ')[0] || 'Someone'
+  await notifyHousehold(
+    profile.household_id,
+    {
+      title: 'Focus Mode 🧘',
+      body: `${firstName} is focusing on chores right now.`,
+      url: '/dashboard?view=zen' // Join them!
+    },
+    user.id
+  )
+}

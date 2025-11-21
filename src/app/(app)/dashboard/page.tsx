@@ -3,7 +3,6 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/server'
 import { getChoreDisplayData } from '@/app/chore-actions'
-import ChoreDisplay from '@/components/ChoreDisplay'
 import HouseholdManager from '@/components/HouseholdManager'
 import { Plus, Flower2 } from 'lucide-react'
 import Link from 'next/link'
@@ -19,6 +18,7 @@ import StreakCampfire from '@/components/StreakCampfire'
 import DailyProgress from '@/components/DailyProgress'
 import Greeting from '@/components/Greeting'
 import AppBadgeUpdater from '@/components/AppBadgeUpdater'
+import ChoreDisplay from '@/components/ChoreDisplay'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,12 +70,25 @@ export default async function DashboardPage(props: DashboardProps) {
     getRoomsAndMembers(householdId),
   ])
 
-  // --- 1. Master Filter Logic ---
+  // --- Phase 3: Body Doubling Logic ---
+  // Fetch users active in the last hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const { data: activeLogs } = await supabase
+    .from('activity_logs')
+    .select('user_id')
+    .eq('household_id', householdId)
+    .gt('created_at', oneHourAgo)
+
+  const activeUserIds = Array.from(new Set(activeLogs?.map(l => l.user_id)))
+  
+  const activeMembers = roomData.members.filter(m => 
+    activeUserIds.includes(m.id)
+  )
+
+  // --- Master Filter Logic ---
   let allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
-  // Dashboard View Filters
   if (assigneeFilter === 'me') {
-      // FIX: Check if array includes user ID using optional chaining
       allChoresRaw = allChoresRaw.filter(c => c.assigned_to?.includes(user.id))
   }
   if (roomIdFilter) {
@@ -88,18 +101,17 @@ export default async function DashboardPage(props: DashboardProps) {
   const upcomingChores = allChoresRaw.filter(c => data.upcoming.includes(c))
   const completedChores = allChoresRaw.filter(c => data.completed.includes(c))
 
-  // --- 2. Stats & Zen Data ---
+  // --- Zen & Stats ---
   const allHouseholdChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
   
-  // ZEN MODE FIX: Strictly YOUR incomplete chores
+  // ZEN: Strictly YOUR incomplete chores
   const myZenChores = allHouseholdChores.filter(c => 
-    c.assigned_to?.includes(user.id) && // FIX: Check if I am in the assignee list
+    c.assigned_to?.includes(user.id) && 
     c.status !== 'complete'
   )
 
-  // Stats Calculation (Personal)
+  // Stats (Personal)
   const myDailyChores = allHouseholdChores.filter(c => {
-      // Is it assigned to me OR unassigned?
       const isAssignedToMe = c.assigned_to?.includes(user.id)
       const isUnassigned = !c.assigned_to || c.assigned_to.length === 0
       
@@ -126,7 +138,6 @@ export default async function DashboardPage(props: DashboardProps) {
   const completedTodayCount = myDailyChores.filter(c => c.status === 'complete').length
   const totalDailyLoad = myDailyChores.length
 
-  // Dynamic Subtitle
   let greetingSubtitle = "Let's get things done."
   if (totalDailyLoad > 0) {
     const ratio = completedTodayCount / totalDailyLoad
@@ -139,7 +150,7 @@ export default async function DashboardPage(props: DashboardProps) {
     greetingSubtitle = "All clear for today. Relax! 😌"
   }
 
-  // --- 3. Modal Logic ---
+  // --- Modal Logic ---
   let editChore: ChoreWithDetails | null = null
   if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
     const fullList = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
@@ -148,12 +159,16 @@ export default async function DashboardPage(props: DashboardProps) {
 
   return (
     <div className="space-y-8 pb-24">
-      {/* Passed filtered user-only chores to Zen Mode */}
-      <ZenMode chores={myZenChores} />
+      {/* Phase 3: Pass active members for social momentum */}
+      <ZenMode 
+        chores={myZenChores} 
+        activeMembers={activeMembers}
+        currentUserId={user.id}
+      />
       
       <AppBadgeUpdater count={overdueChores.length} />
 
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -221,6 +236,8 @@ export default async function DashboardPage(props: DashboardProps) {
           isOpen={true}
           members={roomData.members}
           rooms={roomData.rooms}
+          // Phase 2: Pass context for Smart Parser
+          currentUserId={user.id}
         />
       )}
 

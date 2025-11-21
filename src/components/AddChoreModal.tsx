@@ -1,4 +1,3 @@
-// src/components/AddChoreModal.tsx
 'use client'
 
 import { Fragment, useState, FormEvent, useEffect } from 'react'
@@ -16,6 +15,7 @@ type Props = {
   isOpen: boolean
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
+  currentUserId: string
 }
 
 type TimeOption = 'morning' | 'afternoon' | 'evening' | 'any';
@@ -23,22 +23,22 @@ type TimeOption = 'morning' | 'afternoon' | 'evening' | 'any';
 function ChoreForm({ 
   closeModal, 
   members, 
-  rooms 
+  rooms,
+  currentUserId
 }: { 
   closeModal: () => void, 
   members: Props['members'], 
-  rooms: Props['rooms'] 
+  rooms: Props['rooms'],
+  currentUserId: string
 }) {
   const [pending, setPending] = useState(false)
   const [smartInput, setSmartInput] = useState('')
   const { interact, triggerHaptic } = useGameFeel()
-  
-  // WOW FACTOR: Shake State
   const [isShaking, setIsShaking] = useState(false)
   
   // State
   const [name, setName] = useState('')
-  const [assignedIds, setAssignedIds] = useState<string[]>([]) // Multi-select array
+  const [assignedIds, setAssignedIds] = useState<string[]>([])
   const [roomId, setRoomId] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [recurrence, setRecurrence] = useState('none')
@@ -50,10 +50,9 @@ function ChoreForm({
     "Vacuum living room",
     "Water plants",
     "Laundry this weekend",
-    "Clean bathroom"
+    "Clean my room" // New context-aware suggestion
   ]
 
-  // Toggle Logic for Avatar Grid
   const toggleMember = (id: string) => {
     interact('neutral')
     setAssignedIds(prev => 
@@ -66,11 +65,11 @@ function ChoreForm({
     const timer = setTimeout(() => {
         if (!smartInput.trim()) return
 
-        const parsed = parseChoreInput(smartInput, members, rooms)
+        // Phase 2: Pass currentUserId for context
+        const parsed = parseChoreInput(smartInput, members, rooms, currentUserId)
         
         if (parsed.name) setName(parsed.name)
         if (parsed.roomId) setRoomId(parsed.roomId.toString())
-        // Smart parser currently returns a single ID, so we wrap it in an array
         if (parsed.assignedTo) setAssignedIds([parsed.assignedTo]) 
         if (parsed.recurrence) setRecurrence(parsed.recurrence)
         if (parsed.dueDate) setDueDate(parsed.dueDate)
@@ -79,17 +78,16 @@ function ChoreForm({
     }, 600) 
 
     return () => clearTimeout(timer)
-  }, [smartInput, members, rooms])
+  }, [smartInput, members, rooms, currentUserId])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     
-    // WOW FACTOR: Validation Shake
     if (!name.trim()) {
         setIsShaking(true)
-        triggerHaptic('medium') // Error haptic
+        triggerHaptic('medium')
         toast.error("Please give your chore a name")
-        setTimeout(() => setIsShaking(false), 500) // Reset animation
+        setTimeout(() => setIsShaking(false), 500)
         return
     }
 
@@ -97,7 +95,6 @@ function ChoreForm({
     
     const formData = new FormData(event.currentTarget)
     formData.append('timeOfDay', timeOfDay)
-    // NEW: Serialize array to JSON for the backend to parse
     formData.append('assignedTo', JSON.stringify(assignedIds))
 
     try {
@@ -135,7 +132,6 @@ function ChoreForm({
             />
         </div>
         
-        {/* Quick Chips */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient">
             {suggestions.map(s => (
                 <button
@@ -164,18 +160,16 @@ function ChoreForm({
             name="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            // Removed 'required' attribute to let custom shake validation handle it
             className={`mt-1 block w-full rounded-xl border bg-background p-3 transition-all focus:border-brand focus:ring-brand ${isShaking ? 'border-red-500 ring-2 ring-red-200 animate-shake' : 'border-border'}`}
         />
       </div>
 
-      {/* ASSIGN TO - AVATAR GRID (Full Width) */}
+      {/* ASSIGN TO */}
       <div>
         <label className="block font-heading text-sm font-medium text-text-primary mb-2">
           Assign To
         </label>
         <div className="flex flex-wrap gap-3">
-            {/* 'Anyone' Toggle */}
             <button
                 type="button"
                 onClick={() => setAssignedIds([])}
@@ -190,7 +184,6 @@ function ChoreForm({
                 <span className="text-sm font-bold">Anyone</span>
             </button>
             
-            {/* Member Toggles */}
             {members.map(m => {
                 const isSelected = assignedIds.includes(m.id)
                 return (
@@ -220,7 +213,7 @@ function ChoreForm({
         </div>
       </div>
 
-      {/* ROOM & DUE DATE (Grid) */}
+      {/* ROOM & DUE DATE */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
@@ -263,7 +256,7 @@ function ChoreForm({
         </div>
       </div>
 
-      {/* TIME OF DAY SELECTION */}
+      {/* TIME OF DAY */}
       <div>
          <label className="block font-heading text-sm font-medium text-text-primary mb-2">
             Time of Day
@@ -291,7 +284,7 @@ function ChoreForm({
          </div>
       </div>
 
-      {/* RECURRENCE & INSTANCES (Grid) */}
+      {/* RECURRENCE & INSTANCES */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="recurrence_type" className="block font-heading text-sm font-medium text-text-primary">
@@ -332,7 +325,7 @@ function ChoreForm({
         </div>
       </div>
 
-      {/* DETAILS TOGGLE (Notes & Exact Time) */}
+      {/* DETAILS TOGGLE */}
       <details className="group">
         <summary className="flex items-center gap-2 text-sm font-medium text-brand cursor-pointer list-none">
             <span>More Options (Notes, Exact Time)</span>
@@ -395,6 +388,7 @@ export default function AddChoreModal({
   isOpen,
   members,
   rooms,
+  currentUserId
 }: Props) {
   const router = useRouter()
 
@@ -446,6 +440,7 @@ export default function AddChoreModal({
                     closeModal={handleClose}
                     members={members}
                     rooms={rooms}
+                    currentUserId={currentUserId}
                 />
 
               </Dialog.Panel>

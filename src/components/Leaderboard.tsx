@@ -1,9 +1,10 @@
-// src/components/Leaderboard.tsx
 'use client'
 
+import { useState } from 'react'
 import { ChoreWithDetails, DbProfile } from '@/types/database'
 import Avatar from './Avatar'
-import { Trophy, Medal, Star } from 'lucide-react'
+import { Trophy, Medal, Star, Calendar, Infinity } from 'lucide-react'
+import { useGameFeel } from '@/hooks/use-game-feel'
 
 type Props = {
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
@@ -18,15 +19,33 @@ type LeaderboardEntry = {
 }
 
 export default function Leaderboard({ members, chores }: Props) {
+  const [timeframe, setTimeframe] = useState<'all' | 'week'>('all')
+  const { interact } = useGameFeel()
+
   // 1. Calculate Scores
-  // Count how many completed chores belong to each user.
-  // Ideally, we'd filter by "this week" or "this month", but for now, lifetime stats.
   const scores: LeaderboardEntry[] = members.map(member => {
-    const count = chores.filter(c => 
-      c.status === 'complete' && 
-      // FIX: assigned_to is now an array, so we check if it includes the member ID
-      c.assigned_to?.includes(member.id)
-    ).length
+    const count = chores.filter(c => {
+      // Must be completed
+      if (c.status !== 'complete') return false
+      
+      // Must be assigned to this member
+      const isAssigned = c.assigned_to?.includes(member.id)
+      if (!isAssigned) return false
+
+      // Timeframe Filter
+      if (timeframe === 'week') {
+        // Fallback to created_at if updated_at is missing (though actions set updated_at on complete)
+        // We assume 'updated_at' captures the completion time for this MVP logic.
+        const dateToCheck = (c as any).updated_at || c.created_at
+        const completedDate = new Date(dateToCheck)
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        
+        return completedDate > sevenDaysAgo
+      }
+
+      return true
+    }).length
     
     return {
       memberId: member.id,
@@ -49,19 +68,45 @@ export default function Leaderboard({ members, chores }: Props) {
 
   return (
     <div className="flex flex-col h-full rounded-2xl border border-border bg-card p-6 shadow-card">
-      <div className="flex items-center gap-2 mb-6">
-        <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg">
-            <Star className="h-5 w-5" />
+      
+      {/* Header with Toggle */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-2">
+            <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg">
+                <Star className="h-5 w-5" />
+            </div>
+            <div>
+                <h3 className="font-heading text-xl font-semibold">Leaderboard</h3>
+                <p className="text-xs text-text-secondary">Top crushers</p>
+            </div>
         </div>
-        <div>
-            <h3 className="font-heading text-xl font-semibold">Leaderboard</h3>
-            <p className="text-xs text-text-secondary">Top chores crushers</p>
+
+        <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+                onClick={() => { interact('neutral'); setTimeframe('week') }}
+                className={`p-1.5 rounded-md transition-all ${timeframe === 'week' ? 'bg-white text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                title="This Week"
+            >
+                <Calendar className="h-4 w-4" />
+            </button>
+            <button
+                onClick={() => { interact('neutral'); setTimeframe('all') }}
+                className={`p-1.5 rounded-md transition-all ${timeframe === 'all' ? 'bg-white text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                title="All Time"
+            >
+                <Infinity className="h-4 w-4" />
+            </button>
         </div>
       </div>
 
       <div className="flex-1 space-y-4">
-        {sortedScores.length === 0 ? (
-            <p className="text-sm text-text-secondary italic">No chores completed yet.</p>
+        {sortedScores.every(s => s.score === 0) ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center opacity-60">
+                <Trophy className="h-8 w-8 text-gray-300 mb-2" />
+                <p className="text-sm text-text-secondary italic">
+                    {timeframe === 'week' ? 'No chores this week.' : 'No chores completed yet.'}
+                </p>
+            </div>
         ) : (
             sortedScores.map((entry, index) => (
             <div 
@@ -69,23 +114,23 @@ export default function Leaderboard({ members, chores }: Props) {
                 className="flex items-center justify-between p-2 rounded-xl transition-colors hover:bg-background"
             >
                 <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8">
-                    {getRankIcon(index)}
-                </div>
-                
-                <Avatar 
-                    url={entry.avatarUrl} 
-                    alt={entry.name} 
-                    size={40} 
-                />
-                
-                <span className="font-medium text-text-primary truncate max-w-[120px] sm:max-w-[150px]">
-                    {entry.name.split(' ')[0]}
-                </span>
+                    <div className="flex items-center justify-center w-8">
+                        {getRankIcon(index)}
+                    </div>
+                    
+                    <Avatar 
+                        url={entry.avatarUrl} 
+                        alt={entry.name} 
+                        size={40} 
+                    />
+                    
+                    <span className="font-medium text-text-primary truncate max-w-[100px] sm:max-w-[140px]">
+                        {entry.name.split(' ')[0]}
+                    </span>
                 </div>
 
-                <div className="px-3 py-1 rounded-full bg-brand-light text-brand font-bold text-sm">
-                {entry.score}
+                <div className="px-3 py-1 rounded-full bg-brand-light text-brand font-bold text-sm min-w-[2rem] text-center">
+                    {entry.score}
                 </div>
             </div>
             ))

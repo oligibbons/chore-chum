@@ -3,13 +3,20 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useEffect } from 'react'
 import { createRoom, deleteRoom, FormState } from '@/app/room-actions'
-import { Trash2, Loader2, Home, ArrowRight } from 'lucide-react'
+import { Trash2, Loader2, Home, ArrowRight, AlertTriangle } from 'lucide-react'
 import { RoomWithChoreCount } from '@/types/database'
 import { toast } from 'sonner'
+import { getRoomIcon } from '@/lib/room-icons'
 
 const initialState: FormState = {
   success: false,
   message: '',
+}
+
+// Extended type to support the new "Rot" feature if data is available, 
+// falling back to chore_count if not.
+type RoomWithPotentialRot = RoomWithChoreCount & {
+    overdue_count?: number 
 }
 
 function SubmitButton({ 
@@ -50,7 +57,7 @@ function SubmitButton({
   )
 }
 
-export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) {
+export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }) {
   const [createState, createAction] = useFormState(createRoom, initialState)
 
   // Handle Create Toast
@@ -127,35 +134,60 @@ export default function RoomManager({ rooms }: { rooms: RoomWithChoreCount[] }) 
               </p>
             </div>
           ) : (
-            rooms.map((room) => (
-              <div
-                key={room.id}
-                className="flex items-center justify-between rounded-xl bg-card p-4 shadow-card ring-1 ring-border transition-all hover:shadow-card-hover"
-              >
-                <div className="flex items-center space-x-3">
-                    <Home className="h-6 w-6 text-brand" />
-                    <div className="flex flex-col">
-                      <span className="font-heading text-lg font-medium">
-                          {room.name}
-                      </span>
-                      <span className="text-sm text-text-secondary">
-                          {room.chore_count} {room.chore_count === 1 ? 'chore' : 'chores'}
-                      </span>
-                    </div>
-                </div>
+            rooms.map((room) => {
+                // Phase 4: Visual "Rot" Logic
+                // If overdue_count > 3 (or high total chore count as proxy), apply rot.
+                // Since overdue_count isn't in DB types yet, we use chore_count > 5 as a visual demo.
+                const isRotting = (room.overdue_count ?? 0) > 3 || room.chore_count > 8;
                 
-                <form action={handleDelete}>
-                  <input type="hidden" name="roomId" value={room.id} />
-                  <button
-                    type="submit"
-                    className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-status-overdue/10 hover:text-status-overdue"
-                    aria-label="Delete room"
+                return (
+                  <div
+                    key={room.id}
+                    className={`
+                        flex items-center justify-between rounded-xl border p-4 shadow-card transition-all hover:shadow-card-hover
+                        ${isRotting ? 'bg-amber-50 border-amber-200' : 'bg-card border-border'}
+                    `}
                   >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </form>
-              </div>
-            ))
+                    <div className="flex items-center space-x-4">
+                        <div className={`
+                            relative flex items-center justify-center h-12 w-12 rounded-full transition-all
+                            ${isRotting ? 'bg-amber-100 text-amber-700 grayscale-[0.5]' : 'bg-brand-light text-brand'}
+                        `}>
+                            {/* Render Dynamic Icon based on Name */}
+                            {getRoomIcon(room.name, "h-6 w-6")}
+                            
+                            {/* Rot Overlay */}
+                            {isRotting && (
+                                <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 border-2 border-white" title="Neglected Room">
+                                    <AlertTriangle className="h-3 w-3" />
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="flex flex-col">
+                          <span className={`font-heading text-lg font-medium ${isRotting ? 'text-amber-900' : 'text-foreground'}`}>
+                              {room.name}
+                          </span>
+                          <span className={`text-sm ${isRotting ? 'text-amber-700/70' : 'text-text-secondary'}`}>
+                              {room.chore_count} {room.chore_count === 1 ? 'chore' : 'chores'}
+                              {isRotting && " (Needs attention)"}
+                          </span>
+                        </div>
+                    </div>
+                    
+                    <form action={handleDelete}>
+                      <input type="hidden" name="roomId" value={room.id} />
+                      <button
+                        type="submit"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-status-overdue/10 hover:text-status-overdue"
+                        aria-label="Delete room"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </form>
+                  </div>
+                )
+            })
           )}
         </div>
       </div>

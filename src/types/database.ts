@@ -12,30 +12,36 @@ export type TablesUpdate<T extends keyof Database['public']['Tables']> = Databas
 
 // --- Application Specific Types ---
 
-// EXTENDED DbChore with multi-assignee support
-// NOTE: We use Omit to override the auto-generated 'assigned_to' (which is string | null)
-// with our new array type. You must update your DB schema for this to work natively.
+// EXTENDED DbChore:
+// The DB stores 'assigned_to' as a raw string (JSON/CSV), but the app uses string[].
+// We override this field for type safety within the application layer.
 export type DbChore = Omit<Tables<'chores'>, 'assigned_to'> & {
   assigned_to: string[] | null
   time_of_day?: 'morning' | 'afternoon' | 'evening' | 'any' | null
   exact_time?: string | null
-  custom_recurrence?: { type: 'interval'; days: number } | { type: 'specific'; days: number[] } | null
+  // Phase 2: Complex Recurrence Support
+  custom_recurrence?: { type: 'interval'; days: number; unit?: string } | null
 }
 
-// EXTENDED DbProfile for Streaks
+// EXTENDED DbRoom:
+// Phase 2: 'Implicit Room Detection' requires keywords, which are not in the DB yet.
+// We extend the type here to support passing this data in the UI/Parser.
+export type DbRoom = Tables<'rooms'> & {
+  keywords?: string[] 
+}
+
+// EXTENDED DbProfile:
 export type DbProfile = Tables<'profiles'> & {
   current_streak?: number
   longest_streak?: number
   last_chore_date?: string | null
 }
 
-export type DbRoom = Tables<'rooms'>
 export type DbHousehold = Tables<'households'>
 export type DbActivityLog = Tables<'activity_logs'>
 
-// Combined type: Chore + Profiles (plural) + Room
+// Combined Types
 export type ChoreWithDetails = DbChore & {
-  // Changed from single 'profiles' to array 'assignees'
   assignees: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] | null
   rooms: Pick<DbRoom, 'id' | 'name'> | null
 }
