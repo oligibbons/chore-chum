@@ -1,7 +1,7 @@
 'use client'
 
 import { ChoreWithDetails } from '@/types/database'
-import { Check, Clock, User, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, Sparkles } from 'lucide-react'
+import { Check, Clock, User, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon } from 'lucide-react'
 import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
@@ -9,6 +9,7 @@ import Avatar from './Avatar'
 import DelayChoreModal from './DelayChoreModal'
 import confetti from 'canvas-confetti'
 import { toast } from 'sonner'
+import { useGameFeel } from '@/hooks/use-game-feel' // IMPORT
 
 type Props = {
   chore: ChoreWithDetails
@@ -33,6 +34,7 @@ const formatTime = (timeString: string) => {
 export default function ChoreItem({ chore, showActions, status }: Props) {
   const [isPending, startTransition] = useTransition()
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
+  const { interact } = useGameFeel() // HOOK
 
   const [optimisticChore, setOptimisticChore] = useOptimistic(
     chore,
@@ -84,6 +86,9 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
   }
 
   const handleToggleCompletion = async () => {
+    // Haptics first for immediate feel
+    interact(isCompleted ? 'neutral' : 'success')
+
     const nextStatus = isCompleted ? 'pending' : 'complete'
     
     startTransition(async () => {
@@ -106,7 +111,6 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
         if (!result.success) {
           toast.error(result.message || 'Failed to update chore')
         } else {
-          // Cheeky Motivation Popup
           const toastFn = nextStatus === 'complete' ? toast.success : toast.info
           toastFn(result.message, {
               description: result.motivation
@@ -156,7 +160,6 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
                 {chore.name}
               </h4>
               
-              {/* Metadata Row */}
               <div className="flex flex-wrap items-center gap-2 mt-1">
                   {chore.time_of_day && chore.time_of_day !== 'any' && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary bg-background/50 px-1.5 py-0.5 rounded capitalize">
@@ -225,7 +228,10 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
           <div className="flex items-center gap-1">
             {!isCompleted && showActions && (
               <button 
-                onClick={() => setIsDelayModalOpen(true)}
+                onClick={() => {
+                    interact('neutral')
+                    setIsDelayModalOpen(true)
+                }}
                 className="rounded-full p-2 text-text-secondary transition-all hover:bg-background hover:text-brand"
                 title="Delay Chore"
               >

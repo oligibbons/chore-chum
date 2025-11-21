@@ -12,8 +12,7 @@ import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
 import EditChoreModal from '@/components/EditChoreModal'
 import { ChoreWithDetails } from '@/types/database'
-// Removed RealtimeChores import as it's now in layout
-import RoomFilter from '@/components/RoomFilter'
+import FilterBar from '@/components/FilterBar' // UPDATED IMPORT
 import ZenMode from '@/components/ZenMode'
 import Leaderboard from '@/components/Leaderboard'
 import StreakCampfire from '@/components/StreakCampfire'
@@ -22,12 +21,13 @@ import DailyProgress from '@/components/DailyProgress'
 export const dynamic = 'force-dynamic'
 
 type DashboardProps = {
-  searchParams: Promise<{ modal?: string; choreId?: string; roomId?: string; view?: string }>
+  searchParams: Promise<{ modal?: string; choreId?: string; roomId?: string; view?: string; assignee?: string }>
 }
 
 export default async function DashboardPage(props: DashboardProps) {
   const searchParams = await props.searchParams
   const roomIdFilter = searchParams.roomId ? Number(searchParams.roomId) : null
+  const assigneeFilter = searchParams.assignee === 'me' ? 'me' : 'all'
   
   const supabase = await createSupabaseClient()
   
@@ -45,6 +45,7 @@ export default async function DashboardPage(props: DashboardProps) {
     .eq('id', user.id)
     .single()
 
+  // Type assertion to handle new streak column safely
   const profile = rawProfile as { household_id: string | null; full_name: string | null; current_streak: number } | null
 
   if (!profile || !profile.household_id) {
@@ -63,43 +64,65 @@ export default async function DashboardPage(props: DashboardProps) {
     getRoomsAndMembers(householdId),
   ])
 
-  const allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
+  // --- 1. Master Filter Logic ---
+  let allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
-  // Stats Calculation
-  const overdueCount = data.overdue.length
-  const dueTodayCount = data.dueSoon.filter(c => {
-      if (!c.due_date) return false
-      const d = new Date(c.due_date)
-      const today = new Date()
-      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
-  }).length
-  const completedTodayCount = data.completed.filter(c => {
-      const d = new Date(c.created_at) 
-      const today = new Date()
-      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
-  }).length
-  
-  const totalDailyLoad = overdueCount + dueTodayCount + completedTodayCount
-
-  const filterByRoom = (chores: ChoreWithDetails[]) => {
-    if (!roomIdFilter) return chores
-    return chores.filter(c => c.room_id === roomIdFilter)
+  // Filter by Assignee (Me vs All)
+  if (assigneeFilter === 'me') {
+      allChoresRaw = allChoresRaw.filter(c => c.assigned_to === user.id)
   }
 
-  const overdueChores = filterByRoom(data.overdue)
-  const dueSoonChores = filterByRoom(data.dueSoon)
-  const upcomingChores = filterByRoom(data.upcoming)
-  const completedChores = filterByRoom(data.completed)
+  // Filter by Room
+  if (roomIdFilter) {
+      allChoresRaw = allChoresRaw.filter(c => c.room_id === roomIdFilter)
+  }
 
+  // Re-categorize based on filtered list
+  const overdueChores = allChoresRaw.filter(c => data.overdue.includes(c))
+  const dueSoonChores = allChoresRaw.filter(c => data.dueSoon.includes(c))
+  const upcomingChores = allChoresRaw.filter(c => data.upcoming.includes(c))
+  const completedChores = allChoresRaw.filter(c => data.completed.includes(c))
+
+  // --- 2. Stats Calculation (Based on ALL household data, not just filtered view, for fairness) ---
+  const allHouseholdChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
+  
+  // Only count stats for the current user for personal progress
+  const myDailyChores = allHouseholdChores.filter(c => {
+      // Is it assigned to me OR unassigned?
+      const isMine = c.assigned_to === user.id || c.assigned_to === null
+      if (!isMine) return false
+
+      // Is it relevant to "Today"? (Overdue + Due Today + Completed Today)
+      if (c.status === 'complete') {
+          const d = new Date(c.created_at)
+          const today = new Date()
+          return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
+      }
+      
+      if (c.due_date) {
+          const d = new Date(c.due_date)
+          const today = new Date()
+          const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
+          const isOverdue = d < today
+          return isToday || isOverdue
+      }
+      
+      return false
+  })
+
+  const completedTodayCount = myDailyChores.filter(c => c.status === 'complete').length
+  const totalDailyLoad = myDailyChores.length
+
+  // --- 3. Modal Logic ---
   let editChore: ChoreWithDetails | null = null
   if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
-    editChore = allChoresRaw.find(c => c.id === Number(searchParams.choreId)) || null
+    // We search in the full unfiltered list so you can edit a chore even if filters hide it
+    const fullList = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
+    editChore = fullList.find(c => c.id === Number(searchParams.choreId)) || null
   }
 
   return (
     <div className="space-y-8 pb-24">
-      {/* RealtimeChores removed - handled in layout */}
-      
       <ZenMode chores={allChoresRaw} />
 
       {/* Header Section */}
@@ -132,8 +155,9 @@ export default async function DashboardPage(props: DashboardProps) {
         <DailyProgress total={totalDailyLoad} completed={completedTodayCount} />
       </div>
       
+      {/* New Filter Bar (Replaces RoomFilter) */}
       <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8 border-b border-transparent transition-all data-[stuck=true]:border-border">
-        <RoomFilter rooms={roomData.rooms} />
+        <FilterBar rooms={roomData.rooms} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
@@ -165,7 +189,7 @@ export default async function DashboardPage(props: DashboardProps) {
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-6">
-            <Leaderboard members={roomData.members} chores={allChoresRaw} />
+            <Leaderboard members={roomData.members} chores={allHouseholdChores} />
             
             <div className="pt-4 border-t border-border">
                 <ChoreDisplay 
