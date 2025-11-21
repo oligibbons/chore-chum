@@ -1,4 +1,3 @@
-// src/app/chore-actions.ts
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
@@ -94,7 +93,6 @@ async function updateStreaks(supabase: TypedSupabaseClient, userIds: string[]) {
     yesterday.setDate(yesterday.getDate() - 1)
     const yesterdayStr = yesterday.toISOString().split('T')[0]
 
-    // Loop through all users who completed the task
     for (const userId of userIds) {
         const { data: rawProfile } = await supabase.from('profiles').select('*').eq('id', userId).single()
         
@@ -625,7 +623,8 @@ export async function toggleChoreStatus(
     const isRecurring = chore.recurrence_type !== 'none'
     
     if (actorProfile) {
-        await updateStreak(supabase, actorProfile.id)
+        // FIX: Use updateStreaks (plural)
+        await updateStreaks(supabase, [actorProfile.id])
     }
 
     if (isRecurring) {
