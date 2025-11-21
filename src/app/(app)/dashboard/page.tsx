@@ -75,7 +75,8 @@ export default async function DashboardPage(props: DashboardProps) {
 
   // Dashboard View Filters
   if (assigneeFilter === 'me') {
-      allChoresRaw = allChoresRaw.filter(c => c.assigned_to === user.id)
+      // FIX: Check if array includes user ID
+      allChoresRaw = allChoresRaw.filter(c => c.assigned_to?.includes(user.id))
   }
   if (roomIdFilter) {
       allChoresRaw = allChoresRaw.filter(c => c.room_id === roomIdFilter)
@@ -92,13 +93,17 @@ export default async function DashboardPage(props: DashboardProps) {
   
   // ZEN MODE FIX: Strictly YOUR incomplete chores
   const myZenChores = allHouseholdChores.filter(c => 
-    c.assigned_to === user.id && // Only mine
-    c.status !== 'complete'      // Only active
+    c.assigned_to?.includes(user.id) && // FIX: Array check
+    c.status !== 'complete'
   )
 
   // Stats Calculation (Personal)
   const myDailyChores = allHouseholdChores.filter(c => {
-      const isMine = c.assigned_to === user.id || c.assigned_to === null
+      // Is it assigned to me OR unassigned?
+      const isAssignedToMe = c.assigned_to?.includes(user.id)
+      const isUnassigned = !c.assigned_to || c.assigned_to.length === 0
+      
+      const isMine = isAssignedToMe || isUnassigned
       if (!isMine) return false
 
       if (c.status === 'complete') {
