@@ -17,6 +17,8 @@ import ZenMode from '@/components/ZenMode'
 import Leaderboard from '@/components/Leaderboard'
 import StreakCampfire from '@/components/StreakCampfire'
 import DailyProgress from '@/components/DailyProgress'
+import Greeting from '@/components/Greeting' // IMPORTED
+import AppBadgeUpdater from '@/components/AppBadgeUpdater' // IMPORTED
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +41,6 @@ export default async function DashboardPage(props: DashboardProps) {
     redirect('/') 
   }
 
-  // QUICK WIN: Fetch 'last_chore_date' for streak logic
   const { data: rawProfile } = await supabase
     .from('profiles')
     .select('household_id, full_name, current_streak, last_chore_date')
@@ -112,7 +113,7 @@ export default async function DashboardPage(props: DashboardProps) {
   const completedTodayCount = myDailyChores.filter(c => c.status === 'complete').length
   const totalDailyLoad = myDailyChores.length
 
-  // QUICK WIN: Dynamic Subtitle "Coach"
+  // Dynamic Subtitle
   let greetingSubtitle = "Let's get things done."
   if (totalDailyLoad > 0) {
     const ratio = completedTodayCount / totalDailyLoad
@@ -135,20 +136,22 @@ export default async function DashboardPage(props: DashboardProps) {
   return (
     <div className="space-y-8 pb-24">
       <ZenMode chores={allChoresRaw} />
+      
+      {/* WOW FACTOR: App Icon Badge Updater */}
+      <AppBadgeUpdater count={overdueChores.length} />
 
       {/* Header Section */}
       <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h2 className="text-4xl font-heading font-bold text-foreground">
-                    Hi, {userName}!
-                </h2>
-                <p className="text-lg text-text-secondary animate-in fade-in slide-in-from-bottom-1 duration-700">
+                {/* WOW FACTOR: Smart Greeting Component */}
+                <Greeting name={userName} />
+                
+                <p className="text-lg text-text-secondary animate-in fade-in slide-in-from-bottom-1 duration-700 delay-100">
                     {greetingSubtitle}
                 </p>
             </div>
             
-            {/* Zen & Streak Area */}
             <div className="flex items-center gap-3 self-start md:self-auto">
                 <StreakCampfire 
                   streak={profile.current_streak || 0} 

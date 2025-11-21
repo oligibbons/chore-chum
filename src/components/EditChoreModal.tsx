@@ -1,3 +1,4 @@
+// src/components/EditChoreModal.tsx
 'use client'
 
 import { Fragment, useState, FormEvent } from 'react'
@@ -7,6 +8,7 @@ import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { useGameFeel } from '@/hooks/use-game-feel'
 
 type EditFormProps = {
   closeModal: () => void
@@ -15,21 +17,34 @@ type EditFormProps = {
   rooms: DbRoom[]
 }
 
-// Define the exact type for our time options
 type TimeOption = 'morning' | 'afternoon' | 'evening' | 'any';
 
 function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   const [pending, setPending] = useState(false)
-  // Cast initial state to match our literal type, handling nulls safely
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>(
     (chore.time_of_day as TimeOption) || 'any'
   )
+  
+  // WOW FACTOR: Shake State
+  const [isShaking, setIsShaking] = useState(false)
+  const { triggerHaptic } = useGameFeel()
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setPending(true)
-
+    
     const formData = new FormData(event.currentTarget)
+    const name = formData.get('name') as string
+
+    // WOW FACTOR: Validation Shake
+    if (!name || !name.trim()) {
+        setIsShaking(true)
+        triggerHaptic('medium')
+        toast.error("Name is required")
+        setTimeout(() => setIsShaking(false), 500)
+        return
+    }
+
+    setPending(true)
     formData.append('timeOfDay', timeOfDay)
     
     try {
@@ -68,9 +83,9 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
             type="text"
             id="name"
             name="name"
-            required
+            // Removed required to allow JS shake
             defaultValue={chore.name}
-            className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+            className={`mt-1 block w-full rounded-xl border bg-background p-3 transition-all focus:border-brand focus:ring-brand ${isShaking ? 'border-red-500 ring-2 ring-red-200 animate-shake' : 'border-border'}`}
           />
         </div>
       </div>

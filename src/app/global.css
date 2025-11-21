@@ -6,14 +6,10 @@
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* QUICK WIN: Prevent the whole page from rubber-banding.
-       This makes the app feel "solid" like a native view. 
-       We handle pull-to-refresh manually in a component. */
     overscroll-behavior-y: none;
   }
 
   html {
-    /* Ensure the behavior applies to the root as well */
     overscroll-behavior-y: none;
   }
 
@@ -21,7 +17,6 @@
     font-family: var(--font-lexend), sans-serif;
   }
 
-  /* Prevent iOS zoom on inputs */
   input, textarea, select {
     font-size: 16px !important;
   }
@@ -33,7 +28,6 @@
   }
 }
 
-/* --- VISUAL ENHANCEMENT: Fire Animations --- */
 @layer utilities {
   .animate-flicker {
     animation: flicker 3s infinite alternate;
@@ -41,6 +35,18 @@
   
   .animate-float-up {
     animation: float-up 2s infinite ease-in;
+  }
+
+  /* WOW FACTOR: The "Nope" Shake */
+  .animate-shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  @keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
   }
 
   @keyframes flicker {

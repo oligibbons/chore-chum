@@ -9,6 +9,7 @@ import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { parseChoreInput } from '@/lib/smart-parser'
+import { useGameFeel } from '@/hooks/use-game-feel'
 
 type Props = {
   isOpen: boolean
@@ -29,8 +30,11 @@ function ChoreForm({
 }) {
   const [pending, setPending] = useState(false)
   const [smartInput, setSmartInput] = useState('')
+  const { triggerHaptic } = useGameFeel()
   
-  // Form State
+  // WOW FACTOR: Shake State
+  const [isShaking, setIsShaking] = useState(false)
+  
   const [name, setName] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
   const [roomId, setRoomId] = useState('')
@@ -38,7 +42,6 @@ function ChoreForm({
   const [recurrence, setRecurrence] = useState('none')
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
 
-  // QUICK WIN: Smart Suggestions
   const suggestions = [
     "Wash dishes tonight",
     "Take out trash",
@@ -48,7 +51,6 @@ function ChoreForm({
     "Clean bathroom"
   ]
 
-  // Magic Parsing Logic
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!smartInput.trim()) return
@@ -69,6 +71,16 @@ function ChoreForm({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    
+    // WOW FACTOR: Validation Shake
+    if (!name.trim()) {
+        setIsShaking(true)
+        triggerHaptic('medium') // Error haptic
+        toast.error("Please give your chore a name")
+        setTimeout(() => setIsShaking(false), 500) // Reset animation
+        return
+    }
+
     setPending(true)
     
     const formData = new FormData(event.currentTarget)
@@ -111,7 +123,6 @@ function ChoreForm({
             />
         </div>
         
-        {/* QUICK WIN: Chips */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient">
             {suggestions.map(s => (
                 <button
@@ -129,7 +140,7 @@ function ChoreForm({
 
       <div className="h-px bg-border w-full" />
 
-      {/* Standard Fields (Auto-filled) */}
+      {/* Standard Fields */}
       <div>
         <label htmlFor="name" className="block font-heading text-sm font-medium text-text-primary">
           Chore Name
@@ -140,8 +151,8 @@ function ChoreForm({
             name="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+            // Removed 'required' attribute to allow our custom JS validation shake to trigger
+            className={`mt-1 block w-full rounded-xl border bg-background p-3 transition-all focus:border-brand focus:ring-brand ${isShaking ? 'border-red-500 ring-2 ring-red-200 animate-shake' : 'border-border'}`}
         />
       </div>
 
@@ -193,7 +204,7 @@ function ChoreForm({
         </div>
       </div>
 
-      {/* Time of Day Selection */}
+      {/* Time of Day */}
       <div>
          <label className="block font-heading text-sm font-medium text-text-primary mb-2">
             Time of Day
@@ -261,7 +272,6 @@ function ChoreForm({
         </div>
       </div>
 
-      {/* Details Toggle */}
       <details className="group">
         <summary className="flex items-center gap-2 text-sm font-medium text-brand cursor-pointer list-none">
             <span>More Options (Notes, Exact Time)</span>
