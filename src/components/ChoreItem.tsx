@@ -2,7 +2,7 @@
 'use client'
 
 import { ChoreWithDetails, DbProfile } from '@/types/database'
-import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon } from 'lucide-react'
+import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, User } from 'lucide-react'
 import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
