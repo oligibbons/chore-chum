@@ -1,12 +1,13 @@
 'use client'
 
-import { Fragment, useState, FormEvent } from 'react'
+import { Fragment, useState, FormEvent, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Hash, Sun, Moon, Coffee, Clock } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Hash, Sparkles, Wand2, Clock, Coffee, Sun, Moon } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { parseChoreInput } from '@/lib/smart-parser'
 
 type Props = {
   isOpen: boolean
@@ -26,7 +27,34 @@ function ChoreForm({
   rooms: Props['rooms'] 
 }) {
   const [pending, setPending] = useState(false)
+  const [smartInput, setSmartInput] = useState('')
+  
+  // Form State
+  const [name, setName] = useState('')
+  const [assignedTo, setAssignedTo] = useState('')
+  const [roomId, setRoomId] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [recurrence, setRecurrence] = useState('none')
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
+
+  // Magic Parsing Logic
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        if (!smartInput.trim()) return
+
+        const parsed = parseChoreInput(smartInput, members, rooms)
+        
+        if (parsed.name) setName(parsed.name)
+        if (parsed.roomId) setRoomId(parsed.roomId.toString())
+        if (parsed.assignedTo) setAssignedTo(parsed.assignedTo)
+        if (parsed.recurrence) setRecurrence(parsed.recurrence)
+        if (parsed.dueDate) setDueDate(parsed.dueDate)
+        if (parsed.timeOfDay) setTimeOfDay(parsed.timeOfDay)
+
+    }, 600) // Debounce to avoid flickering while typing
+
+    return () => clearTimeout(timer)
+  }, [smartInput, members, rooms])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -55,42 +83,44 @@ function ChoreForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Chore Name */}
+      
+      {/* SMART INPUT HERO */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Wand2 className="h-5 w-5 text-brand animate-pulse" />
+        </div>
+        <input
+            type="text"
+            value={smartInput}
+            onChange={(e) => setSmartInput(e.target.value)}
+            placeholder="e.g. 'Vacuum Living Room every Friday'"
+            className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
+            autoFocus
+        />
+        <p className="text-xs text-text-secondary mt-2 ml-1">
+            ✨ Magic: Type a sentence, we'll fill the details below.
+        </p>
+      </div>
+
+      <div className="h-px bg-border w-full" />
+
+      {/* Standard Fields (Auto-filled) */}
       <div>
         <label htmlFor="name" className="block font-heading text-sm font-medium text-text-primary">
           Chore Name
         </label>
-        <div className="relative mt-1">
-          <input
+        <input
             type="text"
             id="name"
             name="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             required
-            placeholder="e.g. 'Take out the trash'"
             className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
-          />
-        </div>
+        />
       </div>
 
-      {/* Notes (Optional) */}
-      <div>
-        <label htmlFor="notes" className="block font-heading text-sm font-medium text-text-primary">
-          Notes (Optional)
-        </label>
-        <div className="relative mt-1">
-          <textarea
-            id="notes"
-            name="notes"
-            rows={2}
-            placeholder="Any extra details..."
-            className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
-          />
-        </div>
-      </div>
-
-      {/* Grid for details */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Assigned To */}
         <div>
           <label htmlFor="assignedTo" className="block font-heading text-sm font-medium text-text-primary">
             Assign To
@@ -100,8 +130,9 @@ function ChoreForm({
             <select
               id="assignedTo"
               name="assignedTo"
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
               className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-              defaultValue=""
             >
               <option value="">Unassigned</option>
               {members.map((member) => (
@@ -113,7 +144,6 @@ function ChoreForm({
           </div>
         </div>
 
-        {/* Room */}
         <div>
           <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
             Room
@@ -123,8 +153,9 @@ function ChoreForm({
             <select
               id="roomId"
               name="roomId"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
               className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-              defaultValue=""
             >
               <option value="">No Room</option>
               {rooms.map((room) => (
@@ -136,11 +167,11 @@ function ChoreForm({
           </div>
         </div>
       </div>
-      
+
       {/* Time of Day Selection */}
       <div>
          <label className="block font-heading text-sm font-medium text-text-primary mb-2">
-            Time of Day (Optional)
+            Time of Day
          </label>
          <div className="flex gap-2">
             {timeOptions.map((t) => (
@@ -165,9 +196,7 @@ function ChoreForm({
          </div>
       </div>
 
-      {/* Grid for date/recurrence */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Due Date */}
         <div>
           <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
             Due Date
@@ -178,28 +207,13 @@ function ChoreForm({
               type="date"
               id="dueDate"
               name="dueDate"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
               className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
             />
           </div>
         </div>
 
-         {/* Exact Time */}
-         <div>
-          <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary">
-            Exact Time (Optional)
-          </label>
-          <div className="relative mt-1">
-            <Clock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <input
-              type="time"
-              id="exactTime"
-              name="exactTime"
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            />
-          </div>
-        </div>
-
-        {/* Recurrence */}
         <div>
           <label htmlFor="recurrence_type" className="block font-heading text-sm font-medium text-text-primary">
             Recurs
@@ -209,8 +223,9 @@ function ChoreForm({
             <select
               id="recurrence_type"
               name="recurrence_type"
+              value={recurrence}
+              onChange={(e) => setRecurrence(e.target.value)}
               className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-              defaultValue="none"
             >
               <option value="none">Does not repeat</option>
               <option value="daily">Daily</option>
@@ -219,28 +234,52 @@ function ChoreForm({
             </select>
           </div>
         </div>
-        
-        {/* Instances */}
-        <div>
-            <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
-            Instances
-            </label>
-            <div className="relative mt-1">
-            <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <input
-                type="number"
-                id="instances"
-                name="instances"
-                defaultValue={1}
-                min={1}
-                className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            />
-            </div>
-        </div>
       </div>
 
+      {/* Details Toggle */}
+      <details className="group">
+        <summary className="flex items-center gap-2 text-sm font-medium text-brand cursor-pointer list-none">
+            <span>More Options (Notes, Exact Time)</span>
+        </summary>
+        <div className="space-y-4 pt-4 animate-in fade-in slide-in-from-top-2">
+            <div>
+                <label htmlFor="notes" className="block font-heading text-sm font-medium text-text-primary">
+                Notes
+                </label>
+                <textarea
+                    id="notes"
+                    name="notes"
+                    rows={2}
+                    className="mt-1 block w-full rounded-xl border-border bg-background p-3"
+                />
+            </div>
+             <div>
+                <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary">
+                    Exact Time
+                </label>
+                <input
+                    type="time"
+                    id="exactTime"
+                    name="exactTime"
+                    className="mt-1 block w-full rounded-xl border-border bg-background p-3"
+                />
+            </div>
+             <div>
+                <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
+                Instances
+                </label>
+                <input
+                    type="number"
+                    id="instances"
+                    name="instances"
+                    defaultValue={1}
+                    min={1}
+                    className="mt-1 block w-full rounded-xl border-border bg-background p-3"
+                />
+            </div>
+        </div>
+      </details>
 
-      {/* --- FORM ACTIONS --- */}
       <div className="flex items-center justify-end space-x-4 pt-4">
         <button
           type="button"
@@ -304,9 +343,9 @@ export default function AddChoreModal({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-card p-8 text-left align-middle shadow-xl transition-all">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                   <Dialog.Title as="h3" className="text-2xl font-heading font-semibold">
-                    Add a New Chore
+                    Add Chore
                   </Dialog.Title>
                   <button
                     onClick={handleClose}
@@ -316,13 +355,11 @@ export default function AddChoreModal({
                   </button>
                 </div>
                 
-                <div className="mt-6">
-                  <ChoreForm
+                <ChoreForm
                     closeModal={handleClose}
                     members={members}
                     rooms={rooms}
-                  />
-                </div>
+                />
 
               </Dialog.Panel>
             </Transition.Child>
