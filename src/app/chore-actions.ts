@@ -1,3 +1,4 @@
+// src/app/chore-actions.ts
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server' 
@@ -83,8 +84,8 @@ function getCheekyMotivation(isComplete: boolean, isOverdue: boolean): string {
   return bad[Math.floor(Math.random() * bad.length)]
 }
 
-// --- Helper: Update Streak Logic ---
-async function updateStreak(supabase: TypedSupabaseClient, userId: string) {
+// --- Helper: Update Streak Logic (Multi-User) ---
+async function updateStreaks(supabase: TypedSupabaseClient, userIds: string[]) {
     const now = new Date()
     const todayStr = now.toISOString().split('T')[0]
     
@@ -93,35 +94,37 @@ async function updateStreak(supabase: TypedSupabaseClient, userId: string) {
     yesterday.setDate(yesterday.getDate() - 1)
     const yesterdayStr = yesterday.toISOString().split('T')[0]
 
-    const { data: rawProfile } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    
-    if (!rawProfile) return
+    // Loop through all users who completed the task
+    for (const userId of userIds) {
+        const { data: rawProfile } = await supabase.from('profiles').select('*').eq('id', userId).single()
+        
+        if (!rawProfile) continue
 
-    const profile = rawProfile as unknown as DbProfile
+        const profile = rawProfile as unknown as DbProfile
+        const lastDate = profile.last_chore_date ? new Date(profile.last_chore_date).toISOString().split('T')[0] : null
+        
+        // If already done something today, ignore
+        if (lastDate === todayStr) continue
 
-    const lastDate = profile.last_chore_date ? new Date(profile.last_chore_date).toISOString().split('T')[0] : null
-    
-    // If already done something today, ignore
-    if (lastDate === todayStr) return
+        let newStreak = (profile.current_streak || 0)
+        
+        if (lastDate === yesterdayStr) {
+            // Continued streak
+            newStreak += 1
+        } else {
+            // Broken streak (or first time)
+            newStreak = 1
+        }
 
-    let newStreak = (profile.current_streak || 0)
-    
-    if (lastDate === yesterdayStr) {
-        // Continued streak
-        newStreak += 1
-    } else {
-        // Broken streak (or first time)
-        newStreak = 1
+        const newLongest = Math.max(newStreak, profile.longest_streak || 0)
+
+        // FIX: Cast object to 'any' so TypeScript allows 'current_streak' etc.
+        await supabase.from('profiles').update({
+            current_streak: newStreak,
+            longest_streak: newLongest,
+            last_chore_date: todayStr
+        } as any).eq('id', userId)
     }
-
-    const newLongest = Math.max(newStreak, profile.longest_streak || 0)
-
-    // FIX: Cast object to 'any' so TypeScript allows 'current_streak' etc.
-    await supabase.from('profiles').update({
-        current_streak: newStreak,
-        longest_streak: newLongest,
-        last_chore_date: todayStr
-    } as any).eq('id', userId)
 }
 
 function getNextDueDate(
@@ -136,19 +139,16 @@ function getNextDueDate(
     
     if (isNaN(startDate.getTime())) return null
 
-    switch (recurrenceType) {
-      case 'daily':
-        rule = new RRule({ freq: RRule.DAILY, dtstart: startDate, count: 2 })
-        break
-      case 'weekly':
-        rule = new RRule({ freq: RRule.WEEKLY, dtstart: startDate, count: 2 })
-        break
-      case 'monthly':
-        rule = new RRule({ freq: RRule.MONTHLY, dtstart: startDate, count: 2 })
-        break
-      default:
-        return null
+    const ruleMap: Record<string, any> = {
+        'daily': RRule.DAILY,
+        'weekly': RRule.WEEKLY,
+        'monthly': RRule.MONTHLY
     }
+    
+    if (!ruleMap[recurrenceType]) return null
+
+    // Generate next 2 occurrences to pick the 2nd one (1st is current)
+    rule = new RRule({ freq: ruleMap[recurrenceType], dtstart: startDate, count: 2 })
     
     const allDates = rule.all()
     return allDates.length > 1 ? allDates[1].toISOString() : null
@@ -163,7 +163,7 @@ function getNextDueDate(
 export async function getHouseholdData(
   householdId: string
 ): Promise<HouseholdData | null> {
-  const supabase: TypedSupabaseClient = await createSupabaseClient() 
+  const supabase = await createSupabaseClient() 
   
   const { data: household } = await supabase
     .from('households')
@@ -183,21 +183,35 @@ export async function getHouseholdData(
     .select('*')
     .eq('household_id', householdId)
     
+  // Fetch chores. 
+  // NOTE: Since 'assigned_to' is now an array of IDs, we can't easily join 'profiles' directly 
+  // in a single query without complex PostgreSQL syntax. We will hydrate manually below.
   const { data: chores } = await supabase
     .from('chores')
     .select(`
       *,
-      profiles:assigned_to (id, full_name, avatar_url),
       rooms:room_id (id, name)
     `)
     .eq('household_id', householdId)
     .order('due_date', { ascending: true, nullsFirst: true })
 
+  // Hydrate assignees
+  const hydratedChores = (chores || []).map((chore: any) => {
+      const assigneeIds = chore.assigned_to || []
+      // Find members who match the IDs in the array
+      const assignees = (members || []).filter((m: any) => 
+          Array.isArray(assigneeIds) 
+            ? assigneeIds.includes(m.id) 
+            : assigneeIds === m.id // Handle legacy single-string case just in case
+      )
+      return { ...chore, assignees }
+  })
+
   return {
     household: household as unknown as DbHousehold,
     members: (members || []) as unknown as Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[],
     rooms: rooms || [],
-    chores: (chores as unknown as ChoreWithDetails[]) || [],
+    chores: hydratedChores as ChoreWithDetails[],
   }
 }
 
@@ -254,7 +268,8 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
     return categorizedData
 }
 
-export async function completeChore(choreId: number): Promise<ActionResponse> {
+// UPDATED: Now accepts an array of user IDs who completed the task
+export async function completeChore(choreId: number, completedBy: string[]): Promise<ActionResponse> {
     const supabase: TypedSupabaseClient = await createSupabaseClient()
     const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     
@@ -262,25 +277,117 @@ export async function completeChore(choreId: number): Promise<ActionResponse> {
 
     const safeChore = chore as unknown as DbChore
 
-    if ((safeChore.target_instances ?? 1) > 1) {
-        return incrementChoreInstance(safeChore)
+    const newInstanceCount = (safeChore.completed_instances ?? 0) + 1
+    const targetInstances = safeChore.target_instances ?? 1
+    const isFullyComplete = newInstanceCount >= targetInstances
+
+    // Update streaks for everyone who participated
+    if (completedBy.length > 0) {
+        await updateStreaks(supabase, completedBy)
+    }
+
+    if (isFullyComplete) {
+        // Mark as complete
+        const isRecurring = safeChore.recurrence_type !== 'none'
+        
+        if (isRecurring) {
+            // 1. Mark current as complete
+            await supabase.from('chores').update({ 
+              status: 'complete',
+              completed_instances: targetInstances 
+            }).eq('id', choreId)
+            
+            // 2. Create next instance
+            const nextDueDate = getNextDueDate(safeChore.recurrence_type, safeChore.due_date)
+            
+            // Copy everything except ID and created_at
+            const { id, created_at, ...choreData } = safeChore
+            
+            // Insert new pending chore
+            await supabase.from('chores').insert({
+                ...choreData,
+                status: 'pending',
+                due_date: nextDueDate,
+                completed_instances: 0,
+                created_by: completedBy[0] || safeChore.created_by
+            } as any)
+
+        } else {
+            // Non-recurring: just complete it
+            await supabase.from('chores').update({ 
+              status: 'complete',
+              completed_instances: targetInstances 
+            }).eq('id', choreId)
+        }
+
+        // Get names for notification
+        let names = 'Someone'
+        if (completedBy.length > 0) {
+            const { data: completers } = await supabase.from('profiles').select('full_name').in('id', completedBy)
+            if (completers) {
+                names = completers.map(c => c.full_name?.split(' ')[0]).join(' & ')
+            }
+        }
+
+        await logActivity(safeChore.household_id, 'complete', safeChore.name, { completed_by: names })
+
+        await notifyHousehold(
+            safeChore.household_id,
+            {
+              title: 'Chore Crushed! 🎉',
+              body: `${names} completed "${safeChore.name}".`,
+              url: '/feed'
+            }
+        )
+
+        revalidatePath('/dashboard')
+        revalidatePath('/feed')
+        revalidatePath('/calendar')
+        
+        return { 
+            success: true, 
+            message: 'Chore completed!', 
+            motivation: getCheekyMotivation(true, false) 
+        }
+
     } else {
-        return toggleChoreStatus(safeChore)
+        // Just increment instance
+        const { error } = await supabase
+          .from('chores')
+          .update({ completed_instances: newInstanceCount })
+          .eq('id', choreId)
+
+        if (error) return { success: false, message: error.message }
+        
+        revalidatePath('/dashboard')
+        revalidatePath('/feed')
+        return { 
+            success: true, 
+            message: `Progress: ${newInstanceCount}/${targetInstances}`, 
+            motivation: "Keep going..." 
+        }
     }
 }
 
 export async function uncompleteChore(choreId: number): Promise<ActionResponse> {
     const supabase: TypedSupabaseClient = await createSupabaseClient()
-    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
     
-    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
+    // Reset status and instances
+    const { error } = await supabase
+        .from('chores')
+        .update({ 
+            status: 'pending', 
+            completed_instances: 0 
+        })
+        .eq('id', choreId)
 
-    const safeChore = chore as unknown as DbChore
+    if (error) return { success: false, message: error?.message || 'Chore not found' }
 
-    if ((safeChore.target_instances ?? 1) > 1) {
-        return decrementChoreInstance(safeChore)
-    } else {
-        return toggleChoreStatus(safeChore)
+    revalidatePath('/dashboard')
+    return { 
+        success: true, 
+        message: 'Marked as pending', 
+        motivation: getCheekyMotivation(false, false) 
     }
 }
 
@@ -305,25 +412,34 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
+  
+  // UPDATED: Handle assignedTo as a JSON string (array of IDs) or fallback
   const rawAssignedTo = formData.get('assignedTo') as string
+  let assignedTo: string[] = []
+  try {
+      assignedTo = JSON.parse(rawAssignedTo)
+  } catch(e) {
+      // Fallback if it's just a single string ID
+      if (rawAssignedTo) assignedTo = [rawAssignedTo]
+  }
+
   const rawRoomId = formData.get('roomId') as string
   const rawDueDate = formData.get('dueDate') as string
   const rawInstances = formData.get('instances') as string
   const rawRecurrence = formData.get('recurrence_type') as string
-  
   const rawTimeOfDay = formData.get('timeOfDay') as string
   const rawExactTime = formData.get('exactTime') as string
 
   if (!rawName) return { success: false, message: 'Chore name is required.' }
 
-  // FIX: Cast to any to avoid type error with new fields
   const newChoreData = {
     name: rawName,
     notes: rawNotes || null,
     household_id: householdId,
     created_by: user.id,
     status: 'pending',
-    assigned_to: rawAssignedTo && rawAssignedTo !== '' ? rawAssignedTo : null,
+    // Store array (ensure your DB schema supports text[] or uuid[] for this column)
+    assigned_to: assignedTo.length > 0 ? assignedTo : null,
     room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
     due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
     target_instances: rawInstances ? Number(rawInstances) : 1,
@@ -356,6 +472,133 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   revalidatePath('/feed')
   revalidatePath('/calendar')
   return { success: true, message: 'Chore created successfully' }
+}
+
+export async function updateChore(formData: FormData): Promise<ActionResponse> {
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
+  
+  const choreId = formData.get('choreId') as string
+  if (!choreId) return { success: false, message: 'Chore ID missing' }
+
+  const rawName = formData.get('name') as string
+  const rawNotes = formData.get('notes') as string
+  
+  // UPDATED: Multi-assignee parsing
+  const rawAssignedTo = formData.get('assignedTo') as string
+  let assignedTo: string[] = []
+  try {
+      assignedTo = JSON.parse(rawAssignedTo)
+  } catch(e) {
+      if (rawAssignedTo) assignedTo = [rawAssignedTo]
+  }
+
+  const rawRoomId = formData.get('roomId') as string
+  const rawDueDate = formData.get('dueDate') as string
+  const rawInstances = formData.get('instances') as string
+  const rawRecurrence = formData.get('recurrence_type') as string
+  const rawTimeOfDay = formData.get('timeOfDay') as string
+  const rawExactTime = formData.get('exactTime') as string
+
+  if (!rawName) return { success: false, message: 'Name required' }
+  
+  const { data: currentChore } = await supabase
+    .from('chores')
+    .select('household_id, name')
+    .eq('id', Number(choreId))
+    .single()
+
+  const updateData = {
+    name: rawName,
+    notes: rawNotes || null,
+    assigned_to: assignedTo.length > 0 ? assignedTo : null,
+    room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
+    due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
+    target_instances: rawInstances ? Number(rawInstances) : 1,
+    recurrence_type: rawRecurrence || 'none',
+    time_of_day: rawTimeOfDay || 'any',
+    exact_time: rawExactTime || null
+  }
+
+  const { error } = await supabase
+    .from('chores')
+    .update(updateData as any)
+    .eq('id', Number(choreId))
+
+  if (error) {
+    return { success: false, message: error.message }
+  }
+  
+  if (currentChore) {
+    await logActivity(currentChore.household_id, 'update', currentChore.name)
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/feed')
+  revalidatePath('/calendar')
+  return { success: true, message: 'Chore updated' }
+}
+
+export async function deleteChore(choreId: number): Promise<ActionResponse> {
+  const supabase: TypedSupabaseClient = await createSupabaseClient() 
+  
+  const { data: chore } = await supabase
+    .from('chores')
+    .select('household_id, name')
+    .eq('id', choreId)
+    .single()
+
+  const { error } = await supabase
+    .from('chores')
+    .delete()
+    .eq('id', choreId)
+
+  if (error) {
+    return { success: false, message: error.message }
+  }
+  
+  if (chore) {
+    await logActivity(chore.household_id, 'delete', chore.name)
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/feed')
+  return { success: true, message: 'Chore deleted' }
+}
+
+export async function delayChore(choreId: number, days: number): Promise<ActionResponse> {
+  const supabase: TypedSupabaseClient = await createSupabaseClient()
+  const actorProfile = await getCurrentUserProfile(supabase)
+
+  const { data: chore } = await supabase
+    .from('chores')
+    .select('household_id, name, due_date')
+    .eq('id', choreId)
+    .single()
+  
+  if (!chore) return { success: false, message: 'Chore not found' }
+
+  const baseDate = chore.due_date ? new Date(chore.due_date) : new Date()
+  
+  baseDate.setDate(baseDate.getDate() + days)
+  
+  const newDueDate = baseDate.toISOString()
+
+  const { error } = await supabase
+    .from('chores')
+    .update({ due_date: newDueDate })
+    .eq('id', choreId)
+
+  if (error) {
+    return { success: false, message: error.message }
+  }
+  
+  await logActivity(chore.household_id, 'delay', chore.name, { days })
+
+  return { 
+      success: true, 
+      message: `Delayed by ${days} days`,
+      motivation: getCheekyMotivation(false, true) 
+  }
 }
 
 export async function toggleChoreStatus(
@@ -498,123 +741,4 @@ export async function decrementChoreInstance(
   
   revalidatePath('/dashboard')
   return { success: true, message: 'Progress updated' }
-}
-
-export async function updateChore(formData: FormData): Promise<ActionResponse> {
-  const supabase: TypedSupabaseClient = await createSupabaseClient() 
-  
-  const choreId = formData.get('choreId') as string
-  if (!choreId) return { success: false, message: 'Chore ID missing' }
-
-  const rawName = formData.get('name') as string
-  const rawNotes = formData.get('notes') as string
-  const rawAssignedTo = formData.get('assignedTo') as string
-  const rawRoomId = formData.get('roomId') as string
-  const rawDueDate = formData.get('dueDate') as string
-  const rawInstances = formData.get('instances') as string
-  const rawRecurrence = formData.get('recurrence_type') as string
-  const rawTimeOfDay = formData.get('timeOfDay') as string
-  const rawExactTime = formData.get('exactTime') as string
-
-  if (!rawName) return { success: false, message: 'Name required' }
-  
-  const { data: currentChore } = await supabase
-    .from('chores')
-    .select('household_id, name')
-    .eq('id', Number(choreId))
-    .single()
-
-  // FIX: Cast to any to allow new fields
-  const updateData = {
-    name: rawName,
-    notes: rawNotes || null,
-    assigned_to: rawAssignedTo && rawAssignedTo !== '' ? rawAssignedTo : null,
-    room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
-    due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
-    target_instances: rawInstances ? Number(rawInstances) : 1,
-    recurrence_type: rawRecurrence || 'none',
-    time_of_day: rawTimeOfDay || 'any',
-    exact_time: rawExactTime || null
-  }
-
-  const { error } = await supabase
-    .from('chores')
-    .update(updateData as any)
-    .eq('id', Number(choreId))
-
-  if (error) {
-    return { success: false, message: error.message }
-  }
-  
-  if (currentChore) {
-    await logActivity(currentChore.household_id, 'update', currentChore.name)
-  }
-
-  revalidatePath('/dashboard')
-  revalidatePath('/feed')
-  revalidatePath('/calendar')
-  return { success: true, message: 'Chore updated' }
-}
-
-export async function deleteChore(choreId: number): Promise<ActionResponse> {
-  const supabase: TypedSupabaseClient = await createSupabaseClient() 
-  
-  const { data: chore } = await supabase
-    .from('chores')
-    .select('household_id, name')
-    .eq('id', choreId)
-    .single()
-
-  const { error } = await supabase
-    .from('chores')
-    .delete()
-    .eq('id', choreId)
-
-  if (error) {
-    return { success: false, message: error.message }
-  }
-  
-  if (chore) {
-    await logActivity(chore.household_id, 'delete', chore.name)
-  }
-
-  revalidatePath('/dashboard')
-  revalidatePath('/feed')
-  return { success: true, message: 'Chore deleted' }
-}
-
-export async function delayChore(choreId: number, days: number): Promise<ActionResponse> {
-  const supabase: TypedSupabaseClient = await createSupabaseClient()
-  const actorProfile = await getCurrentUserProfile(supabase)
-
-  const { data: chore } = await supabase
-    .from('chores')
-    .select('household_id, name, due_date')
-    .eq('id', choreId)
-    .single()
-  
-  if (!chore) return { success: false, message: 'Chore not found' }
-
-  const baseDate = chore.due_date ? new Date(chore.due_date) : new Date()
-  
-  baseDate.setDate(baseDate.getDate() + days)
-  
-  const newDueDate = baseDate.toISOString()
-
-  const { error } = await supabase
-    .from('chores')
-    .update({ due_date: newDueDate })
-    .eq('id', choreId)
-
-  if (error) {
-    return { success: false, message: error.message }
-  }
-  
-  await logActivity(chore.household_id, 'delay', chore.name, { days })
-
-  return { 
-      success: true, 
-      message: `Delayed by ${days} days`,
-      motivation: getCheekyMotivation(false, true) 
-  }
 }

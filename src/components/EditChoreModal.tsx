@@ -1,14 +1,14 @@
-// src/components/EditChoreModal.tsx
 'use client'
 
 import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Hash, Clock, Coffee, Sun, Moon } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Hash, Clock, Coffee, Sun, Moon, Check } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useGameFeel } from '@/hooks/use-game-feel'
+import Avatar from './Avatar'
 
 type EditFormProps = {
   closeModal: () => void
@@ -21,13 +21,23 @@ type TimeOption = 'morning' | 'afternoon' | 'evening' | 'any';
 
 function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   const [pending, setPending] = useState(false)
+  const { triggerHaptic, interact } = useGameFeel()
+  const [isShaking, setIsShaking] = useState(false)
+
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>(
     (chore.time_of_day as TimeOption) || 'any'
   )
   
-  // WOW FACTOR: Shake State
-  const [isShaking, setIsShaking] = useState(false)
-  const { triggerHaptic } = useGameFeel()
+  // Initialize with array of assignees (or empty array if null)
+  // Note: The types update ensures assignees is string[] | null
+  const [assignedIds, setAssignedIds] = useState<string[]>(chore.assigned_to || [])
+
+  const toggleMember = (id: string) => {
+    interact('neutral')
+    setAssignedIds(prev => 
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -46,6 +56,8 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
 
     setPending(true)
     formData.append('timeOfDay', timeOfDay)
+    // Serialize array for backend
+    formData.append('assignedTo', JSON.stringify(assignedIds))
     
     try {
       const result = await updateChore(formData)
@@ -83,10 +95,55 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
             type="text"
             id="name"
             name="name"
-            // Removed required to allow JS shake
+            // Removed required to allow JS shake logic
             defaultValue={chore.name}
             className={`mt-1 block w-full rounded-xl border bg-background p-3 transition-all focus:border-brand focus:ring-brand ${isShaking ? 'border-red-500 ring-2 ring-red-200 animate-shake' : 'border-border'}`}
           />
+        </div>
+      </div>
+
+      {/* ASSIGNEES - MULTI SELECT GRID */}
+      <div>
+        <label className="block font-heading text-sm font-medium text-text-primary mb-2">
+          Assign To
+        </label>
+        <div className="flex flex-wrap gap-3">
+            <button
+                type="button"
+                onClick={() => setAssignedIds([])}
+                className={`
+                    flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
+                    ${assignedIds.length === 0 ? 'bg-brand-light border-brand text-brand shadow-sm' : 'bg-white border-border text-text-secondary hover:border-brand/50'}
+                `}
+            >
+                <User className="h-5 w-5" />
+                <span className="text-sm font-bold">Anyone</span>
+            </button>
+            
+            {members.map(m => {
+                const isSelected = assignedIds.includes(m.id)
+                return (
+                    <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => toggleMember(m.id)}
+                        className={`
+                            relative flex items-center gap-2 pr-3 rounded-xl border transition-all overflow-hidden
+                            ${isSelected ? 'bg-brand-light border-brand ring-1 ring-brand shadow-sm' : 'bg-white border-border hover:border-brand/50'}
+                        `}
+                    >
+                        <Avatar url={m.avatar_url} alt={m.full_name || ''} size={40} />
+                        <span className={`text-sm font-bold ${isSelected ? 'text-brand-dark' : 'text-text-secondary'}`}>
+                            {m.full_name?.split(' ')[0]}
+                        </span>
+                        {isSelected && (
+                            <div className="absolute top-0 right-0 bg-brand text-white rounded-bl-lg p-0.5">
+                                <Check className="h-3 w-3" />
+                            </div>
+                        )}
+                    </button>
+                )
+            })}
         </div>
       </div>
 
@@ -107,28 +164,6 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="assignedTo" className="block font-heading text-sm font-medium text-text-primary">
-            Assign To
-          </label>
-          <div className="relative mt-1">
-            <User className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <select
-              id="assignedTo"
-              name="assignedTo"
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-              defaultValue={chore.assigned_to ?? ''}
-            >
-              <option value="">Unassigned</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
           <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
             Room
           </label>
@@ -147,6 +182,22 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
+            Due Date
+          </label>
+          <div className="relative mt-1">
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+            <input
+              type="date"
+              id="dueDate"
+              name="dueDate"
+              defaultValue={formatDateForInput(chore.due_date)}
+              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+            />
           </div>
         </div>
       </div>
@@ -180,22 +231,6 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
-            Due Date
-          </label>
-          <div className="relative mt-1">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <input
-              type="date"
-              id="dueDate"
-              name="dueDate"
-              defaultValue={formatDateForInput(chore.due_date)}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            />
-          </div>
-        </div>
-
         <div>
           <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary">
             Exact Time (Optional)
@@ -231,23 +266,23 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
             </select>
           </div>
         </div>
+      </div>
 
-        <div>
-            <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
-            Instances
-            </label>
-            <div className="relative mt-1">
-            <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <input
-                type="number"
-                id="instances"
-                name="instances"
-                defaultValue={chore.target_instances ?? 1}
-                min={1}
-                className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            />
-            </div>
-        </div>
+      <div>
+          <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
+          Instances
+          </label>
+          <div className="relative mt-1">
+          <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+          <input
+              type="number"
+              id="instances"
+              name="instances"
+              defaultValue={chore.target_instances ?? 1}
+              min={1}
+              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+          />
+          </div>
       </div>
 
       <div className="flex items-center justify-end space-x-4 pt-4">

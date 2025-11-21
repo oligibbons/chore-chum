@@ -17,8 +17,8 @@ import ZenMode from '@/components/ZenMode'
 import Leaderboard from '@/components/Leaderboard'
 import StreakCampfire from '@/components/StreakCampfire'
 import DailyProgress from '@/components/DailyProgress'
-import Greeting from '@/components/Greeting' // IMPORTED
-import AppBadgeUpdater from '@/components/AppBadgeUpdater' // IMPORTED
+import Greeting from '@/components/Greeting'
+import AppBadgeUpdater from '@/components/AppBadgeUpdater'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,22 +73,30 @@ export default async function DashboardPage(props: DashboardProps) {
   // --- 1. Master Filter Logic ---
   let allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
+  // Dashboard View Filters
   if (assigneeFilter === 'me') {
       allChoresRaw = allChoresRaw.filter(c => c.assigned_to === user.id)
   }
-
   if (roomIdFilter) {
       allChoresRaw = allChoresRaw.filter(c => c.room_id === roomIdFilter)
   }
 
+  // Categorize
   const overdueChores = allChoresRaw.filter(c => data.overdue.includes(c))
   const dueSoonChores = allChoresRaw.filter(c => data.dueSoon.includes(c))
   const upcomingChores = allChoresRaw.filter(c => data.upcoming.includes(c))
   const completedChores = allChoresRaw.filter(c => data.completed.includes(c))
 
-  // --- 2. Stats Calculation ---
+  // --- 2. Stats & Zen Data ---
   const allHouseholdChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
   
+  // ZEN MODE FIX: Strictly YOUR incomplete chores
+  const myZenChores = allHouseholdChores.filter(c => 
+    c.assigned_to === user.id && // Only mine
+    c.status !== 'complete'      // Only active
+  )
+
+  // Stats Calculation (Personal)
   const myDailyChores = allHouseholdChores.filter(c => {
       const isMine = c.assigned_to === user.id || c.assigned_to === null
       if (!isMine) return false
@@ -135,18 +143,16 @@ export default async function DashboardPage(props: DashboardProps) {
 
   return (
     <div className="space-y-8 pb-24">
-      <ZenMode chores={allChoresRaw} />
+      {/* Passed filtered user-only chores to Zen Mode */}
+      <ZenMode chores={myZenChores} />
       
-      {/* WOW FACTOR: App Icon Badge Updater */}
       <AppBadgeUpdater count={overdueChores.length} />
 
       {/* Header Section */}
       <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                {/* WOW FACTOR: Smart Greeting Component */}
                 <Greeting name={userName} />
-                
                 <p className="text-lg text-text-secondary animate-in fade-in slide-in-from-bottom-1 duration-700 delay-100">
                     {greetingSubtitle}
                 </p>
@@ -176,42 +182,22 @@ export default async function DashboardPage(props: DashboardProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
-        
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
-                <ChoreDisplay 
-                    title="Overdue" 
-                    chores={overdueChores} 
-                    status="overdue" 
-                />
+                <ChoreDisplay title="Overdue" chores={overdueChores} status="overdue" />
             </div>
-
             <div className="md:col-span-1">
-                <ChoreDisplay 
-                    title="Due Soon" 
-                    chores={dueSoonChores} 
-                    status="due" 
-                />
+                <ChoreDisplay title="Due Soon" chores={dueSoonChores} status="due" />
             </div>
-
             <div className="md:col-span-1">
-                <ChoreDisplay 
-                    title="Upcoming" 
-                    chores={upcomingChores} 
-                    status="upcoming" 
-                />
+                <ChoreDisplay title="Upcoming" chores={upcomingChores} status="upcoming" />
             </div>
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-6">
             <Leaderboard members={roomData.members} chores={allHouseholdChores} />
-            
             <div className="pt-4 border-t border-border">
-                <ChoreDisplay 
-                    title="Completed" 
-                    chores={completedChores} 
-                    status="completed" 
-                />
+                <ChoreDisplay title="Completed" chores={completedChores} status="completed" />
             </div>
         </div>
       </div>

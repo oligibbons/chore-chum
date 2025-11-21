@@ -1,20 +1,24 @@
+// src/components/ChoreItem.tsx
 'use client'
 
-import { ChoreWithDetails } from '@/types/database'
-import { Check, Clock, User, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon } from 'lucide-react'
+import { ChoreWithDetails, DbProfile } from '@/types/database'
+import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon } from 'lucide-react'
 import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
 import Avatar from './Avatar'
 import DelayChoreModal from './DelayChoreModal'
+import CompleteChoreModal from './CompleteChoreModal' // NEW
 import confetti from 'canvas-confetti'
 import { toast } from 'sonner'
-import { useGameFeel } from '@/hooks/use-game-feel' // IMPORT
+import { useGameFeel } from '@/hooks/use-game-feel'
 
 type Props = {
   chore: ChoreWithDetails
   showActions: boolean
   status: 'overdue' | 'due' | 'upcoming'
+  members?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] // NEW: Need members for the modal
+  currentUserId?: string // NEW: Need ID for default selection
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -31,10 +35,11 @@ const formatTime = (timeString: string) => {
     return new Date(0, 0, 0, +hours, +minutes).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-export default function ChoreItem({ chore, showActions, status }: Props) {
+export default function ChoreItem({ chore, showActions, status, members = [], currentUserId = '' }: Props) {
   const [isPending, startTransition] = useTransition()
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
-  const { interact } = useGameFeel() // HOOK
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false) // NEW
+  const { interact } = useGameFeel()
 
   const [optimisticChore, setOptimisticChore] = useOptimistic(
     chore,
@@ -51,6 +56,9 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
     optimisticChore.status === 'complete' || 
     (optimisticChore.completed_instances === (optimisticChore.target_instances ?? 1))
 
+  const isShared = (chore.assigned_to?.length ?? 0) > 1
+
+  // ... (Existing styling logic omitted for brevity, keep it as is) ...
   let cardClasses = 'border-border bg-card'
   let buttonClasses = 'border-border text-text-secondary hover:text-brand hover:border-brand'
   let statusIconColor = 'text-text-secondary'
@@ -86,8 +94,13 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
   }
 
   const handleToggleCompletion = async () => {
-    // Haptics first for immediate feel
     interact(isCompleted ? 'neutral' : 'success')
+
+    // If it's not complete, AND it's shared, show the "Who did it?" modal
+    if (!isCompleted && isShared) {
+        setIsCompleteModalOpen(true)
+        return
+    }
 
     const nextStatus = isCompleted ? 'pending' : 'complete'
     
@@ -95,29 +108,22 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
       setOptimisticChore(nextStatus)
 
       if (nextStatus === 'complete') {
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          origin: { y: 0.7 },
-          disableForReducedMotion: true
-        })
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, disableForReducedMotion: true })
       }
 
       try {
+        // Default: if single assignee, complete for them
         const result = isCompleted 
           ? await uncompleteChore(chore.id) 
-          : await completeChore(chore.id)
+          : await completeChore(chore.id, [currentUserId]) // Default to current user
 
-        if (!result.success) {
-          toast.error(result.message || 'Failed to update chore')
-        } else {
+        if (!result.success) toast.error(result.message || 'Failed to update chore')
+        else {
           const toastFn = nextStatus === 'complete' ? toast.success : toast.info
-          toastFn(result.message, {
-              description: result.motivation
-          })
+          toastFn(result.message, { description: result.motivation })
         }
       } catch (error) {
-        toast.error("Something went wrong. Please try again.")
+        toast.error("Something went wrong.")
       }
     })
   }
@@ -144,33 +150,23 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
                 ${buttonClasses}
               `}
             >
-              {isPending ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : isCompleted ? (
-                <Check className="h-5 w-5" />
-              ) : (
-                <div className="h-1.5 w-1.5 rounded-full bg-current opacity-0 transition-opacity hover:opacity-100" />
-              )}
+              {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : isCompleted ? <Check className="h-5 w-5" /> : <div className="h-1.5 w-1.5 rounded-full bg-current opacity-0 transition-opacity hover:opacity-100" />}
             </button>
             
             <div className="flex flex-col pt-1.5">
-              <h4 
-                className={`font-heading text-lg font-semibold transition-all decoration-2 decoration-text-secondary/50 ${isCompleted ? 'line-through text-text-secondary' : 'text-text-primary'}`}
-              >
+              <h4 className={`font-heading text-lg font-semibold transition-all decoration-2 decoration-text-secondary/50 ${isCompleted ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
                 {chore.name}
               </h4>
               
               <div className="flex flex-wrap items-center gap-2 mt-1">
                   {chore.time_of_day && chore.time_of_day !== 'any' && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary bg-background/50 px-1.5 py-0.5 rounded capitalize">
-                          {getTimeIcon(chore.time_of_day)}
-                          {chore.time_of_day}
+                          {getTimeIcon(chore.time_of_day)} {chore.time_of_day}
                       </span>
                   )}
                   {chore.exact_time && (
                        <span className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary bg-background/50 px-1.5 py-0.5 rounded">
-                          <Clock className="h-3 w-3" />
-                          {formatTime(chore.exact_time)}
+                          <Clock className="h-3 w-3" /> {formatTime(chore.exact_time)}
                       </span>
                   )}
               </div>
@@ -181,26 +177,23 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
                     <p className="line-clamp-2">{chore.notes}</p>
                 </div>
               )}
-
-              {(chore.target_instances ?? 1) > 1 && (
-                <span className="text-sm font-medium text-text-secondary mt-1">
-                  {optimisticChore.completed_instances ?? 0} / {chore.target_instances ?? 1} completed
-                </span>
-              )}
             </div>
           </div>
 
-          {chore.profiles ? (
-            <Avatar 
-              url={chore.profiles.avatar_url ?? undefined} 
-              alt={chore.profiles.full_name ?? 'User avatar'} 
-              size={40} 
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-background border border-border flex items-center justify-center">
-              <User className="h-5 w-5 text-text-secondary" />
-            </div>
-          )}
+          {/* Avatar Stack for Multiple Assignees */}
+          <div className="flex -space-x-3 overflow-hidden pl-1 py-1">
+            {chore.assignees && chore.assignees.length > 0 ? (
+                chore.assignees.map((p, i) => (
+                    <div key={p.id} className="ring-2 ring-background rounded-full z-0" style={{ zIndex: 10 - i }}>
+                        <Avatar url={p.avatar_url ?? undefined} alt={p.full_name ?? ''} size={36} />
+                    </div>
+                ))
+            ) : (
+                <div className="h-9 w-9 rounded-full bg-background border border-border flex items-center justify-center">
+                    <User className="h-4 w-4 text-text-secondary" />
+                </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 flex items-end justify-between">
@@ -228,28 +221,26 @@ export default function ChoreItem({ chore, showActions, status }: Props) {
           <div className="flex items-center gap-1">
             {!isCompleted && showActions && (
               <button 
-                onClick={() => {
-                    interact('neutral')
-                    setIsDelayModalOpen(true)
-                }}
-                className="rounded-full p-2 text-text-secondary transition-all hover:bg-background hover:text-brand"
+                onClick={() => { interact('neutral'); setIsDelayModalOpen(true) }}
+                className="rounded-full p-2 text-text-secondary hover:bg-background hover:text-brand"
                 title="Delay Chore"
               >
                 <Clock className="h-5 w-5" />
               </button>
             )}
-
-            {showActions && (
-              <ChoreMenu chore={chore} />
-            )}
+            {showActions && <ChoreMenu chore={chore} />}
           </div>
         </div>
       </li>
 
-      <DelayChoreModal 
-        isOpen={isDelayModalOpen} 
-        onClose={() => setIsDelayModalOpen(false)} 
-        choreId={chore.id} 
+      <DelayChoreModal isOpen={isDelayModalOpen} onClose={() => setIsDelayModalOpen(false)} choreId={chore.id} />
+      
+      <CompleteChoreModal 
+        isOpen={isCompleteModalOpen} 
+        onClose={() => setIsCompleteModalOpen(false)} 
+        chore={chore} 
+        members={members}
+        currentUserId={currentUserId}
       />
     </>
   )

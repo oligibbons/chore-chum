@@ -3,13 +3,14 @@
 
 import { Fragment, useState, FormEvent, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Hash } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { parseChoreInput } from '@/lib/smart-parser'
 import { useGameFeel } from '@/hooks/use-game-feel'
+import Avatar from './Avatar'
 
 type Props = {
   isOpen: boolean
@@ -30,13 +31,14 @@ function ChoreForm({
 }) {
   const [pending, setPending] = useState(false)
   const [smartInput, setSmartInput] = useState('')
-  const { triggerHaptic } = useGameFeel()
+  const { interact, triggerHaptic } = useGameFeel()
   
   // WOW FACTOR: Shake State
   const [isShaking, setIsShaking] = useState(false)
   
+  // State
   const [name, setName] = useState('')
-  const [assignedTo, setAssignedTo] = useState('')
+  const [assignedIds, setAssignedIds] = useState<string[]>([]) // Multi-select array
   const [roomId, setRoomId] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [recurrence, setRecurrence] = useState('none')
@@ -51,6 +53,15 @@ function ChoreForm({
     "Clean bathroom"
   ]
 
+  // Toggle Logic for Avatar Grid
+  const toggleMember = (id: string) => {
+    interact('neutral')
+    setAssignedIds(prev => 
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  // Smart Parsing Logic
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!smartInput.trim()) return
@@ -59,7 +70,8 @@ function ChoreForm({
         
         if (parsed.name) setName(parsed.name)
         if (parsed.roomId) setRoomId(parsed.roomId.toString())
-        if (parsed.assignedTo) setAssignedTo(parsed.assignedTo)
+        // Smart parser currently returns a single ID, so we wrap it in an array
+        if (parsed.assignedTo) setAssignedIds([parsed.assignedTo]) 
         if (parsed.recurrence) setRecurrence(parsed.recurrence)
         if (parsed.dueDate) setDueDate(parsed.dueDate)
         if (parsed.timeOfDay) setTimeOfDay(parsed.timeOfDay)
@@ -85,6 +97,8 @@ function ChoreForm({
     
     const formData = new FormData(event.currentTarget)
     formData.append('timeOfDay', timeOfDay)
+    // NEW: Serialize array to JSON for the backend to parse
+    formData.append('assignedTo', JSON.stringify(assignedIds))
 
     try {
       const result = await createChore(formData)
@@ -101,8 +115,6 @@ function ChoreForm({
       setPending(false)
     }
   }
-
-  const timeOptions: TimeOption[] = ['any', 'morning', 'afternoon', 'evening'];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -123,6 +135,7 @@ function ChoreForm({
             />
         </div>
         
+        {/* Quick Chips */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient">
             {suggestions.map(s => (
                 <button
@@ -140,7 +153,7 @@ function ChoreForm({
 
       <div className="h-px bg-border w-full" />
 
-      {/* Standard Fields */}
+      {/* NAME FIELD */}
       <div>
         <label htmlFor="name" className="block font-heading text-sm font-medium text-text-primary">
           Chore Name
@@ -151,35 +164,64 @@ function ChoreForm({
             name="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            // Removed 'required' attribute to allow our custom JS validation shake to trigger
+            // Removed 'required' attribute to let custom shake validation handle it
             className={`mt-1 block w-full rounded-xl border bg-background p-3 transition-all focus:border-brand focus:ring-brand ${isShaking ? 'border-red-500 ring-2 ring-red-200 animate-shake' : 'border-border'}`}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="assignedTo" className="block font-heading text-sm font-medium text-text-primary">
-            Assign To
-          </label>
-          <div className="relative mt-1">
-            <User className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <select
-              id="assignedTo"
-              name="assignedTo"
-              value={assignedTo}
-              onChange={(e) => setAssignedTo(e.target.value)}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+      {/* ASSIGN TO - AVATAR GRID (Full Width) */}
+      <div>
+        <label className="block font-heading text-sm font-medium text-text-primary mb-2">
+          Assign To
+        </label>
+        <div className="flex flex-wrap gap-3">
+            {/* 'Anyone' Toggle */}
+            <button
+                type="button"
+                onClick={() => setAssignedIds([])}
+                className={`
+                    flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
+                    ${assignedIds.length === 0 
+                        ? 'bg-brand-light border-brand text-brand shadow-sm' 
+                        : 'bg-white border-border text-text-secondary hover:border-brand/50'}
+                `}
             >
-              <option value="">Unassigned</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
+                <User className="h-5 w-5" />
+                <span className="text-sm font-bold">Anyone</span>
+            </button>
+            
+            {/* Member Toggles */}
+            {members.map(m => {
+                const isSelected = assignedIds.includes(m.id)
+                return (
+                    <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => toggleMember(m.id)}
+                        className={`
+                            relative flex items-center gap-2 pr-3 rounded-xl border transition-all overflow-hidden
+                            ${isSelected 
+                                ? 'bg-brand-light border-brand ring-1 ring-brand shadow-sm' 
+                                : 'bg-white border-border hover:border-brand/50'}
+                        `}
+                    >
+                        <Avatar url={m.avatar_url} alt={m.full_name || ''} size={40} />
+                        <span className={`text-sm font-bold ${isSelected ? 'text-brand-dark' : 'text-text-secondary'}`}>
+                            {m.full_name?.split(' ')[0]}
+                        </span>
+                        {isSelected && (
+                            <div className="absolute top-0 right-0 bg-brand text-white rounded-bl-lg p-0.5">
+                                <Check className="h-3 w-3" />
+                            </div>
+                        )}
+                    </button>
+                )
+            })}
         </div>
+      </div>
 
+      {/* ROOM & DUE DATE (Grid) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
             Room
@@ -202,19 +244,36 @@ function ChoreForm({
             </select>
           </div>
         </div>
+
+        <div>
+          <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
+            Due Date
+          </label>
+          <div className="relative mt-1">
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+            <input
+              type="date"
+              id="dueDate"
+              name="dueDate"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Time of Day */}
+      {/* TIME OF DAY SELECTION */}
       <div>
          <label className="block font-heading text-sm font-medium text-text-primary mb-2">
             Time of Day
          </label>
          <div className="flex gap-2">
-            {timeOptions.map((t) => (
+            {['any', 'morning', 'afternoon', 'evening'].map((t) => (
                 <button
                     key={t}
                     type="button"
-                    onClick={() => setTimeOfDay(t)}
+                    onClick={() => setTimeOfDay(t as TimeOption)}
                     className={`
                         flex-1 flex flex-col items-center justify-center gap-1 p-2 rounded-xl border transition-all
                         ${timeOfDay === t 
@@ -232,24 +291,8 @@ function ChoreForm({
          </div>
       </div>
 
+      {/* RECURRENCE & INSTANCES (Grid) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
-            Due Date
-          </label>
-          <div className="relative mt-1">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <input
-              type="date"
-              id="dueDate"
-              name="dueDate"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            />
-          </div>
-        </div>
-
         <div>
           <label htmlFor="recurrence_type" className="block font-heading text-sm font-medium text-text-primary">
             Recurs
@@ -270,8 +313,26 @@ function ChoreForm({
             </select>
           </div>
         </div>
+
+        <div>
+            <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
+            Instances
+            </label>
+            <div className="relative mt-1">
+              <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <input
+                  type="number"
+                  id="instances"
+                  name="instances"
+                  defaultValue={1}
+                  min={1}
+                  className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+              />
+            </div>
+        </div>
       </div>
 
+      {/* DETAILS TOGGLE (Notes & Exact Time) */}
       <details className="group">
         <summary className="flex items-center gap-2 text-sm font-medium text-brand cursor-pointer list-none">
             <span>More Options (Notes, Exact Time)</span>
@@ -285,36 +346,27 @@ function ChoreForm({
                     id="notes"
                     name="notes"
                     rows={2}
-                    className="mt-1 block w-full rounded-xl border-border bg-background p-3"
+                    className="mt-1 block w-full rounded-xl border-border bg-background p-3 focus:border-brand focus:ring-brand"
                 />
             </div>
              <div>
                 <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary">
                     Exact Time
                 </label>
-                <input
-                    type="time"
-                    id="exactTime"
-                    name="exactTime"
-                    className="mt-1 block w-full rounded-xl border-border bg-background p-3"
-                />
-            </div>
-             <div>
-                <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
-                Instances
-                </label>
-                <input
-                    type="number"
-                    id="instances"
-                    name="instances"
-                    defaultValue={1}
-                    min={1}
-                    className="mt-1 block w-full rounded-xl border-border bg-background p-3"
-                />
+                <div className="relative mt-1">
+                    <Clock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+                    <input
+                        type="time"
+                        id="exactTime"
+                        name="exactTime"
+                        className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 focus:border-brand focus:ring-brand"
+                    />
+                </div>
             </div>
         </div>
       </details>
 
+      {/* ACTIONS */}
       <div className="flex items-center justify-end space-x-4 pt-4">
         <button
           type="button"

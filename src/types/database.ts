@@ -12,8 +12,11 @@ export type TablesUpdate<T extends keyof Database['public']['Tables']> = Databas
 
 // --- Application Specific Types ---
 
-// EXTENDED DbChore with new manual fields until you regenerate types
-export type DbChore = Tables<'chores'> & {
+// EXTENDED DbChore with multi-assignee support
+// NOTE: We use Omit to override the auto-generated 'assigned_to' (which is string | null)
+// with our new array type. You must update your DB schema for this to work natively.
+export type DbChore = Omit<Tables<'chores'>, 'assigned_to'> & {
+  assigned_to: string[] | null
   time_of_day?: 'morning' | 'afternoon' | 'evening' | 'any' | null
   exact_time?: string | null
   custom_recurrence?: { type: 'interval'; days: number } | { type: 'specific'; days: number[] } | null
@@ -30,9 +33,10 @@ export type DbRoom = Tables<'rooms'>
 export type DbHousehold = Tables<'households'>
 export type DbActivityLog = Tables<'activity_logs'>
 
-// Combined type: Chore + Profile + Room
+// Combined type: Chore + Profiles (plural) + Room
 export type ChoreWithDetails = DbChore & {
-  profiles: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'> | null
+  // Changed from single 'profiles' to array 'assignees'
+  assignees: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] | null
   rooms: Pick<DbRoom, 'id' | 'name'> | null
 }
 
