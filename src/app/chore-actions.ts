@@ -5,7 +5,7 @@ import {
   HouseholdData, 
   ChoreWithDetails, 
   DbChore, 
-  DbHousehold, // Added missing import
+  DbHousehold,
   DbProfile,
   TypedSupabaseClient
 } from '@/types/database'
@@ -202,11 +202,28 @@ export async function getHouseholdData(
       const rawAssigned = chore.assigned_to
       let assigneeIds: string[] = []
 
-      // SAFETY FIX: Normalize assigned_to to always be an array
+      // FIX: Robust parsing for assigned_to which can be:
+      // 1. null
+      // 2. A single UUID string (legacy)
+      // 3. A JSON stringified array '["id1", "id2"]'
+      // 4. A real array object (if driver parses JSON automatically)
+      
       if (Array.isArray(rawAssigned)) {
           assigneeIds = rawAssigned
       } else if (typeof rawAssigned === 'string') {
-          assigneeIds = [rawAssigned]
+          // Check if it looks like a JSON array
+          if (rawAssigned.startsWith('[')) {
+             try {
+                const parsed = JSON.parse(rawAssigned)
+                if (Array.isArray(parsed)) assigneeIds = parsed
+             } catch {
+                // If parsing fails, treat as single ID
+                assigneeIds = [rawAssigned]
+             }
+          } else {
+             // Plain string UUID
+             assigneeIds = [rawAssigned]
+          }
       }
       
       // Find members who match the IDs
@@ -447,14 +464,18 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 
   if (!rawName) return { success: false, message: 'Chore name is required.' }
 
+  // Explicitly stringify the array for the DB TEXT column if needed,
+  // though Supabase client usually handles string[] -> text conversion automatically if configured.
+  // If not, we might need JSON.stringify(assignedTo) here.
+  // For now, passing string[] assuming the earlier TypedSupabaseClient config handles it or DB is JSON/Array.
+  
   const newChoreData = {
     name: rawName,
     notes: rawNotes || null,
     household_id: householdId,
     created_by: user.id,
     status: 'pending',
-    // Store array (ensure your DB schema supports text[] or uuid[] for this column)
-    assigned_to: assignedTo.length > 0 ? assignedTo : null,
+    assigned_to: assignedTo.length > 0 ? JSON.stringify(assignedTo) : null, // Ensure stored as JSON string
     room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
     due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
     target_instances: rawInstances ? Number(rawInstances) : 1,
@@ -525,7 +546,7 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const updateData = {
     name: rawName,
     notes: rawNotes || null,
-    assigned_to: assignedTo.length > 0 ? assignedTo : null,
+    assigned_to: assignedTo.length > 0 ? JSON.stringify(assignedTo) : null,
     room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
     due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
     target_instances: rawInstances ? Number(rawInstances) : 1,
@@ -621,13 +642,94 @@ export async function toggleChoreStatus(
 ): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient() 
   const actorProfile = await getCurrentUserProfile(supabase)
+  const userName = actorProfile?.full_name?.split(' ')[0] || 'Someone'
   
   if (chore.status === 'complete') {
     // Uncompleting
-    return uncompleteChore(chore.id)
+    const { error } = await supabase
+      .from('chores')
+      .update({ status: 'pending' })
+      .eq('id', chore.id)
+
+    if (error) return { success: false, message: error.message }
+
+    revalidatePath('/dashboard')
+    return { success: true, message: 'Marked pending.', motivation: getCheekyMotivation(false, false) }
+
   } else {
     // Completing
-    return completeChore(chore.id, actorProfile ? [actorProfile.id] : [])
+    const isRecurring = chore.recurrence_type !== 'none'
+    
+    if (actorProfile) {
+        // FIX: Use updateStreaks (plural)
+        await updateStreaks(supabase, [actorProfile.id])
+    }
+
+    if (isRecurring) {
+      const { error: updateError } = await supabase
+        .from('chores')
+        .update({ 
+          status: 'complete',
+          completed_instances: chore.target_instances || 1 
+        })
+        .eq('id', chore.id)
+
+      if (updateError) return { success: false, message: updateError.message }
+
+      const nextDueDate = getNextDueDate(chore.recurrence_type, chore.due_date)
+      
+      // FIX: Cast to any for new fields
+      const newChoreData = {
+        name: chore.name,
+        notes: chore.notes,
+        household_id: chore.household_id,
+        created_by: chore.created_by,
+        status: 'pending',
+        assigned_to: chore.assigned_to,
+        room_id: chore.room_id,
+        due_date: nextDueDate,
+        target_instances: chore.target_instances,
+        recurrence_type: chore.recurrence_type, 
+        completed_instances: 0,
+        time_of_day: chore.time_of_day,
+        exact_time: chore.exact_time
+      }
+
+      await supabase.from('chores').insert(newChoreData as any)
+
+    } else {
+      const { error } = await supabase
+        .from('chores')
+        .update({ 
+          status: 'complete',
+          completed_instances: chore.target_instances || 1 
+        })
+        .eq('id', chore.id)
+        
+      if (error) return { success: false, message: error.message }
+    }
+
+    await logActivity(chore.household_id, 'complete', chore.name)
+
+    await notifyHousehold(
+        chore.household_id,
+        {
+          title: 'Chore Completed! 🎉',
+          body: `${userName} crushed "${chore.name}".`,
+          url: '/feed'
+        },
+        actorProfile?.id
+    )
+
+    revalidatePath('/dashboard')
+    revalidatePath('/feed')
+    revalidatePath('/calendar')
+    
+    return { 
+        success: true, 
+        message: 'Chore completed!', 
+        motivation: getCheekyMotivation(true, false) 
+    }
   }
 }
 
@@ -637,12 +739,12 @@ export async function incrementChoreInstance(
   if (chore.status === 'complete') return { success: false, message: 'Already complete' }
   
   const supabase: TypedSupabaseClient = await createSupabaseClient() 
+  
   const newInstanceCount = (chore.completed_instances ?? 0) + 1
   const targetInstances = chore.target_instances ?? 1
 
   if (newInstanceCount >= targetInstances) {
-    const actorProfile = await getCurrentUserProfile(supabase)
-    return completeChore(chore.id, actorProfile ? [actorProfile.id] : [])
+    return toggleChoreStatus(chore)
   } else {
     const { error } = await supabase
       .from('chores')
