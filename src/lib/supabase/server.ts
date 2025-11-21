@@ -27,10 +27,9 @@ export async function createSupabaseClient(): Promise<TypedSupabaseClient> {
             )
           } catch (error) {
             // The `setAll` method was called from a Server Component.
-            // This can be ignored if middleware is handling session refresh.
           }
         },
       },
     }
-  )
+  ) as unknown as TypedSupabaseClient
 }
