@@ -182,8 +182,6 @@ export async function getHouseholdData(
     .eq('household_id', householdId)
     
   // Fetch chores. 
-  // NOTE: Since 'assigned_to' is now an array of IDs, we can't easily join 'profiles' directly 
-  // in a single query without complex PostgreSQL syntax. We will hydrate manually below.
   const { data: chores } = await supabase
     .from('chores')
     .select(`
@@ -193,16 +191,29 @@ export async function getHouseholdData(
     .eq('household_id', householdId)
     .order('due_date', { ascending: true, nullsFirst: true })
 
-  // Hydrate assignees
+  // Hydrate assignees & Normalize assigned_to
   const hydratedChores = (chores || []).map((chore: any) => {
-      const assigneeIds = chore.assigned_to || []
-      // Find members who match the IDs in the array
+      const rawAssigned = chore.assigned_to
+      let assigneeIds: string[] = []
+
+      // SAFETY FIX: Normalize assigned_to to always be an array
+      if (Array.isArray(rawAssigned)) {
+          assigneeIds = rawAssigned
+      } else if (typeof rawAssigned === 'string') {
+          // Handle legacy single-string data
+          assigneeIds = [rawAssigned]
+      }
+      
+      // Find members who match the IDs
       const assignees = (members || []).filter((m: any) => 
-          Array.isArray(assigneeIds) 
-            ? assigneeIds.includes(m.id) 
-            : assigneeIds === m.id // Handle legacy single-string case just in case
+          assigneeIds.includes(m.id)
       )
-      return { ...chore, assignees }
+
+      return { 
+          ...chore, 
+          assigned_to: assigneeIds, // Ensure frontend receives array
+          assignees 
+      }
   })
 
   return {

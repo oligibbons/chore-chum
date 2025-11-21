@@ -1,3 +1,4 @@
+// src/components/Leaderboard.tsx
 'use client'
 
 import { ChoreWithDetails, DbProfile } from '@/types/database'
@@ -23,7 +24,8 @@ export default function Leaderboard({ members, chores }: Props) {
   const scores: LeaderboardEntry[] = members.map(member => {
     const count = chores.filter(c => 
       c.status === 'complete' && 
-      c.assigned_to === member.id
+      // FIX: assigned_to is now an array, so we check if it includes the member ID
+      c.assigned_to?.includes(member.id)
     ).length
     
     return {
