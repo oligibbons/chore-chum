@@ -31,7 +31,8 @@ export default async function AppLayout({
     .single()
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    // QUICK WIN: Added pb-[env(safe-area-inset-bottom)] for safe area padding
+    <div className="flex min-h-screen flex-col bg-background pb-[env(safe-area-inset-bottom)]">
       {/* Global Realtime Listener */}
       {profile?.household_id && <RealtimeChores householdId={profile.household_id} />}
       

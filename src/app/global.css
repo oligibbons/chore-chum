@@ -6,19 +6,51 @@
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* The body background and text color are applied 
-      in layout.tsx via 'bg-background' and 'text-foreground'
-    */
+    /* QUICK WIN: Prevent the whole page from rubber-banding.
+       This makes the app feel "solid" like a native view. 
+       We handle pull-to-refresh manually in a component. */
+    overscroll-behavior-y: none;
+  }
+
+  html {
+    /* Ensure the behavior applies to the root as well */
+    overscroll-behavior-y: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    /* FIX: The Vercel build failed on theme('fontFamily.heading').
-      We are now using the raw CSS variable '--font-lexend' 
-      which is provided by layout.tsx. This bypasses the theme() lookup.
-      
-      The color is inherited from the body ('text-foreground' in layout.tsx)
-      so we don't need to explicitly set it here.
-    */
     font-family: var(--font-lexend), sans-serif;
+  }
+
+  /* Prevent iOS zoom on inputs */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  @media (min-width: 640px) {
+    input, textarea, select {
+      font-size: 0.875rem !important; 
+    }
+  }
+}
+
+/* --- VISUAL ENHANCEMENT: Fire Animations --- */
+@layer utilities {
+  .animate-flicker {
+    animation: flicker 3s infinite alternate;
+  }
+  
+  .animate-float-up {
+    animation: float-up 2s infinite ease-in;
+  }
+
+  @keyframes flicker {
+    0%, 100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+    50% { transform: scale(0.92); opacity: 0.8; filter: brightness(1.1); }
+  }
+
+  @keyframes float-up {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(-20px) scale(0); opacity: 0; }
   }
 }

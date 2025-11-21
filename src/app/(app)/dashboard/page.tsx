@@ -12,7 +12,7 @@ import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
 import EditChoreModal from '@/components/EditChoreModal'
 import { ChoreWithDetails } from '@/types/database'
-import FilterBar from '@/components/FilterBar' // UPDATED IMPORT
+import FilterBar from '@/components/FilterBar' 
 import ZenMode from '@/components/ZenMode'
 import Leaderboard from '@/components/Leaderboard'
 import StreakCampfire from '@/components/StreakCampfire'
@@ -39,14 +39,19 @@ export default async function DashboardPage(props: DashboardProps) {
     redirect('/') 
   }
 
+  // QUICK WIN: Fetch 'last_chore_date' for streak logic
   const { data: rawProfile } = await supabase
     .from('profiles')
-    .select('household_id, full_name, current_streak')
+    .select('household_id, full_name, current_streak, last_chore_date')
     .eq('id', user.id)
     .single()
 
-  // Type assertion to handle new streak column safely
-  const profile = rawProfile as { household_id: string | null; full_name: string | null; current_streak: number } | null
+  const profile = rawProfile as { 
+    household_id: string | null; 
+    full_name: string | null; 
+    current_streak: number;
+    last_chore_date: string | null;
+  } | null
 
   if (!profile || !profile.household_id) {
     return (
@@ -67,32 +72,26 @@ export default async function DashboardPage(props: DashboardProps) {
   // --- 1. Master Filter Logic ---
   let allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
-  // Filter by Assignee (Me vs All)
   if (assigneeFilter === 'me') {
       allChoresRaw = allChoresRaw.filter(c => c.assigned_to === user.id)
   }
 
-  // Filter by Room
   if (roomIdFilter) {
       allChoresRaw = allChoresRaw.filter(c => c.room_id === roomIdFilter)
   }
 
-  // Re-categorize based on filtered list
   const overdueChores = allChoresRaw.filter(c => data.overdue.includes(c))
   const dueSoonChores = allChoresRaw.filter(c => data.dueSoon.includes(c))
   const upcomingChores = allChoresRaw.filter(c => data.upcoming.includes(c))
   const completedChores = allChoresRaw.filter(c => data.completed.includes(c))
 
-  // --- 2. Stats Calculation (Based on ALL household data, not just filtered view, for fairness) ---
+  // --- 2. Stats Calculation ---
   const allHouseholdChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
   
-  // Only count stats for the current user for personal progress
   const myDailyChores = allHouseholdChores.filter(c => {
-      // Is it assigned to me OR unassigned?
       const isMine = c.assigned_to === user.id || c.assigned_to === null
       if (!isMine) return false
 
-      // Is it relevant to "Today"? (Overdue + Due Today + Completed Today)
       if (c.status === 'complete') {
           const d = new Date(c.created_at)
           const today = new Date()
@@ -113,10 +112,22 @@ export default async function DashboardPage(props: DashboardProps) {
   const completedTodayCount = myDailyChores.filter(c => c.status === 'complete').length
   const totalDailyLoad = myDailyChores.length
 
+  // QUICK WIN: Dynamic Subtitle "Coach"
+  let greetingSubtitle = "Let's get things done."
+  if (totalDailyLoad > 0) {
+    const ratio = completedTodayCount / totalDailyLoad
+    if (ratio === 1) greetingSubtitle = "You're absolutely crushing it! 🎉"
+    else if (ratio > 0.75) greetingSubtitle = "Almost there, finish strong!"
+    else if (ratio > 0.5) greetingSubtitle = "Over halfway! Keep the momentum."
+    else if (ratio > 0.25) greetingSubtitle = "Good start. Keep going."
+    else if (overdueChores.length > 0) greetingSubtitle = "Let's tackle those overdue items."
+  } else if (completedTodayCount > 0) {
+    greetingSubtitle = "All clear for today. Relax! 😌"
+  }
+
   // --- 3. Modal Logic ---
   let editChore: ChoreWithDetails | null = null
   if (searchParams.modal === 'edit-chore' && searchParams.choreId) {
-    // We search in the full unfiltered list so you can edit a chore even if filters hide it
     const fullList = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
     editChore = fullList.find(c => c.id === Number(searchParams.choreId)) || null
   }
@@ -132,14 +143,17 @@ export default async function DashboardPage(props: DashboardProps) {
                 <h2 className="text-4xl font-heading font-bold text-foreground">
                     Hi, {userName}!
                 </h2>
-                <p className="text-lg text-text-secondary">
-                    Let's get things done.
+                <p className="text-lg text-text-secondary animate-in fade-in slide-in-from-bottom-1 duration-700">
+                    {greetingSubtitle}
                 </p>
             </div>
             
             {/* Zen & Streak Area */}
             <div className="flex items-center gap-3 self-start md:self-auto">
-                <StreakCampfire streak={profile.current_streak || 0} />
+                <StreakCampfire 
+                  streak={profile.current_streak || 0} 
+                  lastChoreDate={profile.last_chore_date || null}
+                />
                 <Link 
                 href="?view=zen"
                 scroll={false}
@@ -151,11 +165,9 @@ export default async function DashboardPage(props: DashboardProps) {
             </div>
         </div>
 
-        {/* Progress Ring */}
         <DailyProgress total={totalDailyLoad} completed={completedTodayCount} />
       </div>
       
-      {/* New Filter Bar (Replaces RoomFilter) */}
       <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8 border-b border-transparent transition-all data-[stuck=true]:border-border">
         <FilterBar rooms={roomData.rooms} />
       </div>

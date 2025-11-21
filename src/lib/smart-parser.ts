@@ -60,7 +60,12 @@ export function parseChoreInput(
   }
 
   // --- 4. Extract Time of Day ---
-  if (/\b(morning|am)\b/i.test(remainingText)) {
+  // QUICK WIN: Handle "Tonight" -> Due Today + Evening
+  if (/\btonight\b/i.test(remainingText)) {
+    result.timeOfDay = 'evening'
+    result.dueDate = new Date().toISOString().split('T')[0] // Today
+    remainingText = remainingText.replace(/\btonight\b/i, '')
+  } else if (/\b(morning|am)\b/i.test(remainingText)) {
     result.timeOfDay = 'morning'
     remainingText = remainingText.replace(/\b(morning|am)\b/i, '')
   } else if (/\b(afternoon|pm)\b/i.test(remainingText)) {
@@ -76,7 +81,18 @@ export function parseChoreInput(
   let targetDate = new Date()
   let dateFound = false
 
-  if (/\btomorrow\b/i.test(remainingText)) {
+  // QUICK WIN: Handle "This Weekend" -> Next Saturday
+  if (/\bthis weekend\b/i.test(remainingText)) {
+    const d = new Date()
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -1 : 6) // Adjust to next Saturday
+    d.setDate(diff)
+    result.dueDate = d.toISOString().split('T')[0]
+    remainingText = remainingText.replace(/\bthis weekend\b/i, '')
+    dateFound = true // Prevent other date logic from overwriting
+  } 
+  // Existing logic...
+  else if (/\btomorrow\b/i.test(remainingText)) {
     targetDate.setDate(today.getDate() + 1)
     remainingText = remainingText.replace(/\btomorrow\b/i, '')
     dateFound = true
@@ -84,13 +100,11 @@ export function parseChoreInput(
     // do nothing, already today
     remainingText = remainingText.replace(/\btoday\b/i, '')
     dateFound = true
+  } else if (!result.dueDate) { // If "tonight" set it, skip this
+     // ...
   }
   
-  // Handle "next Friday" or "on Monday"
-  // (This is a simplified version. For robust date parsing without AI, libraries like 'chrono-node' are best, 
-  // but this covers basic "tomorrow/today" cases without extra deps)
-
-  if (dateFound) {
+  if (dateFound && !result.dueDate) {
     result.dueDate = targetDate.toISOString().split('T')[0]
   }
 

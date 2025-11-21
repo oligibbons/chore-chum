@@ -1,7 +1,7 @@
 // src/components/ChoreMenu.tsx
 'use client'
 
-import { Fragment, useTransition } from 'react'
+import { Fragment, useTransition, useState } from 'react'
 import { Menu, Transition } from '@headlessui/react'
 import { MoreVertical, Trash2, Edit } from 'lucide-react'
 import { ChoreWithDetails } from '@/types/database'
@@ -15,19 +15,29 @@ type Props = {
 
 export default function ChoreMenu({ chore }: Props) {
   const [isPending, startTransition] = useTransition()
+  // QUICK WIN: Local state for instant visual removal
+  const [isDeleted, setIsDeleted] = useState(false)
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this chore? This cannot be undone.')) {
+      // Optimistically hide the UI immediately
+      setIsDeleted(true)
+
       startTransition(async () => {
         const result = await deleteChore(chore.id)
         if (result.success) {
             toast.success(result.message)
         } else {
+            // Revert UI if failed
+            setIsDeleted(false)
             toast.error(result.message || 'Failed to delete chore')
         }
       })
     }
   }
+
+  // If optimistic delete is active, render nothing
+  if (isDeleted) return null
 
   return (
     <Menu as="div" className="relative inline-block text-left">

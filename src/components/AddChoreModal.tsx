@@ -1,8 +1,9 @@
+// src/components/AddChoreModal.tsx
 'use client'
 
 import { Fragment, useState, FormEvent, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Hash, Sparkles, Wand2, Clock, Coffee, Sun, Moon } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -37,6 +38,16 @@ function ChoreForm({
   const [recurrence, setRecurrence] = useState('none')
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
 
+  // QUICK WIN: Smart Suggestions
+  const suggestions = [
+    "Wash dishes tonight",
+    "Take out trash",
+    "Vacuum living room",
+    "Water plants",
+    "Laundry this weekend",
+    "Clean bathroom"
+  ]
+
   // Magic Parsing Logic
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -51,7 +62,7 @@ function ChoreForm({
         if (parsed.dueDate) setDueDate(parsed.dueDate)
         if (parsed.timeOfDay) setTimeOfDay(parsed.timeOfDay)
 
-    }, 600) // Debounce to avoid flickering while typing
+    }, 600) 
 
     return () => clearTimeout(timer)
   }, [smartInput, members, rooms])
@@ -85,21 +96,35 @@ function ChoreForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       
       {/* SMART INPUT HERO */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Wand2 className="h-5 w-5 text-brand animate-pulse" />
+      <div className="relative space-y-3">
+        <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Wand2 className="h-5 w-5 text-brand animate-pulse" />
+            </div>
+            <input
+                type="text"
+                value={smartInput}
+                onChange={(e) => setSmartInput(e.target.value)}
+                placeholder="e.g. 'Vacuum Living Room every Friday'"
+                className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
+                autoFocus
+            />
         </div>
-        <input
-            type="text"
-            value={smartInput}
-            onChange={(e) => setSmartInput(e.target.value)}
-            placeholder="e.g. 'Vacuum Living Room every Friday'"
-            className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
-            autoFocus
-        />
-        <p className="text-xs text-text-secondary mt-2 ml-1">
-            ✨ Magic: Type a sentence, we'll fill the details below.
-        </p>
+        
+        {/* QUICK WIN: Chips */}
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient">
+            {suggestions.map(s => (
+                <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSmartInput(s)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-text-secondary hover:bg-brand-light hover:text-brand transition-colors whitespace-nowrap flex-shrink-0"
+                >
+                    <PlusCircle className="h-3 w-3" />
+                    {s}
+                </button>
+            ))}
+        </div>
       </div>
 
       <div className="h-px bg-border w-full" />

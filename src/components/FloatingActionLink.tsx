@@ -23,9 +23,16 @@ export default function FloatingActionLink({ href, children, className, ...props
   // While not mounted (SSR), return null to avoid hydration mismatch
   if (!mounted) return null
 
+  // QUICK WIN: Respect Safe Area Inset
+  // Replaces the hardcoded 'bottom-8' with a calculation including the device's safe area.
+  const safeClassName = className?.replace(
+    'bottom-8', 
+    'bottom-[calc(2rem+env(safe-area-inset-bottom))]'
+  )
+
   // Render directly into document.body to escape any parent transforms (like PullToRefresh)
   return createPortal(
-    <Link href={href} className={className} {...props}>
+    <Link href={href} className={safeClassName} {...props}>
       {children}
     </Link>,
     document.body

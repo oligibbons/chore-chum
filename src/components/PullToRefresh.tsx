@@ -4,6 +4,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useGameFeel } from '@/hooks/use-game-feel'
 
 export default function PullToRefresh({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -11,6 +12,10 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
   const [currentY, setCurrentY] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
+  
+  // QUICK WIN: Game Feel hook + state to prevent haptic spam
+  const { triggerHaptic } = useGameFeel()
+  const [hasTriggeredHaptic, setHasTriggeredHaptic] = useState(false)
 
   const PULL_THRESHOLD = 120 
   const MAX_PULL = 160 
@@ -44,6 +49,14 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
         const damped = Math.min(diff * 0.5, MAX_PULL)
         setCurrentY(damped)
         
+        // QUICK WIN: Tactile Snap Logic
+        if (damped > 80 && !hasTriggeredHaptic) {
+            triggerHaptic('light')
+            setHasTriggeredHaptic(true)
+        } else if (damped < 80 && hasTriggeredHaptic) {
+            setHasTriggeredHaptic(false)
+        }
+        
         // Prevent browser navigation/bounce actions
         if (e.cancelable) e.preventDefault() 
       }
@@ -62,9 +75,11 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
         setTimeout(() => {
           setRefreshing(false)
           setCurrentY(0)
+          setHasTriggeredHaptic(false) // Reset logic
         }, 1500)
       } else {
         setCurrentY(0)
+        setHasTriggeredHaptic(false)
       }
       setStartY(0)
     }
@@ -82,7 +97,7 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
       el.removeEventListener('touchmove', handleTouchMove)
       el.removeEventListener('touchend', handleTouchEnd)
     }
-  }, [startY, currentY, refreshing, router])
+  }, [startY, currentY, refreshing, router, hasTriggeredHaptic, triggerHaptic])
 
   return (
     <div ref={contentRef} className="min-h-screen transition-transform duration-300 ease-out will-change-transform" style={{ transform: `translateY(${currentY}px)` }}>

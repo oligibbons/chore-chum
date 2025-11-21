@@ -1,3 +1,4 @@
+// src/components/InstallPwaPrompt.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -9,30 +10,30 @@ export default function InstallPwaPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
 
   useEffect(() => {
-    // Check if already installed (standalone mode)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
     if (isStandalone) return
 
-    // Detect iOS
+    // QUICK WIN: Check for a recent dismissal (14 days)
+    const dismissedAt = localStorage.getItem('installDismissedAt')
+    if (dismissedAt) {
+        const daysSince = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24)
+        if (daysSince < 14) return
+    }
+
     const userAgent = window.navigator.userAgent.toLowerCase()
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
     setIsIOS(isIosDevice)
 
-    // Handle Android "beforeinstallprompt"
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      // Only show if we haven't dismissed it recently (simple session check for now)
-      if (!sessionStorage.getItem('installDismissed')) {
-        setShowPrompt(true)
-      }
+      setShowPrompt(true)
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-    // For iOS, just show it once per session if not installed
-    if (isIosDevice && !sessionStorage.getItem('installDismissed')) {
-        // Small delay to not annoy immediately
+    if (isIosDevice) {
+        // Small delay to not annoy immediately on load
         setTimeout(() => setShowPrompt(true), 3000)
     }
 
@@ -43,7 +44,8 @@ export default function InstallPwaPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    sessionStorage.setItem('installDismissed', 'true')
+    // QUICK WIN: Save timestamp to localStorage instead of session
+    localStorage.setItem('installDismissedAt', Date.now().toString())
   }
 
   const handleInstallClick = async () => {
@@ -63,7 +65,6 @@ export default function InstallPwaPrompt() {
     <div className="fixed bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-500">
       <div className="bg-foreground text-background rounded-2xl p-4 shadow-2xl border border-white/10 relative overflow-hidden">
         
-        {/* Close Button */}
         <button 
             onClick={handleDismiss}
             className="absolute top-2 right-2 p-1 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
