@@ -8,7 +8,8 @@ import { Home, LayoutGrid, User, Calendar, Activity } from 'lucide-react'
 import { createSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PullToRefresh from '@/components/PullToRefresh'
-import RealtimeChores from '@/components/RealtimeChores' // ADDED
+import RealtimeChores from '@/components/RealtimeChores'
+import InstallPwaPrompt from '@/components/InstallPwaPrompt'
 
 export default async function AppLayout({
   children,
@@ -98,6 +99,9 @@ export default async function AppLayout({
           {children}
         </main>
       </PullToRefresh>
+
+      {/* PWA Prompt at the bottom of the hierarchy */}
+      <InstallPwaPrompt /> 
     </div>
   )
 }
