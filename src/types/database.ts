@@ -12,23 +12,19 @@ export type TablesUpdate<T extends keyof Database['public']['Tables']> = Databas
 
 // --- Application Specific Types ---
 
-// EXTENDED DbChore:
-// Represents the application view of a chore, including parsed/computed fields.
 export type DbChore = Omit<Tables<'chores'>, 'assigned_to'> & {
-  assigned_to: string[] | null // Application handles this as an array
+  assigned_to: string[] | null // Application handles this as an array of UUIDs
   time_of_day?: 'morning' | 'afternoon' | 'evening' | 'any' | null
   exact_time?: string | null
-  // Recurrence is now stored as a string in DB: 'daily', 'weekly', or 'custom:freq:interval'
+  // 'daily', 'weekly', 'monthly', or 'custom:freq:interval:until'
   recurrence_type: string
-  parent_chore_id?: number | null // For future subtask support
+  parent_chore_id?: number | null 
 }
 
-// EXTENDED DbRoom:
 export type DbRoom = Tables<'rooms'> & {
   keywords?: string[] 
 }
 
-// EXTENDED DbProfile:
 export type DbProfile = Tables<'profiles'> & {
   current_streak?: number
   longest_streak?: number
@@ -36,12 +32,21 @@ export type DbProfile = Tables<'profiles'> & {
 }
 
 export type DbHousehold = Tables<'households'>
-export type DbActivityLog = Tables<'activity_logs'>
+
+export type DbActivityLog = Tables<'activity_logs'> & {
+  details?: {
+    days?: number
+    completed_by?: string
+    [key: string]: any
+  } | null
+}
 
 // Combined Types for UI
 export type ChoreWithDetails = DbChore & {
   assignees: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] | null
   rooms: Pick<DbRoom, 'id' | 'name'> | null
+  // Added subtasks for recursive UI handling
+  subtasks?: ChoreWithDetails[]
 }
 
 export type HouseholdData = {
@@ -53,7 +58,7 @@ export type HouseholdData = {
 
 export type RoomWithChoreCount = DbRoom & {
   chore_count: number
-  overdue_count?: number // Added for "Room Rot" logic
+  overdue_count?: number // For "Room Rot" visualization
 }
 
 export type ActivityLogWithUser = DbActivityLog & {

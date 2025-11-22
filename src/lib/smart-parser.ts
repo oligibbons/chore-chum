@@ -6,7 +6,7 @@ type ParsedChore = {
   name: string
   roomId?: number
   assignedTo?: string 
-  recurrence?: string // Can be 'daily' or 'custom:daily:3'
+  recurrence?: string // 'daily', 'weekly', 'custom:daily:3', or 'custom:daily:1:2023-12-31'
   dueDate?: string
   timeOfDay?: 'morning' | 'afternoon' | 'evening' | 'any'
 }
@@ -45,7 +45,6 @@ export function parseChoreInput(
   }
 
   // --- 3. Room Detection ---
-  // A. Explicit Room Name
   for (const room of rooms) {
     const regex = new RegExp(`\\b(in|at)?\\s*${room.name}\\b`, 'i')
     if (regex.test(remainingText)) {
@@ -55,9 +54,7 @@ export function parseChoreInput(
     }
   }
 
-  // B. Implicit Room Detection (Keywords)
   if (!result.roomId) {
-    // In a real app, these keywords would come from the DB/Room properties
     const keywordMap: Record<string, string[]> = {
       'Kitchen': ['fridge', 'dishwasher', 'oven', 'stove', 'sink', 'cook'],
       'Living Room': ['sofa', 'couch', 'tv', 'rug'],
@@ -67,10 +64,8 @@ export function parseChoreInput(
     }
 
     for (const room of rooms) {
-      // Match room name to keys in our simple map
       const roomKey = Object.keys(keywordMap).find(k => room.name.toLowerCase().includes(k.toLowerCase()));
       const keywords = roomKey ? keywordMap[roomKey] : [];
-      
       if (keywords.some(k => new RegExp(`\\b${k}\\b`, 'i').test(remainingText))) {
         result.roomId = room.id
         break
@@ -78,36 +73,55 @@ export function parseChoreInput(
     }
   }
 
-  // --- 4. Recurrence (Simple & Custom) ---
+  // --- 4. Recurrence Detection ---
   
-  // Custom Interval Detection: "Every X Days/Weeks"
+  // Check for "until [Date]" first to extract it
+  let untilDateStr = ''
+  // Matches "until Dec 25", "until 12/25", "until 2025-12-25"
+  const untilMatch = remainingText.match(/until\s+([A-Za-z]+\s+\d{1,2}|\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2})/i)
+  
+  if (untilMatch) {
+      const dateStr = untilMatch[1]
+      const dateObj = new Date(dateStr)
+      // If valid date, store YYYY-MM-DD
+      if (!isNaN(dateObj.getTime())) {
+          // Adjust for current year if missing? JS Date handles "Dec 25" by defaulting to current year usually, 
+          // but we should ensure it's future.
+          if (dateObj < new Date()) {
+              dateObj.setFullYear(dateObj.getFullYear() + 1)
+          }
+          untilDateStr = dateObj.toISOString().split('T')[0]
+          remainingText = remainingText.replace(untilMatch[0], '')
+      }
+  }
+
+  // "Every X Days/Weeks"
   const customMatch = remainingText.match(/every\s+(\d+)\s+(day|week|month)s?/i)
   if (customMatch) {
     const interval = customMatch[1]
     const unit = customMatch[2].toLowerCase()
-    // Map unit to internal frequency string
     const freq = unit === 'day' ? 'daily' : unit === 'week' ? 'weekly' : 'monthly'
     
-    result.recurrence = `custom:${freq}:${interval}`
+    // Format: custom:freq:interval:until
+    result.recurrence = `custom:${freq}:${interval}${untilDateStr ? ':' + untilDateStr : ''}`
     remainingText = remainingText.replace(customMatch[0], '')
   } 
   // Standard Detection
   else if (/every\s*day|daily/i.test(remainingText)) {
-    result.recurrence = 'daily'
+    result.recurrence = untilDateStr ? `custom:daily:1:${untilDateStr}` : 'daily'
     remainingText = remainingText.replace(/every\s*day|daily/i, '')
   } else if (/every\s*week|weekly/i.test(remainingText)) {
-    result.recurrence = 'weekly'
+    result.recurrence = untilDateStr ? `custom:weekly:1:${untilDateStr}` : 'weekly'
     remainingText = remainingText.replace(/every\s*week|weekly/i, '')
   } else if (/every\s*month|monthly/i.test(remainingText)) {
-    result.recurrence = 'monthly'
+    result.recurrence = untilDateStr ? `custom:monthly:1:${untilDateStr}` : 'monthly'
     remainingText = remainingText.replace(/every\s*month|monthly/i, '')
   }
 
-  // --- 5. Date Math (Relative) ---
+  // --- 5. Date Math ---
   const today = new Date()
   let targetDate: Date | null = null
   
-  // "In X days"
   const inDaysMatch = remainingText.match(/\bin\s+(\d+)\s+days?/i)
   if (inDaysMatch) {
     const days = parseInt(inDaysMatch[1])
@@ -115,32 +129,28 @@ export function parseChoreInput(
     targetDate.setDate(today.getDate() + days)
     remainingText = remainingText.replace(inDaysMatch[0], '')
   }
-  // "Tomorrow"
   else if (/\btomorrow\b/i.test(remainingText)) {
     targetDate = new Date()
     targetDate.setDate(today.getDate() + 1)
     remainingText = remainingText.replace(/\btomorrow\b/i, '')
   }
-  // "Next [Day]"
   else {
     const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     const dayMatch = remainingText.match(new RegExp(`\\bnext\\s+(${daysOfWeek.join('|')})\\b`, 'i'))
-    
     if (dayMatch) {
       const targetDayIndex = daysOfWeek.indexOf(dayMatch[1].toLowerCase())
       const currentDayIndex = today.getDay()
       let daysToAdd = targetDayIndex - currentDayIndex
-      if (daysToAdd <= 0) daysToAdd += 7 // Move to next week
+      if (daysToAdd <= 0) daysToAdd += 7
       targetDate = new Date()
       targetDate.setDate(today.getDate() + daysToAdd)
       remainingText = remainingText.replace(dayMatch[0], '')
     }
   }
 
-  // Time of Day Context
   if (/\btonight\b/i.test(remainingText)) {
     result.timeOfDay = 'evening'
-    if (!targetDate) targetDate = new Date() // Tonight implies today
+    if (!targetDate) targetDate = new Date()
     remainingText = remainingText.replace(/\btonight\b/i, '')
   } else if (/\b(morning|am)\b/i.test(remainingText)) {
     result.timeOfDay = 'morning'

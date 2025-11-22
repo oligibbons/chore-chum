@@ -10,48 +10,60 @@ export const dynamic = 'force-dynamic'
 async function getRooms(): Promise<RoomWithChoreCount[]> {
   const supabase = await createSupabaseClient() 
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    redirect('/') 
-  }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/') 
 
-  const { data: rawProfile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
     .eq('id', user.id)
     .single()
 
-  const profile = rawProfile as { household_id: string | null } | null
-
-  if (profileError || !profile || !profile.household_id) {
-    redirect('/dashboard')
-  }
+  if (!profile?.household_id) redirect('/dashboard')
 
   const householdId = profile.household_id
+  const todayStr = new Date().toISOString()
 
-  const { data: roomsData, error: roomsError } = await supabase
+  // Fetch Rooms with:
+  // 1. Total Chore Count
+  // 2. Overdue Chore Count (chores where due_date < now)
+  const { data: roomsData, error } = await supabase
     .from('rooms')
-    .select('*, chore_count:chores(count)')
+    .select(`
+        *,
+        chores!room_id (
+            status,
+            due_date
+        )
+    `)
     .eq('household_id', householdId)
+    .neq('chores.status', 'complete') // Only count pending chores
     .order('created_at', { ascending: true })
 
-  if (roomsError) {
-    console.error('Error fetching rooms:', roomsError)
+  if (error) {
+    console.error('Error fetching rooms:', error)
     return []
   }
 
-  // FIX: Explicitly cast to 'any[]' to prevent TypeScript from inferring 'never[]'
-  // due to the complex join query above.
-  const rooms = roomsData as any[] | null
+  // Post-process to get counts (Supabase standard count is simpler, but we need specific conditions)
+  const rooms = (roomsData || []).map((room: any) => {
+      const pendingChores = room.chores || []
+      
+      const overdueCount = pendingChores.filter((c: any) => 
+          c.due_date && new Date(c.due_date) < new Date()
+      ).length
 
-  const processedRooms = (rooms || []).map(room => ({
-    ...room,
-    chore_count: room.chore_count?.[0]?.count ?? 0
-  }))
+      return {
+          id: room.id,
+          name: room.name,
+          created_at: room.created_at,
+          household_id: room.household_id,
+          chore_count: pendingChores.length,
+          overdue_count: overdueCount
+      }
+  })
 
-  return processedRooms as RoomWithChoreCount[]
+  return rooms as RoomWithChoreCount[]
 }
 
 export default async function RoomsPage() {
@@ -64,8 +76,7 @@ export default async function RoomsPage() {
           Household Rooms
         </h2>
         <p className="mt-1 text-lg max-w-2xl text-text-secondary">
-          Manage the locations in your home. Rooms help you assign chores
-          to a specific place.
+          Manage the locations in your home. Tap a room to see what needs doing.
         </p>
       </header>
 

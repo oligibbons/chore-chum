@@ -12,7 +12,7 @@ import {
 } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
-import { notifyHousehold } from '@/app/push-actions'
+import { notifyHousehold, sendPushToUser } from '@/app/push-actions'
 
 type ActionResponse = {
   success: boolean
@@ -67,7 +67,7 @@ async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
   return profile as unknown as DbProfile
 }
 
-// --- Helper: Motivational Generator (Updated) ---
+// --- Helper: Motivational Generator ---
 function getCheekyMotivation(isComplete: boolean, isOverdue?: boolean): string {
   const good = [
     "Smashed it! 💥",
@@ -91,12 +91,12 @@ function getCheekyMotivation(isComplete: boolean, isOverdue?: boolean): string {
   return bad[Math.floor(Math.random() * bad.length)]
 }
 
-// --- Helper: Update Streak Logic (Multi-User) ---
+// --- Helper: Update Streak Logic (Rewritten for strict day boundaries) ---
 async function updateStreaks(supabase: TypedSupabaseClient, userIds: string[]) {
+    // Use a consistent date format (YYYY-MM-DD) based on server time (approximate for now)
     const now = new Date()
     const todayStr = now.toISOString().split('T')[0]
     
-    // Get yesterday string
     const yesterday = new Date(now)
     yesterday.setDate(yesterday.getDate() - 1)
     const yesterdayStr = yesterday.toISOString().split('T')[0]
@@ -109,16 +109,16 @@ async function updateStreaks(supabase: TypedSupabaseClient, userIds: string[]) {
         const profile = rawProfile as unknown as DbProfile
         const lastDate = profile.last_chore_date ? new Date(profile.last_chore_date).toISOString().split('T')[0] : null
         
-        // If already done something today, ignore
+        // If already done something today, don't increment, just ensure consistency
         if (lastDate === todayStr) continue
 
         let newStreak = (profile.current_streak || 0)
         
         if (lastDate === yesterdayStr) {
-            // Continued streak
+            // Perfect continuation
             newStreak += 1
         } else {
-            // Broken streak (or first time)
+            // Streak broken (or new user)
             newStreak = 1
         }
 
@@ -132,7 +132,7 @@ async function updateStreaks(supabase: TypedSupabaseClient, userIds: string[]) {
     }
 }
 
-// --- Helper: Next Due Date Calculation (Updated for Intervals) ---
+// --- Helper: Next Due Date Calculation (Updated for Intervals and End Date) ---
 function getNextDueDate(
   recurrenceType: string,
   currentDueDate: string | null
@@ -146,16 +146,20 @@ function getNextDueDate(
     // FIX: Using 'any' here prevents strict type mismatches with RRule's class vs options interface
     let options: any = { dtstart: startDate }
 
-    // Handle "custom:freq:interval" format (e.g., "custom:daily:3")
-    // Or standard "daily", "weekly", "monthly"
+    // Handle "custom:freq:interval:until?" format
     if (recurrenceType.startsWith('custom:')) {
       const parts = recurrenceType.split(':')
-      // custom:daily:3
+      // custom:daily:3:2023-12-31
       const freqStr = parts[1]
       const intervalStr = parts[2]
+      const untilStr = parts[3] // Optional end date
       
       const interval = parseInt(intervalStr) || 1
       options.interval = interval
+
+      if (untilStr) {
+          options.until = new Date(untilStr)
+      }
       
       switch (freqStr) {
         case 'daily': options.freq = RRule.DAILY; break;
@@ -211,11 +215,9 @@ export async function getHouseholdData(
     .select('*')
     .eq('household_id', householdId)
     
-  // FILTER REPAIR: Changed 'updated_at' to 'created_at' because 'chores' table lacks updated_at in some migrations.
-  // This fixes the "Nothing has appeared" bug in history.
-  // UPDATED: Changed to 2 days
+  // Fetch pending items OR items completed recently (last 7 days)
   const historyWindow = new Date()
-  historyWindow.setDate(historyWindow.getDate() - 2)
+  historyWindow.setDate(historyWindow.getDate() - 7)
 
   // Fetch ALL chores (parents and children) that are relevant
   const { data: allChoresRaw } = await supabase
@@ -225,7 +227,6 @@ export async function getHouseholdData(
       rooms:room_id (id, name)
     `)
     .eq('household_id', householdId)
-    // Fetch pending items OR items completed recently
     .or(`status.eq.pending,and(status.eq.complete,created_at.gt.${historyWindow.toISOString()})`)
     .order('due_date', { ascending: true, nullsFirst: true })
 
@@ -305,8 +306,15 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
     const { chores } = fullData
     const now = new Date()
     
-    // UPDATED: "Due Soon" now strictly means within the next 24 hours
-    const dueSoonThreshold = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    // STRICT TIMING:
+    // "Overdue" = Due BEFORE today (yesterday or older)
+    // "Due Soon" = Due TODAY or within the next 24 hours
+    
+    const startOfToday = new Date(now)
+    startOfToday.setHours(0, 0, 0, 0)
+    
+    const endOfToday = new Date(now)
+    endOfToday.setHours(23, 59, 59, 999)
 
     const categorizedData: ChoreDisplayData = {
         overdue: [],
@@ -331,11 +339,14 @@ export async function getChoreDisplayData(householdId: string): Promise<ChoreDis
         const dueDate = new Date(chore.due_date)
         
         // Use precise comparison
-        if (dueDate < now) {
+        if (dueDate < startOfToday) {
+            // Strictly in the past (before 00:00 today)
             categorizedData.overdue.push(chore)
-        } else if (dueDate <= dueSoonThreshold) {
+        } else if (dueDate <= endOfToday) {
+            // Anytime today
             categorizedData.dueSoon.push(chore)
         } else {
+            // Tomorrow or later
             categorizedData.upcoming.push(chore)
         }
     })
@@ -356,13 +367,30 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
     const safeChore = chore as unknown as DbChore
     const isSubtask = !!safeChore.parent_chore_id
 
-    // If it's a subtask, we just mark it complete. Parent progress is calculated on read.
+    // If it's a subtask, we just mark it complete.
     if (isSubtask) {
         const { error: subError } = await supabase.from('chores').update({ status: 'complete' }).eq('id', choreId)
         if (subError) return { success: false, message: subError.message }
         
+        // AUTO-COMPLETE PARENT LOGIC:
+        // Check if all siblings (subtasks of the same parent) are now complete.
+        if (safeChore.parent_chore_id) {
+            const { data: siblings } = await supabase
+                .from('chores')
+                .select('status')
+                .eq('parent_chore_id', safeChore.parent_chore_id)
+            
+            // If every sibling is complete, complete the parent too.
+            const allDone = siblings?.every(s => s.status === 'complete')
+            
+            if (allDone) {
+                // Recursively complete the parent (assigning it to the user who finished the last subtask)
+                await completeChore(safeChore.parent_chore_id, completedBy)
+                return { success: true, message: 'Subtask done & Parent completed!' }
+            }
+        }
+
         revalidatePath('/dashboard')
-        // Subtasks generally don't trigger big notifications or streaks, but we could add that if desired.
         return { success: true, message: 'Subtask done!' }
     }
 
@@ -398,53 +426,47 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
     if (isRecurring) {
         const nextDate = getNextDueDate(safeChore.recurrence_type, safeChore.due_date)
         
-        // 1. Duplicate Parent for Next Due Date
-        const { data: newParent, error: insertError } = await supabase.from('chores').insert({
-            name: safeChore.name,
-            notes: safeChore.notes,
-            household_id: safeChore.household_id,
-            created_by: safeChore.created_by,
-            status: 'pending',
-            assigned_to: safeChore.assigned_to,
-            room_id: safeChore.room_id,
-            due_date: nextDate,
-            target_instances: safeChore.target_instances,
-            recurrence_type: safeChore.recurrence_type,
-            completed_instances: 0,
-            time_of_day: safeChore.time_of_day,
-            exact_time: safeChore.exact_time,
-        } as any).select('id').single()
+        // Only create next instance if getNextDueDate returns a date (it returns null if 'until' date is passed)
+        if (nextDate) {
+            // 1. Duplicate Parent for Next Due Date
+            const { data: newParent, error: insertError } = await supabase.from('chores').insert({
+                name: safeChore.name,
+                notes: safeChore.notes,
+                household_id: safeChore.household_id,
+                created_by: safeChore.created_by,
+                status: 'pending',
+                assigned_to: safeChore.assigned_to,
+                room_id: safeChore.room_id,
+                due_date: nextDate,
+                target_instances: safeChore.target_instances,
+                recurrence_type: safeChore.recurrence_type,
+                completed_instances: 0,
+                time_of_day: safeChore.time_of_day,
+                exact_time: safeChore.exact_time,
+            } as any).select('id').single()
 
-        if (insertError) {
-            console.error("Failed to create next recurring chore:", insertError)
-        }
+            if (insertError) {
+                console.error("Failed to create next recurring chore:", insertError)
+            }
 
-        // 2. Duplicate Subtasks if they exist and we successfully created a new parent
-        if (newParent && !insertError) {
-             // Find all subtasks of the COMPLETED chore
-             const { data: subtasks } = await supabase.from('chores').select('*').eq('parent_chore_id', choreId)
-             
-             if (subtasks && subtasks.length > 0) {
-                 const newSubtasks = subtasks.map((s: any) => ({
-                     name: s.name,
-                     household_id: s.household_id,
-                     created_by: s.created_by,
-                     status: 'pending', // Reset subtasks to pending
-                     parent_chore_id: newParent.id, // Attach to the NEW parent
-                     recurrence_type: 'none' // Subtasks inherit recurrence from parent implicitly by being recreated
-                 }))
-                 
-                 await supabase.from('chores').insert(newSubtasks)
-             }
-        }
-
-        // Revalidate the layout (header) so streaks update immediately
-        revalidatePath('/', 'layout')
-        revalidatePath('/dashboard')
-        return { 
-            success: true, 
-            message: `Complete! Next due: ${new Date(nextDate!).toLocaleDateString()}`, 
-            motivation: getCheekyMotivation(true, false) 
+            // 2. Duplicate Subtasks if they exist and we successfully created a new parent
+            if (newParent && !insertError) {
+                // Find all subtasks of the COMPLETED chore
+                const { data: subtasks } = await supabase.from('chores').select('*').eq('parent_chore_id', choreId)
+                
+                if (subtasks && subtasks.length > 0) {
+                    const newSubtasks = subtasks.map((s: any) => ({
+                        name: s.name,
+                        household_id: s.household_id,
+                        created_by: s.created_by,
+                        status: 'pending', // Reset subtasks to pending
+                        parent_chore_id: newParent.id, // Attach to the NEW parent
+                        recurrence_type: 'none' // Subtasks inherit recurrence from parent implicitly by being recreated
+                    }))
+                    
+                    await supabase.from('chores').insert(newSubtasks)
+                }
+            }
         }
     }
 
@@ -538,10 +560,13 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   }
 
   const rawRoomId = formData.get('roomId') as string
-  const rawDueDate = formData.get('dueDate') as string
+  // Support "No Due Date" by sending null
+  const rawDueDate = formData.get('dueDate') as string || null
   const rawRecurrence = formData.get('recurrence_type') as string
   const rawTimeOfDay = formData.get('timeOfDay') as string
+  // Ensure exactTime is null if empty string
   const rawExactTime = formData.get('exactTime') as string
+  const exactTime = rawExactTime && rawExactTime.trim() !== '' ? rawExactTime : null
   
   // Parse Instances - Default to 1
   const instanceCount = parseInt(formData.get('instances') as string || '1')
@@ -549,8 +574,6 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   if (!rawName) return { success: false, message: 'Chore name is required.' }
 
   // Create Chores Loop (for multiple instances)
-  // If instances > 1, create multiple SEPARATE chores (e.g. "Walk Dog #1", "Walk Dog #2")
-  
   for (let i = 1; i <= instanceCount; i++) {
       let finalName = rawName
       if (instanceCount > 1) {
@@ -566,19 +589,16 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
         status: 'pending',
         assigned_to: singleAssignee, // FIX: Save as single UUID string
         room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
-        due_date: rawDueDate && rawDueDate !== '' ? rawDueDate : null,
+        due_date: rawDueDate,
         // Reset target to 1 because we are creating separate rows now
         target_instances: 1, 
         recurrence_type: rawRecurrence || 'none',
         completed_instances: 0,
         time_of_day: rawTimeOfDay || 'any',
-        exact_time: rawExactTime || null,
+        exact_time: exactTime,
       } as any).select('id').single()
 
-      if (error) {
-        console.error('Error creating chore instance:', error)
-        return { success: false, message: error.message }
-      }
+      if (error) return { success: false, message: error.message }
 
       // 2. Create Children (if any) for THIS instance
       if (subtaskNames.length > 0 && parent) {
@@ -634,17 +654,22 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const choreId = formData.get('choreId') as string
   if (!choreId) return { success: false, message: 'Chore ID missing' }
 
+  // Get current chore for household ID and activity logging
+  const { data: currentChore } = await supabase.from('chores').select('household_id').eq('id', Number(choreId)).single()
+
   const rawName = formData.get('name') as string
-  // ... other fields ...
-  
-  // Basic update implementation
+  // FIX: Convert empty time strings to null to satisfy PostgreSQL 'time' type syntax
+  const rawExactTime = formData.get('exactTime') as string
+  const exactTime = rawExactTime && rawExactTime.trim() !== '' ? rawExactTime : null
+
   const updateData: any = {
       name: rawName,
       notes: formData.get('notes') || null,
       recurrence_type: formData.get('recurrence_type'),
       time_of_day: formData.get('timeOfDay'),
-      exact_time: formData.get('exactTime')
-      // ... handle other fields as needed (room, date, etc)
+      exact_time: exactTime, 
+      room_id: formData.get('roomId') ? Number(formData.get('roomId')) : null,
+      due_date: formData.get('dueDate') || null
   }
   
   // Assignee handling
@@ -665,6 +690,11 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
 
   if (error) return { success: false, message: error.message }
   
+  // Log the Update!
+  if (currentChore) {
+      await logActivity(currentChore.household_id, 'update', rawName)
+  }
+
   revalidatePath('/dashboard')
   return { success: true, message: 'Chore updated' }
 }
@@ -709,6 +739,32 @@ export async function delayChore(choreId: number, days: number): Promise<ActionR
       message: `Delayed by ${days} days`,
       motivation: getCheekyMotivation(false, true) 
   }
+}
+
+export async function nudgeUser(choreId: number, targetUserId: string): Promise<ActionResponse> {
+    const supabase: TypedSupabaseClient = await createSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, message: 'Not authenticated' }
+
+    const { data: chore } = await supabase.from('chores').select('name, household_id').eq('id', choreId).single()
+    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    const { data: targetProfile } = await supabase.from('profiles').select('full_name').eq('id', targetUserId).single()
+    
+    const senderName = profile?.full_name?.split(' ')[0] || 'A housemate'
+    const targetName = targetProfile?.full_name?.split(' ')[0] || 'Someone'
+    
+    await sendPushToUser(targetUserId, {
+        title: `Nudge from ${senderName} 👋`,
+        body: `Don't forget: ${chore?.name || 'Your chore'} is pending!`,
+        url: '/dashboard'
+    })
+
+    // Log the Nudge!
+    if (chore) {
+        await logActivity(chore.household_id, 'nudge', chore.name, { to: targetName })
+    }
+
+    return { success: true, message: 'Nudge sent!' }
 }
 
 export async function incrementChoreInstance(chore: DbChore): Promise<ActionResponse> {

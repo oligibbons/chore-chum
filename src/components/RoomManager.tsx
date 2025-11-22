@@ -4,10 +4,11 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useEffect } from 'react'
 import { createRoom, deleteRoom, FormState } from '@/app/room-actions'
-import { Trash2, Loader2, Home, ArrowRight, AlertTriangle } from 'lucide-react'
+import { Trash2, Loader2, Home, ArrowRight, AlertTriangle, ExternalLink } from 'lucide-react'
 import { RoomWithChoreCount } from '@/types/database'
 import { toast } from 'sonner'
 import { getRoomIcon } from '@/lib/room-icons'
+import { useRouter } from 'next/navigation'
 
 const initialState: FormState = {
   success: false,
@@ -59,6 +60,7 @@ function SubmitButton({
 
 export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }) {
   const [createState, createAction] = useFormState(createRoom, initialState)
+  const router = useRouter()
 
   // Handle Create Toast
   useEffect(() => {
@@ -135,21 +137,22 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
           ) : (
             rooms.map((room) => {
                 // Visual "Rot" Logic:
-                // If a room has > 8 chores or > 3 overdue (simulated), highlight it.
                 const isRotting = (room.overdue_count ?? 0) > 3 || room.chore_count > 8;
                 
                 return (
                   <div
                     key={room.id}
+                    // Make the whole card clickable to navigate
+                    onClick={() => router.push(`/dashboard?roomId=${room.id}`)}
                     className={`
-                        flex items-center justify-between rounded-xl border p-4 shadow-card transition-all hover:shadow-card-hover
-                        ${isRotting ? 'bg-amber-50 border-amber-200' : 'bg-card border-border'}
+                        group relative flex items-center justify-between rounded-xl border p-4 shadow-card transition-all hover:shadow-card-hover cursor-pointer
+                        ${isRotting ? 'bg-amber-50 border-amber-200' : 'bg-card border-border hover:border-brand/30'}
                     `}
                   >
                     <div className="flex items-center space-x-4">
                         <div className={`
                             relative flex items-center justify-center h-12 w-12 rounded-full transition-all
-                            ${isRotting ? 'bg-amber-100 text-amber-700 grayscale-[0.5]' : 'bg-brand-light text-brand'}
+                            ${isRotting ? 'bg-amber-100 text-amber-700 grayscale-[0.5]' : 'bg-brand-light text-brand group-hover:scale-110'}
                         `}>
                             {/* Render Dynamic Icon based on Name */}
                             {getRoomIcon(room.name, "h-6 w-6")}
@@ -163,9 +166,12 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
                         </div>
                         
                         <div className="flex flex-col">
-                          <span className={`font-heading text-lg font-medium ${isRotting ? 'text-amber-900' : 'text-foreground'}`}>
-                              {room.name}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-heading text-lg font-medium ${isRotting ? 'text-amber-900' : 'text-foreground group-hover:text-brand transition-colors'}`}>
+                                {room.name}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
                           <span className={`text-sm ${isRotting ? 'text-amber-700/70' : 'text-text-secondary'}`}>
                               {room.chore_count} {room.chore_count === 1 ? 'chore' : 'chores'}
                               {isRotting && " (Needs attention)"}
@@ -173,12 +179,13 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
                         </div>
                     </div>
                     
-                    <form action={handleDelete}>
+                    <form action={handleDelete} onClick={(e) => e.stopPropagation()}>
                       <input type="hidden" name="roomId" value={room.id} />
                       <button
                         type="submit"
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-status-overdue/10 hover:text-status-overdue"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-status-overdue/10 hover:text-status-overdue z-10 relative"
                         aria-label="Delete room"
+                        title="Delete Room"
                       >
                         <Trash2 className="h-5 w-5" />
                       </button>

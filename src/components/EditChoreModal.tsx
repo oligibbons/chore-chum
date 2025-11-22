@@ -3,7 +3,7 @@
 
 import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check, Ban } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -32,19 +32,28 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   const [assignedIds, setAssignedIds] = useState<string[]>(chore.assigned_to || [])
 
   // --- Recurrence State Initialization ---
-  // Parse "custom:daily:3" or "daily"
   const parseRecurrence = (rec: string | null) => {
-    if (!rec || rec === 'none') return { freq: 'none', interval: 1 }
+    if (!rec || rec === 'none') return { freq: 'none', interval: 1, until: '' }
     if (rec.startsWith('custom:')) {
         const parts = rec.split(':')
-        return { freq: parts[1], interval: parseInt(parts[2]) || 1 }
+        // custom:daily:3:2025-12-31
+        return { 
+            freq: parts[1], 
+            interval: parseInt(parts[2]) || 1,
+            until: parts[3] || '' 
+        }
     }
-    return { freq: rec, interval: 1 }
+    return { freq: rec, interval: 1, until: '' }
   }
 
   const initialRec = parseRecurrence(chore.recurrence_type)
   const [recurrenceFreq, setRecurrenceFreq] = useState(initialRec.freq)
   const [recurrenceInterval, setRecurrenceInterval] = useState(initialRec.interval)
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(initialRec.until)
+
+  // Date State
+  const [dueDate, setDueDate] = useState(chore.due_date ? new Date(chore.due_date).toISOString().split('T')[0] : '')
+  const [hasDueDate, setHasDueDate] = useState(!!chore.due_date)
 
   const toggleMember = (id: string) => {
     interact('neutral')
@@ -74,11 +83,26 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     // Serialize Recurrence
     let finalRecurrence = 'none'
     if (recurrenceFreq !== 'none') {
-        finalRecurrence = recurrenceInterval > 1 
+        const base = recurrenceInterval > 1 
             ? `custom:${recurrenceFreq}:${recurrenceInterval}` 
             : recurrenceFreq
+        
+        if (recurrenceEndDate) {
+            const safeBase = recurrenceInterval === 1 && !base.startsWith('custom') 
+                ? `custom:${recurrenceFreq}:1` 
+                : base.startsWith('custom') ? base : `custom:${recurrenceFreq}:${recurrenceInterval}`
+            
+            finalRecurrence = `${safeBase}:${recurrenceEndDate}`
+        } else {
+            finalRecurrence = base
+        }
     }
     formData.set('recurrence_type', finalRecurrence)
+
+    // Handle Due Date
+    if (!hasDueDate) {
+        formData.delete('dueDate')
+    }
     
     try {
       const result = await updateChore(formData)
@@ -94,11 +118,6 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
       toast.error('Failed to update chore')
       setPending(false)
     }
-  }
-
-  const formatDateForInput = (dateString: string | null) => {
-    if (!dateString) return ''
-    return new Date(dateString).toISOString().split('T')[0]
   }
   
   const timeOptions: TimeOption[] = ['any', 'morning', 'afternoon', 'evening'];
@@ -122,7 +141,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
         </div>
       </div>
 
-      {/* ASSIGNEES - MULTI SELECT GRID */}
+      {/* ASSIGNEES */}
       <div>
         <label className="block font-heading text-sm font-medium text-text-primary mb-2">
           Assign To
@@ -206,18 +225,38 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
         </div>
 
         <div>
-          <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
-            Due Date
-          </label>
+          <div className="flex justify-between items-center">
+            <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
+                Due Date
+            </label>
+            {!hasDueDate ? (
+                <button type="button" onClick={() => { setHasDueDate(true); setDueDate(new Date().toISOString().split('T')[0]); }} className="text-xs text-brand font-semibold">
+                    + Add Date
+                </button>
+            ) : (
+                <button type="button" onClick={() => { setHasDueDate(false); setDueDate(''); }} className="text-xs text-text-secondary hover:text-red-500">
+                    Clear
+                </button>
+            )}
+          </div>
           <div className="relative mt-1">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <input
-              type="date"
-              id="dueDate"
-              name="dueDate"
-              defaultValue={formatDateForInput(chore.due_date)}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            />
+            {hasDueDate ? (
+                <>
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+                    <input
+                    type="date"
+                    id="dueDate"
+                    name="dueDate"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                    />
+                </>
+            ) : (
+                <div className="mt-1 block w-full rounded-xl border border-dashed border-border bg-gray-50 p-3 text-text-secondary text-center text-sm italic">
+                    No due date
+                </div>
+            )}
           </div>
         </div>
       </div>
@@ -257,29 +296,56 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
             <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
         </div>
         
-        <div className="flex gap-3 items-center">
-            <span className="text-sm text-text-secondary whitespace-nowrap">Every</span>
-            
-            <input 
-                type="number" 
-                min="1" 
-                max="99"
-                value={recurrenceInterval}
-                onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
-                className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
-                disabled={recurrenceFreq === 'none'}
-            />
-            
-            <select
-              value={recurrenceFreq}
-              onChange={(e) => setRecurrenceFreq(e.target.value)}
-              className="flex-1 rounded-lg border-border bg-white p-2 text-sm"
-            >
-              <option value="none">Don't repeat</option>
-              <option value="daily">Day(s)</option>
-              <option value="weekly">Week(s)</option>
-              <option value="monthly">Month(s)</option>
-            </select>
+        <div className="flex flex-col gap-3">
+            <div className="flex gap-3 items-center">
+                <span className="text-sm text-text-secondary whitespace-nowrap w-12">Repeat</span>
+                
+                <input 
+                    type="number" 
+                    min="1" 
+                    max="99"
+                    value={recurrenceInterval}
+                    onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                    className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
+                    disabled={recurrenceFreq === 'none'}
+                />
+                
+                <select
+                value={recurrenceFreq}
+                onChange={(e) => setRecurrenceFreq(e.target.value)}
+                className="flex-1 rounded-lg border-border bg-white p-2 text-sm"
+                >
+                <option value="none">Don't repeat</option>
+                <option value="daily">Day(s)</option>
+                <option value="weekly">Week(s)</option>
+                <option value="monthly">Month(s)</option>
+                </select>
+            </div>
+
+            {recurrenceFreq !== 'none' && (
+                <div className="flex gap-3 items-center animate-in slide-in-from-top-2 fade-in">
+                    <span className="text-sm text-text-secondary whitespace-nowrap w-12">Until</span>
+                    <div className="flex-1 relative">
+                        <input 
+                            type="date" 
+                            value={recurrenceEndDate}
+                            onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                            className="w-full rounded-lg border-border bg-white p-2 text-sm pl-9"
+                        />
+                        <Ban className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary pointer-events-none" />
+                    </div>
+                    {recurrenceEndDate && (
+                        <button 
+                            type="button" 
+                            onClick={() => setRecurrenceEndDate('')}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                            title="Clear End Date"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
       </div>
 

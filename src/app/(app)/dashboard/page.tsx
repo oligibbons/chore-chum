@@ -1,3 +1,4 @@
+//: src/app/(app)/dashboard/page.tsx
 // src/app/(app)/dashboard/page.tsx
 
 import { redirect } from 'next/navigation'
@@ -11,7 +12,7 @@ import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
 import EditChoreModal from '@/components/EditChoreModal'
 import { ChoreWithDetails } from '@/types/database'
-import FilterBar from '@/components/FilterBar' 
+import FilterBar from '@/components/FilterBar'
 import ZenMode from '@/components/ZenMode'
 import Leaderboard from '@/components/Leaderboard'
 import StreakCampfire from '@/components/StreakCampfire'
@@ -30,15 +31,15 @@ export default async function DashboardPage(props: DashboardProps) {
   const searchParams = await props.searchParams
   const roomIdFilter = searchParams.roomId ? Number(searchParams.roomId) : null
   const assigneeFilter = searchParams.assignee === 'me' ? 'me' : 'all'
-  
+
   const supabase = await createSupabaseClient()
-  
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/') 
+    redirect('/')
   }
 
   const { data: rawProfile } = await supabase
@@ -47,9 +48,9 @@ export default async function DashboardPage(props: DashboardProps) {
     .eq('id', user.id)
     .single()
 
-  const profile = rawProfile as { 
-    household_id: string | null; 
-    full_name: string | null; 
+  const profile = rawProfile as {
+    household_id: string | null;
+    full_name: string | null;
     current_streak: number;
     last_chore_date: string | null;
   } | null
@@ -70,7 +71,7 @@ export default async function DashboardPage(props: DashboardProps) {
     getRoomsAndMembers(householdId),
   ])
 
-  // --- Active Members Logic (Body Doubling) ---
+  // --- Active Members Logic ---
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const { data: activeLogs } = await supabase
     .from('activity_logs')
@@ -81,11 +82,11 @@ export default async function DashboardPage(props: DashboardProps) {
   const activeUserIds = Array.from(new Set(activeLogs?.map(l => l.user_id)))
   const activeMembers = roomData.members.filter(m => activeUserIds.includes(m.id))
 
-  // --- Daily Goal Logic (Fixed) ---
-  // Count how many items *this user* completed *today* using the activity log
+  // --- Daily Goal Logic (Strict) ---
+  // 1. Count completed today
   const startOfDay = new Date();
   startOfDay.setHours(0,0,0,0);
-  
+
   const { count: completedTodayCount } = await supabase
     .from('activity_logs')
     .select('*', { count: 'exact', head: true })
@@ -94,12 +95,15 @@ export default async function DashboardPage(props: DashboardProps) {
     .eq('action_type', 'complete')
     .gt('created_at', startOfDay.toISOString())
 
-  // Calculate total load: (Pending assigned to me) + (Completed today)
-  const myPendingChores = [...data.overdue, ...data.dueSoon, ...data.upcoming].filter(c => 
-    c.assigned_to?.includes(user.id) || (!c.assigned_to || c.assigned_to.length === 0)
-  )
-  
-  const totalDailyLoad = (completedTodayCount || 0) + myPendingChores.length
+  // 2. Count remaining load (Only Overdue or Due Today)
+  // Filter explicitly for things assigned to me that are strictly due today or in the past
+  const myPendingLoad = [...data.overdue, ...data.dueSoon].filter(c => {
+    const isAssignedToMe = c.assigned_to?.includes(user.id) || (!c.assigned_to || c.assigned_to.length === 0)
+    // Exclude future items from the goal count
+    return isAssignedToMe
+  })
+
+  const totalDailyLoad = (completedTodayCount || 0) + myPendingLoad.length
 
   // --- Filter Logic ---
   let allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
@@ -119,8 +123,8 @@ export default async function DashboardPage(props: DashboardProps) {
 
   // --- Zen Mode Data ---
   const allHouseholdChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
-  const myZenChores = allHouseholdChores.filter(c => 
-    c.assigned_to?.includes(user.id) && 
+  const myZenChores = allHouseholdChores.filter(c =>
+    c.assigned_to?.includes(user.id) &&
     c.status !== 'complete'
   )
 
@@ -145,12 +149,12 @@ export default async function DashboardPage(props: DashboardProps) {
 
   return (
     <div className="space-y-8 pb-24">
-      <ZenMode 
-        chores={myZenChores} 
+      <ZenMode
+        chores={myZenChores}
         activeMembers={activeMembers}
         currentUserId={user.id}
       />
-      
+
       <AppBadgeUpdater count={overdueChores.length} />
 
       {/* Header */}
@@ -162,13 +166,13 @@ export default async function DashboardPage(props: DashboardProps) {
                     {greetingSubtitle}
                 </p>
             </div>
-            
+
             <div className="flex items-center gap-3 self-start md:self-auto">
-                <StreakCampfire 
-                  streak={profile.current_streak || 0} 
+                <StreakCampfire
+                  streak={profile.current_streak || 0}
                   lastChoreDate={profile.last_chore_date || null}
                 />
-                <Link 
+                <Link
                   href="?view=zen"
                   scroll={false}
                   className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-200/50 transition-all hover:scale-105 hover:shadow-lg active:scale-95"
@@ -181,7 +185,7 @@ export default async function DashboardPage(props: DashboardProps) {
 
         <DailyProgress total={totalDailyLoad} completed={completedTodayCount || 0} />
       </div>
-      
+
       <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8 border-b border-transparent transition-all data-[stuck=true]:border-border">
         <FilterBar rooms={roomData.rooms} />
       </div>
@@ -202,9 +206,9 @@ export default async function DashboardPage(props: DashboardProps) {
         </div>
       </div>
 
-      <FloatingActionLink 
+      <FloatingActionLink
         href="?modal=add-chore"
-        scroll={false} 
+        scroll={false}
         className="fixed bottom-8 right-8 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-brand shadow-lg transition-transform hover:scale-105 active:scale-95 hover:bg-brand-dark"
         aria-label="Add new chore"
       >

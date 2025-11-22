@@ -1,7 +1,7 @@
 // src/components/StreakCampfire.tsx
 'use client'
 
-import { Flame, AlertCircle, Trophy, Zap } from 'lucide-react'
+import { Flame, Zap, Wind, Trophy, AlertCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useGameFeel } from '@/hooks/use-game-feel'
 
@@ -16,124 +16,156 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
   
   useEffect(() => setIsClient(true), [])
 
-  // --- Logic: "At Risk" Check ---
-  // If last chore date is NOT today, the streak is at risk of breaking tomorrow
-  let isAtRisk = false
-  if (isClient && streak > 0) {
-    // Simple local date check
-    const today = new Date().toLocaleDateString('en-CA') 
-    // Note: lastChoreDate from DB should be YYYY-MM-DD
-    isAtRisk = lastChoreDate !== today
+  // --- Logic: Streak State Determination ---
+  // We determine the status based on the client's local "Today".
+  // - Active: User has completed a chore today.
+  // - Risk: User completed a chore yesterday (needs to extend today).
+  // - Inactive: Last chore was older than yesterday (streak technically broken/frozen).
+  
+  let status: 'active' | 'risk' | 'inactive' = 'inactive'
+  
+  if (isClient && streak > 0 && lastChoreDate) {
+    const now = new Date()
+    // Format dates as YYYY-MM-DD in local time for comparison
+    const todayStr = now.toLocaleDateString('en-CA') 
+    
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toLocaleDateString('en-CA')
+
+    // lastChoreDate from DB is YYYY-MM-DD string
+    if (lastChoreDate === todayStr) {
+        status = 'active'
+    } else if (lastChoreDate === yesterdayStr) {
+        status = 'risk'
+    } else {
+        status = 'inactive'
+    }
   }
 
-  // --- Logic: Tiers & Progress ---
-  // Tiers: 3, 7, 14, 30
-  const nextMilestone = streak < 3 ? 3 : streak < 7 ? 7 : streak < 14 ? 14 : streak < 30 ? 30 : 100
-  const prevMilestone = streak < 3 ? 0 : streak < 7 ? 3 : streak < 14 ? 7 : streak < 30 ? 14 : 30
+  // --- Logic: Tiers & Progress Math ---
+  // Milestones: 3, 7, 14, 30
+  let nextMilestone = 3
+  let prevMilestone = 0
   
-  const progress = Math.min(100, Math.max(0, ((streak - prevMilestone) / (nextMilestone - prevMilestone)) * 100))
+  if (streak >= 30) { nextMilestone = 100; prevMilestone = 30; }
+  else if (streak >= 14) { nextMilestone = 30; prevMilestone = 14; }
+  else if (streak >= 7) { nextMilestone = 14; prevMilestone = 7; }
+  else if (streak >= 3) { nextMilestone = 7; prevMilestone = 3; }
   
-  // SVG Circle Params for Progress Ring
-  const radius = 18
+  const rawProgress = ((streak - prevMilestone) / (nextMilestone - prevMilestone)) * 100
+  const progress = Math.min(100, Math.max(0, rawProgress))
+
+  // SVG Circle Configuration
+  const radius = 14
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (progress / 100) * circumference
 
   // --- Visual Config ---
-  let fireColor = 'text-gray-300'
-  let glowColor = 'bg-gray-200'
-  let statusText = 'No Streak'
-  let subText = 'Do a chore to spark it!'
-  let Icon = Flame
-  let showParticles = false
+  let icon = <Flame className="w-5 h-5 text-gray-400" />
+  let label = "No Streak"
+  let subLabel = "Complete a chore"
+  let containerStyles = "bg-gray-100/80 border-gray-200 text-gray-500"
+  let ringColor = "text-gray-300"
 
   if (streak > 0) {
-    if (streak < 3) {
-        fireColor = 'text-orange-400'
-        glowColor = 'bg-orange-400/20'
-        statusText = `${streak} Day Spark`
-        subText = `${nextMilestone - streak} days to Campfire`
-    } else if (streak < 7) {
-        fireColor = 'text-orange-500'
-        glowColor = 'bg-orange-500/30'
-        statusText = `${streak} Day Campfire`
-        subText = `${nextMilestone - streak} days to Blaze`
-    } else if (streak < 30) {
-        fireColor = 'text-red-500'
-        glowColor = 'bg-red-500/40'
-        statusText = `${streak} Day Blaze`
-        subText = "You are on fire! 🔥"
-        showParticles = true
-    } else {
-        fireColor = 'text-violet-500'
-        glowColor = 'bg-violet-500/40'
-        statusText = `${streak} Day Mythic`
-        subText = "Unstoppable legend."
-        Icon = Zap
-        showParticles = true
-    }
-  }
+      // 1. Determine Base Tier Visuals
+      if (streak < 3) {
+          // SPARK (1-2 Days)
+          label = `${streak} Day Spark`
+          subLabel = "Keep it going!"
+          icon = <Flame className={`w-5 h-5 ${status === 'active' ? 'text-orange-400' : 'text-orange-300'}`} />
+          containerStyles = "bg-orange-50 border-orange-100 text-orange-700"
+          ringColor = "text-orange-400"
+      } else if (streak < 7) {
+          // CAMPFIRE (3-6 Days)
+          label = `${streak} Day Campfire`
+          subLabel = "Heating up!"
+          icon = <Flame className={`w-5 h-5 ${status === 'active' ? 'text-orange-500 fill-orange-500' : 'text-orange-400'}`} />
+          containerStyles = "bg-orange-100/50 border-orange-200 text-orange-800"
+          ringColor = "text-orange-500"
+      } else if (streak < 30) {
+          // BLAZE (7-29 Days)
+          label = `${streak} Day Blaze`
+          subLabel = "You're on fire!"
+          icon = <Flame className={`w-5 h-5 ${status === 'active' ? 'text-red-500 fill-red-500 animate-flicker' : 'text-red-400'}`} />
+          containerStyles = "bg-red-50 border-red-200 text-red-900"
+          ringColor = "text-red-500"
+      } else {
+          // MYTHIC (30+ Days)
+          label = `${streak} Day Mythic`
+          subLabel = "Unstoppable."
+          icon = <Zap className={`w-5 h-5 ${status === 'active' ? 'text-violet-500 fill-violet-500 animate-bounce' : 'text-violet-400'}`} />
+          containerStyles = "bg-violet-50 border-violet-200 text-violet-900 shadow-sm"
+          ringColor = "text-violet-500"
+      }
 
-  // Override visuals if At Risk
-  if (isAtRisk && streak > 0) {
-      fireColor = 'text-red-600'
-      glowColor = 'bg-red-500/20'
-      subText = "Do a chore to save it!"
+      // 2. Apply Status Overrides
+      if (status === 'risk') {
+          icon = <Wind className="w-5 h-5 text-amber-600 animate-pulse" />
+          subLabel = "Extend it today!"
+          containerStyles = "bg-amber-50 border-amber-300 ring-2 ring-amber-400/30 text-amber-800 animate-pulse"
+          ringColor = "text-amber-500"
+      } else if (status === 'inactive') {
+          icon = <AlertCircle className="w-5 h-5 text-gray-400" />
+          subLabel = "Streak broken?"
+          containerStyles = "bg-gray-100 border-gray-200 text-gray-500 grayscale"
+          ringColor = "text-gray-300"
+      }
   }
 
   return (
     <button 
         onClick={() => interact('neutral')}
         className={`
-            group relative flex items-center gap-3 p-2 pr-5 rounded-full border border-border/50 bg-white/80 backdrop-blur-sm shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-95
-            ${isAtRisk ? 'ring-2 ring-red-400/50 animate-pulse' : ''}
+            group relative flex items-center gap-3 pl-2 pr-4 py-2 rounded-2xl border transition-all duration-300
+            hover:scale-105 active:scale-95 shadow-sm hover:shadow-md
+            ${containerStyles}
         `}
         title={`Next milestone: ${nextMilestone} days`}
     >
-       {/* Icon Container with Progress Ring */}
-       <div className="relative flex items-center justify-center w-12 h-12">
-          
-          {/* Progress Ring Background */}
+       {/* Progress Ring Wrapper */}
+       <div className="relative flex items-center justify-center w-10 h-10 flex-shrink-0">
+          {/* Background Circle */}
           <svg className="absolute inset-0 transform -rotate-90 w-full h-full pointer-events-none">
-            <circle cx="24" cy="24" r={radius} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
-            <circle
-              cx="24" cy="24" r={radius} stroke="currentColor" strokeWidth="3" fill="transparent"
-              strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round"
-              className={`transition-all duration-1000 ease-out ${isAtRisk ? 'text-red-400' : fireColor}`}
+            <circle 
+                cx="20" cy="20" r={radius} 
+                stroke="currentColor" 
+                strokeWidth="3" 
+                fill="transparent" 
+                className="text-black/5" 
             />
+            {/* Active Progress Circle */}
+            {streak > 0 && (
+                <circle
+                    cx="20" cy="20" r={radius} 
+                    stroke="currentColor" 
+                    strokeWidth="3" 
+                    fill="transparent"
+                    strokeDasharray={circumference} 
+                    strokeDashoffset={strokeDashoffset} 
+                    strokeLinecap="round"
+                    className={`transition-all duration-1000 ease-out ${ringColor}`}
+                />
+            )}
           </svg>
 
-          {/* Inner Glow */}
-          <div className={`absolute inset-2 rounded-full blur-md transition-all duration-500 ${streak > 0 ? glowColor : 'bg-transparent'}`} />
-
-          {/* Particles (CSS Only) */}
-          {showParticles && !isAtRisk && (
-            <>
-                <div className="absolute bottom-2 left-3 w-1 h-1 bg-yellow-300 rounded-full animate-float-up" style={{ animationDelay: '0s' }} />
-                <div className="absolute bottom-2 right-3 w-1 h-1 bg-orange-300 rounded-full animate-float-up" style={{ animationDelay: '0.5s' }} />
-                <div className="absolute bottom-3 left-4 w-0.5 h-0.5 bg-white rounded-full animate-float-up" style={{ animationDelay: '1.2s' }} />
-            </>
-          )}
-
-          {/* The Icon */}
-          <div className={`relative z-10 transition-all duration-500 ${streak > 0 ? 'animate-flicker' : ''}`}>
-             {isAtRisk ? (
-                 <AlertCircle className={`w-6 h-6 text-red-500`} />
-             ) : (
-                 <Icon className={`w-6 h-6 ${fireColor} ${streak >= 30 ? 'drop-shadow-[0_0_8px_rgba(139,92,246,0.6)]' : ''}`} fill={streak > 0 ? "currentColor" : "none"} />
-             )}
+          {/* The Centered Icon */}
+          <div className="relative z-10">
+             {icon}
           </div>
        </div>
        
-       {/* Text Content */}
-       <div className="flex flex-col items-start">
-          <div className="flex items-center gap-1">
-            <span className={`text-sm font-bold uppercase tracking-wide ${isAtRisk ? 'text-red-600' : 'text-text-primary'}`}>
-                {statusText}
+       {/* Text Labels */}
+       <div className="flex flex-col items-start text-left">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-heading font-bold leading-none">
+                {label}
             </span>
             {streak >= 30 && <Trophy className="w-3 h-3 text-yellow-500" />}
           </div>
-          <span className={`text-[10px] font-medium ${isAtRisk ? 'text-red-500 font-bold' : 'text-text-secondary'}`}>
-            {subText}
+          <span className="text-[10px] font-bold opacity-80 leading-none mt-1">
+            {subLabel}
           </span>
        </div>
     </button>

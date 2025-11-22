@@ -2,9 +2,9 @@
 'use client'
 
 import { ChoreWithDetails, DbProfile } from '@/types/database'
-import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, User, ChevronDown, ChevronUp } from 'lucide-react'
+import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, User, ChevronDown, ChevronUp, Bell } from 'lucide-react'
 import { useTransition, useState, useOptimistic } from 'react'
-import { completeChore, uncompleteChore, toggleChoreStatus } from '@/app/chore-actions'
+import { completeChore, uncompleteChore, toggleChoreStatus, nudgeUser } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
 import Avatar from './Avatar'
 import DelayChoreModal from './DelayChoreModal'
@@ -42,12 +42,13 @@ const formatTime = (timeString: string) => {
 
 export default function ChoreItem({ chore, showActions, status, members = [], currentUserId = '' }: Props) {
   const [isPending, startTransition] = useTransition()
+  const [isNudging, setIsNudging] = useState(false) // For nudge button spinner
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [showSubtasks, setShowSubtasks] = useState(false)
   const [showFullNotes, setShowFullNotes] = useState(false)
   
-  const { interact } = useGameFeel()
+  const { interact, triggerHaptic } = useGameFeel()
 
   const [optimisticChore, setOptimisticChore] = useOptimistic(
     chore,
@@ -59,6 +60,11 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
 
   const isCompleted = optimisticChore.status === 'complete'
   const isShared = (chore.assigned_to?.length ?? 0) > 1
+  
+  // Logic for Nudge Button:
+  // Show if: Not completed AND assigned to someone else (not just me)
+  const isAssignedToOthers = chore.assigned_to && chore.assigned_to.some(id => id !== currentUserId)
+  const showNudge = !isCompleted && isAssignedToOthers && showActions
 
   // Subtask Logic
   const subtasks = chore.subtasks || []
@@ -96,11 +102,9 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
     }
   }
 
-  // Handler for Parent Chore
   const handleToggleCompletion = async () => {
     interact(isCompleted ? 'neutral' : 'success')
 
-    // If shared and not complete, show modal to pick who did it
     if (!isCompleted && isShared) {
         setIsCompleteModalOpen(true)
         return
@@ -131,13 +135,30 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
     })
   }
 
-  // Handler for Subtasks (Direct toggle)
   const handleSubtaskToggle = async (id: number, currentStatus: string) => {
-      // Optimistic UI handled by parent re-render usually, but simple toggle here
       startTransition(async () => {
           if (currentStatus !== 'complete') interact('success')
           await toggleChoreStatus({ id, status: currentStatus } as any)
       })
+  }
+
+  const handleNudge = async () => {
+      // Find the first assignee that isn't me
+      const targetId = chore.assigned_to?.find(id => id !== currentUserId)
+      if (!targetId) return
+
+      setIsNudging(true)
+      triggerHaptic('light')
+      
+      try {
+          const res = await nudgeUser(chore.id, targetId)
+          if (res.success) toast.success(res.message)
+          else toast.error("Failed to nudge")
+      } catch (e) {
+          toast.error("Could not send nudge")
+      } finally {
+          setIsNudging(false)
+      }
   }
 
   return (
@@ -152,7 +173,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            {/* Main Completion Button */}
             <button
               onClick={handleToggleCompletion}
               disabled={isPending || (totalSubtasks > 0 && progress < 100)}
@@ -191,7 +211,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                   )}
               </div>
 
-              {/* Progress Bar for Subtasks */}
               {totalSubtasks > 0 && (
                   <div className="mt-3 w-full max-w-[240px]">
                       <div className="flex justify-between text-xs text-text-secondary mb-1 font-medium">
@@ -214,7 +233,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                   </div>
               )}
 
-              {/* Notes */}
               {chore.notes && (
                 <div className="mt-2">
                     <button 
@@ -236,7 +254,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
             </div>
           </div>
 
-          {/* Avatar Stack: Flex-shrink-0 to prevent cut-off */}
           <div className="flex -space-x-2 overflow-visible pl-2 py-1 flex-shrink-0" role="group" aria-label="Assigned members">
             {chore.assignees && chore.assignees.length > 0 ? (
                 chore.assignees.map((p, i) => (
@@ -260,7 +277,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
           </div>
         </div>
 
-        {/* Subtasks List (Collapsible) */}
         {showSubtasks && totalSubtasks > 0 && (
             <ul className="mt-4 ml-4 space-y-2 border-l-2 border-gray-100 pl-4 animate-in slide-in-from-top-2 fade-in">
                 {subtasks.map(st => (
@@ -282,7 +298,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
             </ul>
         )}
 
-        {/* Footer Info */}
         <div className="mt-4 flex items-end justify-between border-t border-border/50 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             {chore.due_date && (
@@ -300,7 +315,6 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
             {chore.recurrence_type !== 'none' && (
               <div className="flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-text-secondary bg-gray-50 border border-gray-100">
                 <RotateCw className="h-3 w-3" />
-                {/* Quick fix to display readable recurrence */}
                 <span className="capitalize">
                     {chore.recurrence_type.startsWith('custom') 
                         ? 'Recurring' 
@@ -311,6 +325,18 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Nudge Button */}
+            {showNudge && (
+                <button
+                    onClick={handleNudge}
+                    disabled={isNudging}
+                    className="rounded-full p-1.5 text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                    title="Nudge Assignee"
+                >
+                    {isNudging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                </button>
+            )}
+
             {!isCompleted && showActions && (
               <button 
                 onClick={() => { interact('neutral'); setIsDelayModalOpen(true) }}

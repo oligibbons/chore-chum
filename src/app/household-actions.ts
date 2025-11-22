@@ -16,6 +16,33 @@ function generateInviteCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
 }
 
+// Helper: Activity Logger
+// We duplicate this simple helper here to avoid circular dependency issues with chore-actions
+async function logActivity(
+  householdId: string,
+  actionType: string,
+  entityName: string,
+  details: any = null
+) {
+  const supabase: TypedSupabaseClient = await createSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Explicitly cast to any to bypass strict type checking on inserts if schemas drift
+  const logData = {
+    household_id: householdId,
+    user_id: user?.id || null,
+    action_type: actionType,
+    entity_name: entityName,
+    details: details,
+  }
+
+  const { error } = await supabase.from('activity_logs').insert(logData as any)
+  
+  if (error) {
+    console.error('Error logging activity:', error.message)
+  }
+}
+
 // Helper to get profile for notification names
 async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
   const { data: { user } } = await supabase.auth.getUser()
@@ -111,6 +138,9 @@ export async function createHousehold(
       }
     }
 
+    // LOG ACTIVITY: Household Created
+    await logActivity(householdData.id, 'create', householdName, { type: 'household' })
+
     revalidatePath('/dashboard')
     return { success: true, message: 'Household created successfully! Welcome home.', timestamp: Date.now() }
 
@@ -174,6 +204,9 @@ export async function joinHousehold(
         timestamp: Date.now()
       }
     }
+
+    // LOG ACTIVITY: New Member Joined
+    await logActivity(householdData.id, 'join', householdData.name, { member: userName })
 
     // Notify Household Members
     await notifyHousehold(

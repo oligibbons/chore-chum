@@ -3,7 +3,7 @@
 
 import { Fragment, useState, FormEvent, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2 } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2, Ban } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -41,12 +41,17 @@ function ChoreForm({
   const [name, setName] = useState('')
   const [assignedIds, setAssignedIds] = useState<string[]>([])
   const [roomId, setRoomId] = useState('')
+  
+  // Date States
   const [dueDate, setDueDate] = useState('')
+  const [hasDueDate, setHasDueDate] = useState(true)
+  
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
   
   // Advanced Recurrence State
   const [recurrenceFreq, setRecurrenceFreq] = useState('none')
   const [recurrenceInterval, setRecurrenceInterval] = useState(1)
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   
   // Instance State
   const [instanceCount, setInstanceCount] = useState(1)
@@ -78,6 +83,18 @@ function ChoreForm({
     }
   }
 
+  // Helper to clear due date
+  const clearDueDate = () => {
+      setDueDate('')
+      setHasDueDate(false)
+  }
+
+  // Helper to enable due date
+  const enableDueDate = () => {
+      setHasDueDate(true)
+      if (!dueDate) setDueDate(new Date().toISOString().split('T')[0])
+  }
+
   // Smart Parsing Logic
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -89,7 +106,6 @@ function ChoreForm({
         if (parsed.roomId) setRoomId(parsed.roomId.toString())
         if (parsed.assignedTo) setAssignedIds([parsed.assignedTo]) 
         
-        // Handle recurrence parsing
         if (parsed.recurrence) {
             if (parsed.recurrence.startsWith('custom:')) {
                 const parts = parsed.recurrence.split(':')
@@ -101,7 +117,10 @@ function ChoreForm({
             }
         }
         
-        if (parsed.dueDate) setDueDate(parsed.dueDate)
+        if (parsed.dueDate) {
+            setDueDate(parsed.dueDate)
+            setHasDueDate(true)
+        }
         if (parsed.timeOfDay) setTimeOfDay(parsed.timeOfDay)
 
     }, 600) 
@@ -128,12 +147,27 @@ function ChoreForm({
     formData.append('instances', instanceCount.toString())
     formData.append('subtasks', JSON.stringify(subtasks))
 
+    if (!hasDueDate) {
+        formData.delete('dueDate')
+    }
+
     // Construct Recurrence String
     let finalRecurrence = 'none'
     if (recurrenceFreq !== 'none') {
-        finalRecurrence = recurrenceInterval > 1 
+        const base = recurrenceInterval > 1 
             ? `custom:${recurrenceFreq}:${recurrenceInterval}` 
             : recurrenceFreq
+        
+        // If end date exists, force custom format to include it
+        if (recurrenceEndDate) {
+            const safeBase = recurrenceInterval === 1 && !base.startsWith('custom') 
+                ? `custom:${recurrenceFreq}:1` 
+                : base.startsWith('custom') ? base : `custom:${recurrenceFreq}:${recurrenceInterval}`
+            
+            finalRecurrence = `${safeBase}:${recurrenceEndDate}`
+        } else {
+            finalRecurrence = base
+        }
     }
     formData.set('recurrence_type', finalRecurrence)
 
@@ -166,7 +200,7 @@ function ChoreForm({
                 type="text"
                 value={smartInput}
                 onChange={(e) => setSmartInput(e.target.value)}
-                placeholder="e.g. 'Water plants every 3 days'"
+                placeholder="e.g. 'Water plants every 3 days until Dec 25'"
                 className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
                 autoFocus
             />
@@ -279,19 +313,39 @@ function ChoreForm({
         </div>
 
         <div>
-          <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
-            Due Date
-          </label>
+          <div className="flex justify-between items-center">
+            <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
+                Due Date
+            </label>
+            {!hasDueDate ? (
+                <button type="button" onClick={enableDueDate} className="text-xs text-brand font-semibold hover:underline">
+                    + Set Date
+                </button>
+            ) : (
+                <button type="button" onClick={clearDueDate} className="text-xs text-text-secondary hover:text-red-500 hover:underline">
+                    Clear
+                </button>
+            )}
+          </div>
+          
           <div className="relative mt-1">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <input
-              type="date"
-              id="dueDate"
-              name="dueDate"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            />
+            {hasDueDate ? (
+                <>
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+                    <input
+                    type="date"
+                    id="dueDate"
+                    name="dueDate"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                    />
+                </>
+            ) : (
+                <div className="mt-1 block w-full rounded-xl border border-dashed border-border bg-gray-50 p-3 text-text-secondary text-center text-sm italic">
+                    No due date set
+                </div>
+            )}
           </div>
         </div>
       </div>
@@ -331,35 +385,57 @@ function ChoreForm({
             <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
         </div>
         
-        <div className="flex gap-3 items-center">
-            <span className="text-sm text-text-secondary whitespace-nowrap">Every</span>
-            
-            <input 
-                type="number" 
-                min="1" 
-                max="99"
-                value={recurrenceInterval}
-                onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
-                className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
-                disabled={recurrenceFreq === 'none'}
-            />
-            
-            <select
-              value={recurrenceFreq}
-              onChange={(e) => setRecurrenceFreq(e.target.value)}
-              className="flex-1 rounded-lg border-border bg-white p-2 text-sm"
-            >
-              <option value="none">Don't repeat</option>
-              <option value="daily">Day(s)</option>
-              <option value="weekly">Week(s)</option>
-              <option value="monthly">Month(s)</option>
-            </select>
+        <div className="flex flex-col gap-3">
+            <div className="flex gap-3 items-center">
+                <span className="text-sm text-text-secondary whitespace-nowrap w-12">Repeat</span>
+                
+                <input 
+                    type="number" 
+                    min="1" 
+                    max="99"
+                    value={recurrenceInterval}
+                    onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                    className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
+                    disabled={recurrenceFreq === 'none'}
+                />
+                
+                <select
+                value={recurrenceFreq}
+                onChange={(e) => setRecurrenceFreq(e.target.value)}
+                className="flex-1 rounded-lg border-border bg-white p-2 text-sm"
+                >
+                <option value="none">Never</option>
+                <option value="daily">Day(s)</option>
+                <option value="weekly">Week(s)</option>
+                <option value="monthly">Month(s)</option>
+                </select>
+            </div>
+
+            {recurrenceFreq !== 'none' && (
+                <div className="flex gap-3 items-center animate-in slide-in-from-top-2 fade-in">
+                    <span className="text-sm text-text-secondary whitespace-nowrap w-12">Until</span>
+                    <div className="flex-1 relative">
+                        <input 
+                            type="date" 
+                            value={recurrenceEndDate}
+                            onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                            className="w-full rounded-lg border-border bg-white p-2 text-sm pl-9"
+                        />
+                        <Ban className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary pointer-events-none" />
+                    </div>
+                    {recurrenceEndDate && (
+                        <button 
+                            type="button" 
+                            onClick={() => setRecurrenceEndDate('')}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Clear End Date"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
-        {recurrenceFreq !== 'none' && recurrenceInterval > 1 && (
-            <p className="text-xs text-text-secondary text-center">
-                Repeats every {recurrenceInterval} {recurrenceFreq.replace('ly', '')}s
-            </p>
-        )}
       </div>
 
       {/* MULTIPLE INSTANCES */}
@@ -479,7 +555,7 @@ function ChoreForm({
         <button
           type="submit"
           disabled={pending}
-          className="flex items-center justify-center rounded-xl bg-brand px-5 py-3 font-heading text-base font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex items-center justify-center rounded-xl bg-brand px-6 py-3 font-heading text-base font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70"
         >
           {pending ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -512,7 +588,7 @@ export default function AddChoreModal(props: Props) {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/30" />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
