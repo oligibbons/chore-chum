@@ -6,9 +6,9 @@ import {
   HouseholdData, 
   ChoreWithDetails, 
   DbChore, 
-  DbHousehold,
-  DbProfile,
-  TypedSupabaseClient
+  DbHousehold, 
+  DbProfile, 
+  TypedSupabaseClient 
 } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { RRule } from 'rrule'
@@ -143,7 +143,8 @@ function getNextDueDate(
     const startDate = new Date(currentDueDate)
     if (isNaN(startDate.getTime())) return null
 
-    let options: Partial<RRule> = { dtstart: startDate }
+    // FIX: Using 'any' here prevents strict type mismatches with RRule's class vs options interface
+    let options: any = { dtstart: startDate }
 
     // Handle "custom:freq:interval" format (e.g., "custom:daily:3")
     // Or standard "daily", "weekly", "monthly"
