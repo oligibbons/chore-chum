@@ -1,4 +1,5 @@
 // src/lib/supabase/server.ts
+import 'server-only' // 1. Protects this file from client bundles
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
