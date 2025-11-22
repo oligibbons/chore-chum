@@ -1,3 +1,4 @@
+// src/app/profile-actions.ts
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server'
@@ -10,6 +11,27 @@ export type ProfileFormState = {
   success: boolean
   message: string
   timestamp?: number
+}
+
+// Helper: Activity Logger
+async function logActivity(
+  householdId: string,
+  actionType: string,
+  entityName: string,
+  details: any = null
+) {
+  const supabase: TypedSupabaseClient = await createSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  const logData = {
+    household_id: householdId,
+    user_id: user?.id || null,
+    action_type: actionType,
+    entity_name: entityName,
+    details: details,
+  }
+
+  await supabase.from('activity_logs').insert(logData as any)
 }
 
 // Helper to get profile safely
@@ -54,6 +76,12 @@ export async function updateProfile(
     return { success: false, message: error.message, timestamp: Date.now() }
   }
 
+  // Log update if they are in a household
+  const profile = await getCurrentUserProfile(supabase)
+  if (profile?.household_id) {
+      await logActivity(profile.household_id, 'update', 'Profile', { member: fullName })
+  }
+
   revalidatePath('/profile')
   revalidatePath('/dashboard')
   
@@ -76,7 +104,7 @@ export async function leaveHousehold() {
   const isLastMember = count === 1
 
   if (isLastMember) {
-    // 1. Delete Household (Cascading delete handles chores/rooms usually, but we ensure cleanup)
+    // 1. Delete Household
     const { error } = await supabase
       .from('households')
       .delete()
@@ -84,14 +112,16 @@ export async function leaveHousehold() {
 
     if (error) throw new Error(`Failed to close household: ${error.message}`)
     
-    // Update profile just in case cascade didn't catch it or to be explicit
     await supabase
       .from('profiles')
       .update({ household_id: null })
       .eq('id', profile.id)
 
   } else {
-    // Notify remaining members BEFORE leaving
+    // Log the leave event BEFORE removing the user
+    await logActivity(profile.household_id, 'leave', 'Household', { member: profile.full_name })
+
+    // Notify remaining members
     await notifyHousehold(
       profile.household_id,
       {
@@ -102,7 +132,7 @@ export async function leaveHousehold() {
       profile.id
     )
 
-    // Just remove self
+    // Remove self
     const { error } = await supabase
       .from('profiles')
       .update({ household_id: null })

@@ -1,3 +1,4 @@
+// src/components/RealtimeChores.tsx
 'use client'
 
 import { useEffect } from 'react'
@@ -13,10 +14,9 @@ export default function RealtimeChores({ householdId }: Props) {
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
-    // Subscribe to all changes (INSERT, UPDATE, DELETE) on the 'chores' table
-    // BUT filter only for the rows matching our householdId
     const channel = supabase
-      .channel('realtime-chores')
+      .channel('realtime-household')
+      // Listen for Chore changes
       .on(
         'postgres_changes',
         {
@@ -25,10 +25,18 @@ export default function RealtimeChores({ householdId }: Props) {
           table: 'chores',
           filter: `household_id=eq.${householdId}`,
         },
-        () => {
-          // When a change happens, refresh the Server Components to fetch new data
-          router.refresh()
-        }
+        () => router.refresh()
+      )
+      // Listen for Activity Log changes (Feed updates, Nudges, etc)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT', // Logs are usually just inserts
+          schema: 'public',
+          table: 'activity_logs',
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => router.refresh()
       )
       .subscribe()
 
@@ -37,5 +45,5 @@ export default function RealtimeChores({ householdId }: Props) {
     }
   }, [supabase, router, householdId])
 
-  return null // This component is invisible
+  return null
 }
