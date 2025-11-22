@@ -1,3 +1,4 @@
+// src/components/Leaderboard.tsx
 'use client'
 
 import { useState } from 'react'
@@ -29,14 +30,14 @@ export default function Leaderboard({ members, chores }: Props) {
       if (c.status !== 'complete') return false
       
       // Must be assigned to this member
+      // Note: This counts shared chores for everyone assigned
       const isAssigned = c.assigned_to?.includes(member.id)
       if (!isAssigned) return false
 
       // Timeframe Filter
       if (timeframe === 'week') {
-        // Fallback to created_at if updated_at is missing (though actions set updated_at on complete)
-        // We assume 'updated_at' captures the completion time for this MVP logic.
-        const dateToCheck = (c as any).updated_at || c.created_at
+        // Check created_at (closest proxy to completion time for completed rows in this model)
+        const dateToCheck = c.created_at
         const completedDate = new Date(dateToCheck)
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)

@@ -1,8 +1,9 @@
+// src/components/AddChoreModal.tsx
 'use client'
 
 import { Fragment, useState, FormEvent, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Hash } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2 } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -41,16 +42,26 @@ function ChoreForm({
   const [assignedIds, setAssignedIds] = useState<string[]>([])
   const [roomId, setRoomId] = useState('')
   const [dueDate, setDueDate] = useState('')
-  const [recurrence, setRecurrence] = useState('none')
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
+  
+  // Advanced Recurrence State
+  const [recurrenceFreq, setRecurrenceFreq] = useState('none')
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1)
+  
+  // Instance State
+  const [instanceCount, setInstanceCount] = useState(1)
+
+  // Subtasks State
+  const [subtasks, setSubtasks] = useState<string[]>([])
+  const [newSubtask, setNewSubtask] = useState('')
 
   const suggestions = [
     "Wash dishes tonight",
     "Take out trash",
     "Vacuum living room",
-    "Water plants",
+    "Water plants every 3 days",
     "Laundry this weekend",
-    "Clean my room" // New context-aware suggestion
+    "Clean my room"
   ]
 
   const toggleMember = (id: string) => {
@@ -60,18 +71,36 @@ function ChoreForm({
     )
   }
 
+  const addSubtask = () => {
+    if(newSubtask.trim()) {
+        setSubtasks([...subtasks, newSubtask.trim()])
+        setNewSubtask('')
+    }
+  }
+
   // Smart Parsing Logic
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!smartInput.trim()) return
 
-        // Phase 2: Pass currentUserId for context
         const parsed = parseChoreInput(smartInput, members, rooms, currentUserId)
         
         if (parsed.name) setName(parsed.name)
         if (parsed.roomId) setRoomId(parsed.roomId.toString())
         if (parsed.assignedTo) setAssignedIds([parsed.assignedTo]) 
-        if (parsed.recurrence) setRecurrence(parsed.recurrence)
+        
+        // Handle recurrence parsing
+        if (parsed.recurrence) {
+            if (parsed.recurrence.startsWith('custom:')) {
+                const parts = parsed.recurrence.split(':')
+                setRecurrenceFreq(parts[1])
+                setRecurrenceInterval(parseInt(parts[2]) || 1)
+            } else {
+                setRecurrenceFreq(parsed.recurrence)
+                setRecurrenceInterval(1)
+            }
+        }
+        
         if (parsed.dueDate) setDueDate(parsed.dueDate)
         if (parsed.timeOfDay) setTimeOfDay(parsed.timeOfDay)
 
@@ -96,6 +125,17 @@ function ChoreForm({
     const formData = new FormData(event.currentTarget)
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
+    formData.append('instances', instanceCount.toString())
+    formData.append('subtasks', JSON.stringify(subtasks))
+
+    // Construct Recurrence String
+    let finalRecurrence = 'none'
+    if (recurrenceFreq !== 'none') {
+        finalRecurrence = recurrenceInterval > 1 
+            ? `custom:${recurrenceFreq}:${recurrenceInterval}` 
+            : recurrenceFreq
+    }
+    formData.set('recurrence_type', finalRecurrence)
 
     try {
       const result = await createChore(formData)
@@ -126,7 +166,7 @@ function ChoreForm({
                 type="text"
                 value={smartInput}
                 onChange={(e) => setSmartInput(e.target.value)}
-                placeholder="e.g. 'Vacuum Living Room every Friday'"
+                placeholder="e.g. 'Water plants every 3 days'"
                 className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
                 autoFocus
             />
@@ -284,69 +324,137 @@ function ChoreForm({
          </div>
       </div>
 
-      {/* RECURRENCE & INSTANCES */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="recurrence_type" className="block font-heading text-sm font-medium text-text-primary">
-            Recurs
-          </label>
-          <div className="relative mt-1">
-            <Repeat className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+      {/* ADVANCED RECURRENCE */}
+      <div className="p-4 bg-gray-50 rounded-xl border border-border space-y-4">
+        <div className="flex items-center gap-2">
+            <Repeat className="h-5 w-5 text-brand" />
+            <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
+        </div>
+        
+        <div className="flex gap-3 items-center">
+            <span className="text-sm text-text-secondary whitespace-nowrap">Every</span>
+            
+            <input 
+                type="number" 
+                min="1" 
+                max="99"
+                value={recurrenceInterval}
+                onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
+                disabled={recurrenceFreq === 'none'}
+            />
+            
             <select
-              id="recurrence_type"
-              name="recurrence_type"
-              value={recurrence}
-              onChange={(e) => setRecurrence(e.target.value)}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+              value={recurrenceFreq}
+              onChange={(e) => setRecurrenceFreq(e.target.value)}
+              className="flex-1 rounded-lg border-border bg-white p-2 text-sm"
             >
-              <option value="none">Does not repeat</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
+              <option value="none">Don't repeat</option>
+              <option value="daily">Day(s)</option>
+              <option value="weekly">Week(s)</option>
+              <option value="monthly">Month(s)</option>
             </select>
-          </div>
         </div>
+        {recurrenceFreq !== 'none' && recurrenceInterval > 1 && (
+            <p className="text-xs text-text-secondary text-center">
+                Repeats every {recurrenceInterval} {recurrenceFreq.replace('ly', '')}s
+            </p>
+        )}
+      </div>
 
-        <div>
-            <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
-            Instances
-            </label>
-            <div className="relative mt-1">
-              <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-              <input
-                  type="number"
-                  id="instances"
-                  name="instances"
-                  defaultValue={1}
-                  min={1}
-                  className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-              />
+      {/* MULTIPLE INSTANCES */}
+      <div className="p-4 bg-gray-50 rounded-xl border border-border space-y-2">
+         <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <Copy className="h-5 w-5 text-brand" />
+                <h4 className="font-heading font-semibold text-sm">Multiple Copies</h4>
             </div>
-        </div>
+            <div className="flex items-center gap-3">
+                <button 
+                    type="button" 
+                    onClick={() => setInstanceCount(Math.max(1, instanceCount - 1))}
+                    className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center hover:bg-gray-100"
+                >
+                    -
+                </button>
+                <span className="font-bold w-4 text-center">{instanceCount}</span>
+                <button 
+                    type="button" 
+                    onClick={() => setInstanceCount(Math.min(10, instanceCount + 1))}
+                    className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center hover:bg-gray-100"
+                >
+                    +
+                </button>
+            </div>
+         </div>
+         {instanceCount > 1 && (
+             <p className="text-xs text-text-secondary">
+                 Creates {instanceCount} separate chores named "{name} #1" to "#{instanceCount}"
+             </p>
+         )}
+      </div>
+
+      {/* SUBTASKS UI */}
+      <div className="space-y-2">
+          <label className="block font-heading text-sm font-medium text-text-primary">Sub-steps</label>
+          <div className="flex gap-2">
+              <input 
+                type="text" 
+                value={newSubtask} 
+                onChange={(e) => setNewSubtask(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
+                placeholder="e.g. 'Sort whites'"
+                className="flex-1 rounded-xl border-border bg-background p-2 text-sm"
+              />
+              <button 
+                type="button" 
+                onClick={addSubtask} 
+                className="p-2 bg-gray-100 rounded-xl hover:bg-brand-light text-brand"
+              >
+                  <PlusCircle className="h-5 w-5" />
+              </button>
+          </div>
+          {subtasks.length > 0 && (
+              <ul className="space-y-1 pl-1">
+                  {subtasks.map((st, i) => (
+                      <li key={i} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded-lg">
+                          <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-brand/50" />
+                              <span>{st}</span>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={() => setSubtasks(subtasks.filter((_, idx) => idx !== i))} 
+                            className="text-gray-400 hover:text-red-500"
+                          >
+                              <Trash2 className="h-4 w-4" />
+                          </button>
+                      </li>
+                  ))}
+              </ul>
+          )}
       </div>
 
       {/* DETAILS TOGGLE */}
       <details className="group">
         <summary className="flex items-center gap-2 text-sm font-medium text-brand cursor-pointer list-none">
-            <span>More Options (Notes, Exact Time)</span>
+            <span>Add Notes & Exact Time</span>
         </summary>
         <div className="space-y-4 pt-4 animate-in fade-in slide-in-from-top-2">
             <div>
-                <label htmlFor="notes" className="block font-heading text-sm font-medium text-text-primary">
-                Notes
-                </label>
                 <textarea
                     id="notes"
                     name="notes"
                     rows={2}
+                    placeholder="Add details..."
                     className="mt-1 block w-full rounded-xl border-border bg-background p-3 focus:border-brand focus:ring-brand"
                 />
             </div>
              <div>
-                <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary">
-                    Exact Time
+                <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary mb-1">
+                    Exact Time (Optional)
                 </label>
-                <div className="relative mt-1">
+                <div className="relative">
                     <Clock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
                     <input
                         type="time"
@@ -376,7 +484,7 @@ function ChoreForm({
           {pending ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            'Create Chore'
+            `Create ${instanceCount > 1 ? instanceCount : ''} Chore${instanceCount > 1 ? 's' : ''}`
           )}
         </button>
       </div>
@@ -384,12 +492,7 @@ function ChoreForm({
   )
 }
 
-export default function AddChoreModal({
-  isOpen,
-  members,
-  rooms,
-  currentUserId
-}: Props) {
+export default function AddChoreModal(props: Props) {
   const router = useRouter()
 
   const handleClose = () => {
@@ -398,7 +501,7 @@ export default function AddChoreModal({
   }
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
+    <Transition appear show={props.isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
@@ -426,7 +529,7 @@ export default function AddChoreModal({
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-card p-8 text-left align-middle shadow-xl transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <Dialog.Title as="h3" className="text-2xl font-heading font-semibold">
-                    Add Chore
+                    Add New Chore
                   </Dialog.Title>
                   <button
                     onClick={handleClose}
@@ -438,9 +541,9 @@ export default function AddChoreModal({
                 
                 <ChoreForm
                     closeModal={handleClose}
-                    members={members}
-                    rooms={rooms}
-                    currentUserId={currentUserId}
+                    members={props.members}
+                    rooms={props.rooms}
+                    currentUserId={props.currentUserId}
                 />
 
               </Dialog.Panel>

@@ -1,3 +1,4 @@
+// src/components/RoomManager.tsx
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
@@ -13,8 +14,7 @@ const initialState: FormState = {
   message: '',
 }
 
-// Extended type to support the new "Rot" feature if data is available, 
-// falling back to chore_count if not.
+// Extended type to support "Rot" feature
 type RoomWithPotentialRot = RoomWithChoreCount & {
     overdue_count?: number 
 }
@@ -71,7 +71,6 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
     }
   }, [createState])
 
-  // Handle Delete
   const handleDelete = async (formData: FormData) => {
     try {
       await deleteRoom(formData)
@@ -135,9 +134,8 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
             </div>
           ) : (
             rooms.map((room) => {
-                // Phase 4: Visual "Rot" Logic
-                // If overdue_count > 3 (or high total chore count as proxy), apply rot.
-                // Since overdue_count isn't in DB types yet, we use chore_count > 5 as a visual demo.
+                // Visual "Rot" Logic:
+                // If a room has > 8 chores or > 3 overdue (simulated), highlight it.
                 const isRotting = (room.overdue_count ?? 0) > 3 || room.chore_count > 8;
                 
                 return (

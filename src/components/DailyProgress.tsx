@@ -1,3 +1,4 @@
+// src/components/DailyProgress.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -22,8 +23,8 @@ export default function DailyProgress({ total, completed }: Props) {
     // Trigger confetti if hitting 100% from a lower number
     if (percentage === 100 && progress < 100 && total > 0) {
       confetti({
-        particleCount: 150,
-        spread: 80,
+        particleCount: 100,
+        spread: 70,
         origin: { y: 0.6 },
         colors: ['#a78bfa', '#34d399', '#fbbf24']
       })
@@ -41,7 +42,7 @@ export default function DailyProgress({ total, completed }: Props) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-card relative overflow-hidden">
        <div className="flex flex-col z-10">
-          <span className="text-sm font-bold text-text-secondary uppercase tracking-wider">Daily Goal</span>
+          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">Daily Goal</span>
           <div className="flex items-baseline gap-1">
              <span className="text-3xl font-heading font-bold text-brand">{completed}</span>
              <span className="text-lg text-text-secondary font-medium">/ {total}</span>

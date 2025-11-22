@@ -4,7 +4,7 @@ import { signOut } from '@/app/actions'
 import Link from 'next/link'
 import NavLink from '@/components/NavLink'
 import Logo from '@/components/Logo'
-import { Home, LayoutGrid, User, Calendar, Activity } from 'lucide-react'
+import { Home, LayoutGrid, User, Calendar, Activity, Settings } from 'lucide-react'
 import { createSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PullToRefresh from '@/components/PullToRefresh'
@@ -23,7 +23,6 @@ export default async function AppLayout({
     redirect('/')
   }
 
-  // Fetch household_id for Realtime listener
   const { data: profile } = await supabase
     .from('profiles')
     .select('household_id')
@@ -31,7 +30,6 @@ export default async function AppLayout({
     .single()
 
   return (
-    // QUICK WIN: Added pb-[env(safe-area-inset-bottom)] for safe area padding
     <div className="flex min-h-screen flex-col bg-background pb-[env(safe-area-inset-bottom)]">
       {/* Global Realtime Listener */}
       {profile?.household_id && <RealtimeChores householdId={profile.household_id} />}
@@ -76,11 +74,14 @@ export default async function AppLayout({
             <NavLink href="/calendar">
               <Calendar className="h-5 w-5" />
             </NavLink>
+            <NavLink href="/rooms">
+              <Home className="h-5 w-5" />
+            </NavLink>
             <NavLink href="/feed">
               <Activity className="h-5 w-5" />
             </NavLink>
              <NavLink href="/profile">
-              <User className="h-5 w-5" />
+              <Settings className="h-5 w-5" /> {/* Using Settings icon for profile/household context */}
             </NavLink>
           </nav>
           

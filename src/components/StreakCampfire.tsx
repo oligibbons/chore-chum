@@ -1,7 +1,7 @@
 // src/components/StreakCampfire.tsx
 'use client'
 
-import { Flame, AlertCircle, Trophy, Sparkles, Zap } from 'lucide-react'
+import { Flame, AlertCircle, Trophy, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useGameFeel } from '@/hooks/use-game-feel'
 
@@ -17,9 +17,12 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
   useEffect(() => setIsClient(true), [])
 
   // --- Logic: "At Risk" Check ---
+  // If last chore date is NOT today, the streak is at risk of breaking tomorrow
   let isAtRisk = false
   if (isClient && streak > 0) {
+    // Simple local date check
     const today = new Date().toLocaleDateString('en-CA') 
+    // Note: lastChoreDate from DB should be YYYY-MM-DD
     isAtRisk = lastChoreDate !== today
   }
 
@@ -71,10 +74,10 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
   }
 
   // Override visuals if At Risk
-  if (isAtRisk) {
+  if (isAtRisk && streak > 0) {
       fireColor = 'text-red-600'
       glowColor = 'bg-red-500/20'
-      subText = "Save your streak!"
+      subText = "Do a chore to save it!"
   }
 
   return (

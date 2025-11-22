@@ -9,7 +9,7 @@
     "orientation": "portrait",
     "icons": [
       {
-        "src": "/app-icon.svg",
+        "src": "/broom-icon.svg",
         "sizes": "any",
         "type": "image/svg+xml",
         "purpose": "any maskable"

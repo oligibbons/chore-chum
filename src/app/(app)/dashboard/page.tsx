@@ -70,8 +70,7 @@ export default async function DashboardPage(props: DashboardProps) {
     getRoomsAndMembers(householdId),
   ])
 
-  // --- Phase 3: Body Doubling Logic ---
-  // Fetch users active in the last hour
+  // --- Active Members Logic (Body Doubling) ---
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const { data: activeLogs } = await supabase
     .from('activity_logs')
@@ -80,12 +79,29 @@ export default async function DashboardPage(props: DashboardProps) {
     .gt('created_at', oneHourAgo)
 
   const activeUserIds = Array.from(new Set(activeLogs?.map(l => l.user_id)))
-  
-  const activeMembers = roomData.members.filter(m => 
-    activeUserIds.includes(m.id)
-  )
+  const activeMembers = roomData.members.filter(m => activeUserIds.includes(m.id))
 
-  // --- Master Filter Logic ---
+  // --- Daily Goal Logic (Fixed) ---
+  // Count how many items *this user* completed *today* using the activity log
+  const startOfDay = new Date();
+  startOfDay.setHours(0,0,0,0);
+  
+  const { count: completedTodayCount } = await supabase
+    .from('activity_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('household_id', householdId)
+    .eq('user_id', user.id)
+    .eq('action_type', 'complete')
+    .gt('created_at', startOfDay.toISOString())
+
+  // Calculate total load: (Pending assigned to me) + (Completed today)
+  const myPendingChores = [...data.overdue, ...data.dueSoon, ...data.upcoming].filter(c => 
+    c.assigned_to?.includes(user.id) || (!c.assigned_to || c.assigned_to.length === 0)
+  )
+  
+  const totalDailyLoad = (completedTodayCount || 0) + myPendingChores.length
+
+  // --- Filter Logic ---
   let allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
   if (assigneeFilter === 'me') {
@@ -95,58 +111,28 @@ export default async function DashboardPage(props: DashboardProps) {
       allChoresRaw = allChoresRaw.filter(c => c.room_id === roomIdFilter)
   }
 
-  // Categorize
+  // Categorize filtered list
   const overdueChores = allChoresRaw.filter(c => data.overdue.includes(c))
   const dueSoonChores = allChoresRaw.filter(c => data.dueSoon.includes(c))
   const upcomingChores = allChoresRaw.filter(c => data.upcoming.includes(c))
   const completedChores = allChoresRaw.filter(c => data.completed.includes(c))
 
-  // --- Zen & Stats ---
+  // --- Zen Mode Data ---
   const allHouseholdChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
-  
-  // ZEN: Strictly YOUR incomplete chores
   const myZenChores = allHouseholdChores.filter(c => 
     c.assigned_to?.includes(user.id) && 
     c.status !== 'complete'
   )
 
-  // Stats (Personal)
-  const myDailyChores = allHouseholdChores.filter(c => {
-      const isAssignedToMe = c.assigned_to?.includes(user.id)
-      const isUnassigned = !c.assigned_to || c.assigned_to.length === 0
-      
-      const isMine = isAssignedToMe || isUnassigned
-      if (!isMine) return false
-
-      if (c.status === 'complete') {
-          const d = new Date(c.created_at)
-          const today = new Date()
-          return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
-      }
-      
-      if (c.due_date) {
-          const d = new Date(c.due_date)
-          const today = new Date()
-          const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
-          const isOverdue = d < today
-          return isToday || isOverdue
-      }
-      
-      return false
-  })
-
-  const completedTodayCount = myDailyChores.filter(c => c.status === 'complete').length
-  const totalDailyLoad = myDailyChores.length
-
+  // --- Dynamic Greeting ---
   let greetingSubtitle = "Let's get things done."
   if (totalDailyLoad > 0) {
-    const ratio = completedTodayCount / totalDailyLoad
+    const ratio = (completedTodayCount || 0) / totalDailyLoad
     if (ratio === 1) greetingSubtitle = "You're absolutely crushing it! 🎉"
     else if (ratio > 0.75) greetingSubtitle = "Almost there, finish strong!"
     else if (ratio > 0.5) greetingSubtitle = "Over halfway! Keep the momentum."
-    else if (ratio > 0.25) greetingSubtitle = "Good start. Keep going."
     else if (overdueChores.length > 0) greetingSubtitle = "Let's tackle those overdue items."
-  } else if (completedTodayCount > 0) {
+  } else if ((completedTodayCount || 0) > 0) {
     greetingSubtitle = "All clear for today. Relax! 😌"
   }
 
@@ -159,7 +145,6 @@ export default async function DashboardPage(props: DashboardProps) {
 
   return (
     <div className="space-y-8 pb-24">
-      {/* Phase 3: Pass active members for social momentum */}
       <ZenMode 
         chores={myZenChores} 
         activeMembers={activeMembers}
@@ -184,17 +169,17 @@ export default async function DashboardPage(props: DashboardProps) {
                   lastChoreDate={profile.last_chore_date || null}
                 />
                 <Link 
-                href="?view=zen"
-                scroll={false}
-                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-200/50 transition-all hover:scale-105 hover:shadow-lg active:scale-95"
+                  href="?view=zen"
+                  scroll={false}
+                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-200/50 transition-all hover:scale-105 hover:shadow-lg active:scale-95"
                 >
-                <Flower2 className="h-4 w-4 transition-transform group-hover:rotate-45" fill="currentColor" />
-                Zen
+                  <Flower2 className="h-4 w-4 transition-transform group-hover:rotate-45" fill="currentColor" />
+                  Zen
                 </Link>
             </div>
         </div>
 
-        <DailyProgress total={totalDailyLoad} completed={completedTodayCount} />
+        <DailyProgress total={totalDailyLoad} completed={completedTodayCount || 0} />
       </div>
       
       <div className="sticky top-[73px] z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:-mx-8 sm:px-8 border-b border-transparent transition-all data-[stuck=true]:border-border">
@@ -202,16 +187,11 @@ export default async function DashboardPage(props: DashboardProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
-                <ChoreDisplay title="Overdue" chores={overdueChores} status="overdue" />
-            </div>
-            <div className="md:col-span-1">
-                <ChoreDisplay title="Due Soon" chores={dueSoonChores} status="due" />
-            </div>
-            <div className="md:col-span-1">
-                <ChoreDisplay title="Upcoming" chores={upcomingChores} status="upcoming" />
-            </div>
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-1 gap-6">
+            {/* Collapsible Sections */}
+            <ChoreDisplay title="Overdue" chores={overdueChores} status="overdue" />
+            <ChoreDisplay title="Due Soon" chores={dueSoonChores} status="due" />
+            <ChoreDisplay title="Upcoming" chores={upcomingChores} status="upcoming" />
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-6">
@@ -236,7 +216,6 @@ export default async function DashboardPage(props: DashboardProps) {
           isOpen={true}
           members={roomData.members}
           rooms={roomData.rooms}
-          // Phase 2: Pass context for Smart Parser
           currentUserId={user.id}
         />
       )}

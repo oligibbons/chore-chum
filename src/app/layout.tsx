@@ -21,8 +21,8 @@ export const metadata: Metadata = {
   description: "Your friendly household chore manager.",
   manifest: "/manifest.json",
   icons: {
-    icon: '/app-icon.svg',
-    shortcut: '/app-icon.svg',
+    icon: '/broom-icon.svg',
+    shortcut: '/broom-icon.svg',
     apple: '/icon-192.png', // Crucial for iOS PWA install
     other: {
       rel: 'apple-touch-icon-precomposed',

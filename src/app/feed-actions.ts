@@ -5,7 +5,6 @@ import { createSupabaseClient } from '@/lib/supabase/server'
 import { ActivityLogWithUser, TypedSupabaseClient } from '@/types/database'
 
 export async function getActivityFeed(householdId: string): Promise<ActivityLogWithUser[]> {
-  // FIX: Explicitly type the client
   const supabase: TypedSupabaseClient = await createSupabaseClient()
 
   const { data, error } = await supabase
@@ -19,9 +18,15 @@ export async function getActivityFeed(householdId: string): Promise<ActivityLogW
     .limit(50)
 
   if (error) {
-    console.error('Error fetching feed:', error)
+    console.error('Error fetching feed:', error.message)
     return []
   }
 
-  return (data || []) as unknown as ActivityLogWithUser[]
+  if (!data || data.length === 0) {
+    // Optional: Log if empty to help debugging in server logs
+    // console.log('Feed is empty for household:', householdId)
+    return []
+  }
+
+  return data as unknown as ActivityLogWithUser[]
 }

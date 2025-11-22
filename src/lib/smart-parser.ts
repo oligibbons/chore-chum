@@ -1,10 +1,12 @@
+// src/lib/smart-parser.ts
+
 import { DbProfile, DbRoom } from '@/types/database'
 
 type ParsedChore = {
   name: string
   roomId?: number
-  assignedTo?: string // We currently support returning one primary ID for simplicity in this parser version
-  recurrence?: string
+  assignedTo?: string 
+  recurrence?: string // Can be 'daily' or 'custom:daily:3'
   dueDate?: string
   timeOfDay?: 'morning' | 'afternoon' | 'evening' | 'any'
 }
@@ -13,7 +15,7 @@ export function parseChoreInput(
   input: string, 
   members: Pick<DbProfile, 'id' | 'full_name'>[], 
   rooms: DbRoom[],
-  currentUserId: string // Phase 2: Context
+  currentUserId: string 
 ): ParsedChore {
   let remainingText = input
   const result: ParsedChore = {
@@ -25,7 +27,6 @@ export function parseChoreInput(
   // --- 1. Context: "Me/My" Detection ---
   if (/\b(my|me|i)\b/i.test(remainingText)) {
     result.assignedTo = currentUserId
-    // Don't remove "my" yet, might be needed for "my room"
   }
 
   // --- 2. Assignee Detection (Names) ---
@@ -43,7 +44,7 @@ export function parseChoreInput(
     }
   }
 
-  // --- 3. Room Detection (Explicit & Implicit) ---
+  // --- 3. Room Detection ---
   // A. Explicit Room Name
   for (const room of rooms) {
     const regex = new RegExp(`\\b(in|at)?\\s*${room.name}\\b`, 'i')
@@ -55,35 +56,43 @@ export function parseChoreInput(
   }
 
   // B. Implicit Room Detection (Keywords)
-  // Phase 2: Scan keywords if room not found
   if (!result.roomId) {
-    // Example keywords map (In production, this comes from DB)
+    // In a real app, these keywords would come from the DB/Room properties
     const keywordMap: Record<string, string[]> = {
-      'Kitchen': ['fridge', 'dishwasher', 'oven', 'stove', 'sink'],
+      'Kitchen': ['fridge', 'dishwasher', 'oven', 'stove', 'sink', 'cook'],
       'Living Room': ['sofa', 'couch', 'tv', 'rug'],
       'Bathroom': ['toilet', 'shower', 'bath', 'tub'],
-      'Bedroom': ['bed', 'sheet', 'pillow'],
-      'Laundry': ['washer', 'dryer', 'clothes']
+      'Bedroom': ['bed', 'sheet', 'pillow', 'sleep'],
+      'Laundry': ['washer', 'dryer', 'clothes', 'iron']
     }
 
     for (const room of rooms) {
-      const keywords = keywordMap[room.name] || []
-      // Also check DB keywords if available in the future
-      // const dbKeywords = room.keywords || [] 
+      // Match room name to keys in our simple map
+      const roomKey = Object.keys(keywordMap).find(k => room.name.toLowerCase().includes(k.toLowerCase()));
+      const keywords = roomKey ? keywordMap[roomKey] : [];
       
       if (keywords.some(k => new RegExp(`\\b${k}\\b`, 'i').test(remainingText))) {
         result.roomId = room.id
-        // Don't remove keywords, they are part of the chore name (e.g. "Clean the [oven]")
         break
       }
     }
   }
 
-  // --- 4. Recurrence (Complex) ---
-  // Phase 2: "Every 2 weeks"
-  // Note: The UI/DB currently only supports string enum 'daily'/'weekly' etc. 
-  // For now, we map to the closest supported enum, or we'd need to expand the DB schema further.
-  if (/every\s*day|daily/i.test(remainingText)) {
+  // --- 4. Recurrence (Simple & Custom) ---
+  
+  // Custom Interval Detection: "Every X Days/Weeks"
+  const customMatch = remainingText.match(/every\s+(\d+)\s+(day|week|month)s?/i)
+  if (customMatch) {
+    const interval = customMatch[1]
+    const unit = customMatch[2].toLowerCase()
+    // Map unit to internal frequency string
+    const freq = unit === 'day' ? 'daily' : unit === 'week' ? 'weekly' : 'monthly'
+    
+    result.recurrence = `custom:${freq}:${interval}`
+    remainingText = remainingText.replace(customMatch[0], '')
+  } 
+  // Standard Detection
+  else if (/every\s*day|daily/i.test(remainingText)) {
     result.recurrence = 'daily'
     remainingText = remainingText.replace(/every\s*day|daily/i, '')
   } else if (/every\s*week|weekly/i.test(remainingText)) {
@@ -136,9 +145,12 @@ export function parseChoreInput(
   } else if (/\b(morning|am)\b/i.test(remainingText)) {
     result.timeOfDay = 'morning'
     remainingText = remainingText.replace(/\b(morning|am)\b/i, '')
-  } else if (/\b(evening|night|pm)\b/i.test(remainingText)) {
+  } else if (/\b(afternoon|pm)\b/i.test(remainingText)) {
+    result.timeOfDay = 'afternoon'
+    remainingText = remainingText.replace(/\b(afternoon|pm)\b/i, '')
+  } else if (/\b(evening|night)\b/i.test(remainingText)) {
     result.timeOfDay = 'evening'
-    remainingText = remainingText.replace(/\b(evening|night|pm)\b/i, '')
+    remainingText = remainingText.replace(/\b(evening|night)\b/i, '')
   }
 
   if (targetDate) {
@@ -148,7 +160,7 @@ export function parseChoreInput(
   // --- 6. Cleanup ---
   result.name = remainingText
     .replace(/\s+/g, ' ') 
-    .replace(/^(to|for|at)\s+/i, '') 
+    .replace(/^(to|for|at|in)\s+/i, '') 
     .trim()
   
   if (result.name.length > 0) {

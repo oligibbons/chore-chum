@@ -1,8 +1,9 @@
+// src/components/EditChoreModal.tsx
 'use client'
 
 import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Hash, Clock, Coffee, Sun, Moon, Check } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -28,9 +29,22 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     (chore.time_of_day as TimeOption) || 'any'
   )
   
-  // Initialize with array of assignees (or empty array if null)
-  // Note: The types update ensures assignees is string[] | null
   const [assignedIds, setAssignedIds] = useState<string[]>(chore.assigned_to || [])
+
+  // --- Recurrence State Initialization ---
+  // Parse "custom:daily:3" or "daily"
+  const parseRecurrence = (rec: string | null) => {
+    if (!rec || rec === 'none') return { freq: 'none', interval: 1 }
+    if (rec.startsWith('custom:')) {
+        const parts = rec.split(':')
+        return { freq: parts[1], interval: parseInt(parts[2]) || 1 }
+    }
+    return { freq: rec, interval: 1 }
+  }
+
+  const initialRec = parseRecurrence(chore.recurrence_type)
+  const [recurrenceFreq, setRecurrenceFreq] = useState(initialRec.freq)
+  const [recurrenceInterval, setRecurrenceInterval] = useState(initialRec.interval)
 
   const toggleMember = (id: string) => {
     interact('neutral')
@@ -45,7 +59,6 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     const formData = new FormData(event.currentTarget)
     const name = formData.get('name') as string
 
-    // WOW FACTOR: Validation Shake
     if (!name || !name.trim()) {
         setIsShaking(true)
         triggerHaptic('medium')
@@ -56,8 +69,16 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
 
     setPending(true)
     formData.append('timeOfDay', timeOfDay)
-    // Serialize array for backend
     formData.append('assignedTo', JSON.stringify(assignedIds))
+    
+    // Serialize Recurrence
+    let finalRecurrence = 'none'
+    if (recurrenceFreq !== 'none') {
+        finalRecurrence = recurrenceInterval > 1 
+            ? `custom:${recurrenceFreq}:${recurrenceInterval}` 
+            : recurrenceFreq
+    }
+    formData.set('recurrence_type', finalRecurrence)
     
     try {
       const result = await updateChore(formData)
@@ -95,7 +116,6 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
             type="text"
             id="name"
             name="name"
-            // Removed required to allow JS shake logic
             defaultValue={chore.name}
             className={`mt-1 block w-full rounded-xl border bg-background p-3 transition-all focus:border-brand focus:ring-brand ${isShaking ? 'border-red-500 ring-2 ring-red-200 animate-shake' : 'border-border'}`}
           />
@@ -205,7 +225,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
        {/* Time of Day Selection */}
        <div>
          <label className="block font-heading text-sm font-medium text-text-primary mb-2">
-            Time of Day (Optional)
+            Time of Day
          </label>
          <div className="flex gap-2">
             {timeOptions.map((t) => (
@@ -230,8 +250,40 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
          </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
+      {/* ADVANCED RECURRENCE */}
+      <div className="p-4 bg-gray-50 rounded-xl border border-border space-y-4">
+        <div className="flex items-center gap-2">
+            <Repeat className="h-5 w-5 text-brand" />
+            <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
+        </div>
+        
+        <div className="flex gap-3 items-center">
+            <span className="text-sm text-text-secondary whitespace-nowrap">Every</span>
+            
+            <input 
+                type="number" 
+                min="1" 
+                max="99"
+                value={recurrenceInterval}
+                onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
+                disabled={recurrenceFreq === 'none'}
+            />
+            
+            <select
+              value={recurrenceFreq}
+              onChange={(e) => setRecurrenceFreq(e.target.value)}
+              className="flex-1 rounded-lg border-border bg-white p-2 text-sm"
+            >
+              <option value="none">Don't repeat</option>
+              <option value="daily">Day(s)</option>
+              <option value="weekly">Week(s)</option>
+              <option value="monthly">Month(s)</option>
+            </select>
+        </div>
+      </div>
+
+      <div>
           <label htmlFor="exactTime" className="block font-heading text-sm font-medium text-text-primary">
             Exact Time (Optional)
           </label>
@@ -244,44 +296,6 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
               defaultValue={chore.exact_time || ''}
               className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
             />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="recurrence_type" className="block font-heading text-sm font-medium text-text-primary">
-            Recurs
-          </label>
-          <div className="relative mt-1">
-            <Repeat className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <select
-              id="recurrence_type"
-              name="recurrence_type"
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-              defaultValue={chore.recurrence_type}
-            >
-              <option value="none">Does not repeat</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div>
-          <label htmlFor="instances" className="block font-heading text-sm font-medium text-text-primary">
-          Instances
-          </label>
-          <div className="relative mt-1">
-          <Hash className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-          <input
-              type="number"
-              id="instances"
-              name="instances"
-              defaultValue={chore.target_instances ?? 1}
-              min={1}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-          />
           </div>
       </div>
 
