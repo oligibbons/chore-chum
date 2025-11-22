@@ -37,9 +37,16 @@ export default async function AppLayout({
       <header className="sticky top-0 z-20 w-full border-b border-border bg-card/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between p-4">
           
-          {/* Logo */}
+          {/* Logo - Optimized for Mobile Space */}
           <Link href="/dashboard" className="transition-opacity hover:opacity-80">
-            <Logo iconClassName="h-8 w-8" />
+            {/* Mobile: Icon Only */}
+            <div className="md:hidden">
+               <Logo iconClassName="h-8 w-8" showText={false} />
+            </div>
+            {/* Desktop: Full Logo */}
+            <div className="hidden md:block">
+               <Logo iconClassName="h-8 w-8" />
+            </div>
           </Link>
 
           {/* Navigation - Desktop */}
@@ -81,7 +88,7 @@ export default async function AppLayout({
               <Activity className="h-5 w-5" />
             </NavLink>
              <NavLink href="/profile">
-              <Settings className="h-5 w-5" /> {/* Using Settings icon for profile/household context */}
+              <Settings className="h-5 w-5" />
             </NavLink>
           </nav>
           
@@ -102,7 +109,6 @@ export default async function AppLayout({
         </main>
       </PullToRefresh>
 
-      {/* PWA Prompt at the bottom of the hierarchy */}
       <InstallPwaPrompt /> 
     </div>
   )

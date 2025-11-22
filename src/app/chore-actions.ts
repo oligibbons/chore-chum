@@ -213,8 +213,9 @@ export async function getHouseholdData(
     
   // FILTER REPAIR: Changed 'updated_at' to 'created_at' because 'chores' table lacks updated_at in some migrations.
   // This fixes the "Nothing has appeared" bug in history.
+  // UPDATED: Changed to 2 days
   const historyWindow = new Date()
-  historyWindow.setDate(historyWindow.getDate() - 7)
+  historyWindow.setDate(historyWindow.getDate() - 2)
 
   // Fetch ALL chores (parents and children) that are relevant
   const { data: allChoresRaw } = await supabase
@@ -437,6 +438,8 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
              }
         }
 
+        // Revalidate the layout (header) so streaks update immediately
+        revalidatePath('/', 'layout')
         revalidatePath('/dashboard')
         return { 
             success: true, 
@@ -454,6 +457,8 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
         }
     )
 
+    // Revalidate the layout (header) so streaks update immediately
+    revalidatePath('/', 'layout')
     revalidatePath('/dashboard')
     revalidatePath('/feed')
     revalidatePath('/calendar')
@@ -480,6 +485,8 @@ export async function uncompleteChore(choreId: number): Promise<ActionResponse> 
     if (error) return { success: false, message: error?.message || 'Chore not found' }
 
     revalidatePath('/dashboard')
+    // Also revalidate layout incase un-completing affects streak
+    revalidatePath('/', 'layout')
     return { 
         success: true, 
         message: 'Marked as pending', 

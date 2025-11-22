@@ -56,6 +56,12 @@ export default function ChoreDisplay({
 }: Props) {
   const config = getStatusConfig(status)
   const [isOpen, setIsOpen] = useState(config.defaultOpen)
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  // Logic: Collapse long lists by default (limit to 4 items)
+  const LIMIT = 4
+  const shouldClamp = chores.length > LIMIT
+  const visibleChores = (shouldClamp && !isExpanded) ? chores.slice(0, LIMIT) : chores
 
   return (
     <div className="flex flex-col space-y-2 bg-white/50 rounded-2xl border border-transparent hover:border-border/60 transition-colors">
@@ -84,15 +90,31 @@ export default function ChoreDisplay({
       {isOpen && (
         <div className="px-1 pb-2 animate-in slide-in-from-top-2 fade-in duration-300">
             {chores.length > 0 ? (
-                <div className="max-h-[400px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-                {chores.map((chore) => (
-                    <ChoreItem
-                    key={chore.id}
-                    chore={chore}
-                    status={status === 'completed' ? 'upcoming' : status} 
-                    showActions={true}
-                    />
-                ))}
+                <div className="space-y-3">
+                    <div className="max-h-[600px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+                        {visibleChores.map((chore) => (
+                            <ChoreItem
+                                key={chore.id}
+                                chore={chore}
+                                status={status === 'completed' ? 'upcoming' : status} 
+                                showActions={true}
+                            />
+                        ))}
+                    </div>
+                    
+                    {/* Show More / Show Less Button */}
+                    {shouldClamp && (
+                        <button
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="w-full py-2 text-xs font-bold text-brand hover:bg-brand/5 rounded-lg transition-colors flex items-center justify-center gap-1"
+                        >
+                            {isExpanded ? (
+                                <>Show Less <ChevronUp className="h-3 w-3" /></>
+                            ) : (
+                                <>Show {chores.length - LIMIT} More <ChevronDown className="h-3 w-3" /></>
+                            )}
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="rounded-xl border-2 border-dashed border-border/60 bg-card/30 p-6 text-center flex flex-col items-center justify-center min-h-[100px]">
