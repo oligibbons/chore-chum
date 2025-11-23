@@ -1,3 +1,4 @@
+// src/components/FilterBar.tsx
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -66,7 +67,7 @@ export default function FilterBar({ rooms }: Props) {
                 className={`
                 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all border
                 ${!currentRoomId 
-                    ? 'bg-text-primary text-white border-text-primary shadow-md' 
+                    ? 'bg-brand text-white border-brand shadow-md' 
                     : 'bg-white text-text-secondary border-border hover:border-brand hover:text-brand'
                 }
                 `}
@@ -80,7 +81,7 @@ export default function FilterBar({ rooms }: Props) {
                 className={`
                     whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all border
                     ${currentRoomId === room.id.toString()
-                    ? 'bg-text-primary text-white border-text-primary shadow-md'
+                    ? 'bg-brand text-white border-brand shadow-md'
                     : 'bg-white text-text-secondary border-border hover:border-brand hover:text-brand'
                     }
                 `}

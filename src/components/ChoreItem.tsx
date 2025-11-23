@@ -2,7 +2,7 @@
 'use client'
 
 import { ChoreWithDetails, DbProfile } from '@/types/database'
-import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, User, ChevronDown, ChevronUp, Bell } from 'lucide-react'
+import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, User, ChevronDown, ChevronUp, Hand } from 'lucide-react'
 import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore, toggleChoreStatus, nudgeUser } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
@@ -333,7 +333,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                     className="rounded-full p-1.5 text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50"
                     title="Nudge Assignee"
                 >
-                    {isNudging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                    {isNudging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hand className="h-4 w-4" />}
                 </button>
             )}
 

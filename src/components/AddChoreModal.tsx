@@ -50,11 +50,12 @@ function ChoreForm({
   
   // Advanced Recurrence State
   const [recurrenceFreq, setRecurrenceFreq] = useState('none')
-  const [recurrenceInterval, setRecurrenceInterval] = useState(1)
+  // Input Fix: Allow string to handle empty state while typing
+  const [recurrenceInterval, setRecurrenceInterval] = useState<number | string>(1)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   
   // Instance State
-  const [instanceCount, setInstanceCount] = useState(1)
+  const [instanceCount, setInstanceCount] = useState<number | string>(1)
 
   // Subtasks State
   const [subtasks, setSubtasks] = useState<string[]>([])
@@ -144,7 +145,11 @@ function ChoreForm({
     const formData = new FormData(event.currentTarget)
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
-    formData.append('instances', instanceCount.toString())
+    
+    // Ensure valid numbers
+    const finalInstances = instanceCount === '' ? 1 : Number(instanceCount)
+    formData.append('instances', finalInstances.toString())
+    
     formData.append('subtasks', JSON.stringify(subtasks))
 
     if (!hasDueDate) {
@@ -154,15 +159,15 @@ function ChoreForm({
     // Construct Recurrence String
     let finalRecurrence = 'none'
     if (recurrenceFreq !== 'none') {
-        const base = recurrenceInterval > 1 
-            ? `custom:${recurrenceFreq}:${recurrenceInterval}` 
+        const finalInterval = recurrenceInterval === '' ? 1 : Number(recurrenceInterval)
+        const base = finalInterval > 1 
+            ? `custom:${recurrenceFreq}:${finalInterval}` 
             : recurrenceFreq
         
-        // If end date exists, force custom format to include it
         if (recurrenceEndDate) {
-            const safeBase = recurrenceInterval === 1 && !base.startsWith('custom') 
+            const safeBase = finalInterval === 1 && !base.startsWith('custom') 
                 ? `custom:${recurrenceFreq}:1` 
-                : base.startsWith('custom') ? base : `custom:${recurrenceFreq}:${recurrenceInterval}`
+                : base.startsWith('custom') ? base : `custom:${recurrenceFreq}:${finalInterval}`
             
             finalRecurrence = `${safeBase}:${recurrenceEndDate}`
         } else {
@@ -394,7 +399,7 @@ function ChoreForm({
                     min="1" 
                     max="99"
                     value={recurrenceInterval}
-                    onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setRecurrenceInterval(e.target.value === '' ? '' : parseInt(e.target.value))}
                     className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
                     disabled={recurrenceFreq === 'none'}
                 />
@@ -448,22 +453,29 @@ function ChoreForm({
             <div className="flex items-center gap-3">
                 <button 
                     type="button" 
-                    onClick={() => setInstanceCount(Math.max(1, instanceCount - 1))}
+                    onClick={() => setInstanceCount(Math.max(1, (Number(instanceCount) || 1) - 1))}
                     className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center hover:bg-gray-100"
                 >
                     -
                 </button>
-                <span className="font-bold w-4 text-center">{instanceCount}</span>
+                <input 
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={instanceCount}
+                    onChange={(e) => setInstanceCount(e.target.value === '' ? '' : parseInt(e.target.value))}
+                    className="w-12 rounded-lg border-border p-1 text-center font-bold text-sm"
+                />
                 <button 
                     type="button" 
-                    onClick={() => setInstanceCount(Math.min(10, instanceCount + 1))}
+                    onClick={() => setInstanceCount(Math.min(10, (Number(instanceCount) || 1) + 1))}
                     className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center hover:bg-gray-100"
                 >
                     +
                 </button>
             </div>
          </div>
-         {instanceCount > 1 && (
+         {(Number(instanceCount) || 1) > 1 && (
              <p className="text-xs text-text-secondary">
                  Creates {instanceCount} separate chores named "{name} #1" to "#{instanceCount}"
              </p>
@@ -560,7 +572,7 @@ function ChoreForm({
           {pending ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            `Create ${instanceCount > 1 ? instanceCount : ''} Chore${instanceCount > 1 ? 's' : ''}`
+            `Create ${instanceCount === '' || Number(instanceCount) <= 1 ? '' : instanceCount + ' '} Chore${instanceCount === '' || Number(instanceCount) <= 1 ? '' : 's'}`
           )}
         </button>
       </div>

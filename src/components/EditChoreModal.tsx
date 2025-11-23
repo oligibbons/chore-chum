@@ -36,7 +36,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     if (!rec || rec === 'none') return { freq: 'none', interval: 1, until: '' }
     if (rec.startsWith('custom:')) {
         const parts = rec.split(':')
-        // custom:daily:3:2025-12-31
+        // custom:daily:3 or custom:daily:3:2025-12-31
         return { 
             freq: parts[1], 
             interval: parseInt(parts[2]) || 1,
@@ -48,7 +48,8 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
 
   const initialRec = parseRecurrence(chore.recurrence_type)
   const [recurrenceFreq, setRecurrenceFreq] = useState(initialRec.freq)
-  const [recurrenceInterval, setRecurrenceInterval] = useState(initialRec.interval)
+  // Input Fix: Allow string for easier editing
+  const [recurrenceInterval, setRecurrenceInterval] = useState<number | string>(initialRec.interval)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(initialRec.until)
 
   // Date State
@@ -83,14 +84,15 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     // Serialize Recurrence
     let finalRecurrence = 'none'
     if (recurrenceFreq !== 'none') {
-        const base = recurrenceInterval > 1 
-            ? `custom:${recurrenceFreq}:${recurrenceInterval}` 
+        const finalInterval = recurrenceInterval === '' ? 1 : Number(recurrenceInterval)
+        const base = finalInterval > 1 
+            ? `custom:${recurrenceFreq}:${finalInterval}` 
             : recurrenceFreq
         
         if (recurrenceEndDate) {
-            const safeBase = recurrenceInterval === 1 && !base.startsWith('custom') 
+            const safeBase = finalInterval === 1 && !base.startsWith('custom') 
                 ? `custom:${recurrenceFreq}:1` 
-                : base.startsWith('custom') ? base : `custom:${recurrenceFreq}:${recurrenceInterval}`
+                : base.startsWith('custom') ? base : `custom:${recurrenceFreq}:${finalInterval}`
             
             finalRecurrence = `${safeBase}:${recurrenceEndDate}`
         } else {
@@ -305,7 +307,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
                     min="1" 
                     max="99"
                     value={recurrenceInterval}
-                    onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setRecurrenceInterval(e.target.value === '' ? '' : parseInt(e.target.value))}
                     className={`w-16 rounded-lg border-border p-2 text-center font-bold text-sm ${recurrenceFreq === 'none' ? 'opacity-50' : ''}`}
                     disabled={recurrenceFreq === 'none'}
                 />
