@@ -47,10 +47,10 @@ function ChoreForm({
   const [hasDueDate, setHasDueDate] = useState(true)
   
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
+  const [exactTime, setExactTime] = useState('')
   
   // Advanced Recurrence State
   const [recurrenceFreq, setRecurrenceFreq] = useState('none')
-  // Input Fix: Allow string to handle empty state while typing
   const [recurrenceInterval, setRecurrenceInterval] = useState<number | string>(1)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   
@@ -62,12 +62,12 @@ function ChoreForm({
   const [newSubtask, setNewSubtask] = useState('')
 
   const suggestions = [
-    "Wash dishes tonight",
-    "Take out trash",
-    "Vacuum living room",
-    "Water plants every 3 days",
-    "Laundry this weekend",
-    "Clean my room"
+    "Wash dishes x2",
+    "Mow the lawn Saturday",
+    "Clean bathroom upstairs",
+    "Take meds at 8am",
+    "Laundry 3 loads",
+    "Tidy garage tomorrow"
   ]
 
   const toggleMember = (id: string) => {
@@ -84,13 +84,11 @@ function ChoreForm({
     }
   }
 
-  // Helper to clear due date
   const clearDueDate = () => {
       setDueDate('')
       setHasDueDate(false)
   }
 
-  // Helper to enable due date
   const enableDueDate = () => {
       setHasDueDate(true)
       if (!dueDate) setDueDate(new Date().toISOString().split('T')[0])
@@ -123,6 +121,12 @@ function ChoreForm({
             setHasDueDate(true)
         }
         if (parsed.timeOfDay) setTimeOfDay(parsed.timeOfDay)
+        
+        if (parsed.exactTime) setExactTime(parsed.exactTime)
+        
+        if (parsed.instances && parsed.instances > 1) {
+            setInstanceCount(parsed.instances)
+        }
 
     }, 600) 
 
@@ -146,7 +150,6 @@ function ChoreForm({
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
     
-    // Ensure valid numbers
     const finalInstances = instanceCount === '' ? 1 : Number(instanceCount)
     formData.append('instances', finalInstances.toString())
     
@@ -156,7 +159,6 @@ function ChoreForm({
         formData.delete('dueDate')
     }
 
-    // Construct Recurrence String
     let finalRecurrence = 'none'
     if (recurrenceFreq !== 'none') {
         const finalInterval = recurrenceInterval === '' ? 1 : Number(recurrenceInterval)
@@ -205,10 +207,23 @@ function ChoreForm({
                 type="text"
                 value={smartInput}
                 onChange={(e) => setSmartInput(e.target.value)}
-                placeholder="e.g. 'Water plants every 3 days until Dec 25'"
+                placeholder="e.g. 'Clean fridge in kitchen x2'"
                 className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
                 autoFocus
             />
+        </div>
+        
+        {/* INTELLIGENCE FEEDBACK */}
+        <div className="h-4 min-h-[1rem] px-1">
+            {smartInput && (
+                <div className="flex flex-wrap gap-3 text-[10px] font-bold text-brand uppercase tracking-wider animate-in fade-in slide-in-from-left-2">
+                    {roomId && <span className="flex items-center gap-1"><Home className="h-3 w-3" /> Room Detected</span>}
+                    {assignedIds.length > 0 && <span className="flex items-center gap-1"><User className="h-3 w-3" /> Assignee Detected</span>}
+                    {hasDueDate && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Date Set</span>}
+                    {Number(instanceCount) > 1 && <span className="flex items-center gap-1"><Copy className="h-3 w-3" /> Multi-count</span>}
+                    {exactTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Exact Time</span>}
+                </div>
+            )}
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient">
@@ -524,7 +539,7 @@ function ChoreForm({
       </div>
 
       {/* DETAILS TOGGLE */}
-      <details className="group">
+      <details className="group" open={!!exactTime}>
         <summary className="flex items-center gap-2 text-sm font-medium text-brand cursor-pointer list-none">
             <span>Add Notes & Exact Time</span>
         </summary>
@@ -548,6 +563,8 @@ function ChoreForm({
                         type="time"
                         id="exactTime"
                         name="exactTime"
+                        value={exactTime}
+                        onChange={(e) => setExactTime(e.target.value)}
                         className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 focus:border-brand focus:ring-brand"
                     />
                 </div>
