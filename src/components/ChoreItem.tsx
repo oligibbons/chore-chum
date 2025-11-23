@@ -7,13 +7,13 @@ import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore, toggleChoreStatus, nudgeUser } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
 import Avatar from './Avatar'
-import DelayChoreModal from './DelayChoreModal'
 import CompleteChoreModal from './CompleteChoreModal'
+import DelayChoreModal from './DelayChoreModal'
 import confetti from 'canvas-confetti'
 import { toast } from 'sonner'
 import { useGameFeel } from '@/hooks/use-game-feel'
 
-// Extend type to include subtasks
+// --- Types ---
 type ChoreWithSubtasks = ChoreWithDetails & {
     subtasks?: ChoreWithDetails[]
 }
@@ -26,23 +26,55 @@ type Props = {
   currentUserId?: string
 }
 
-const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'No due date'
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('en-GB', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+type OptimisticAction = 
+  | { type: 'SET_STATUS'; status: string }
+  | { type: 'TOGGLE_SUBTASK'; subtaskId: number }
+
+// --- Helper Components (Architecture Fix) ---
+
+function SubtaskList({ 
+  subtasks, 
+  onToggle 
+}: { 
+  subtasks: ChoreWithDetails[], 
+  onToggle: (id: number, currentStatus: string) => void 
+}) {
+  if (!subtasks || subtasks.length === 0) return null
+
+  return (
+    <ul className="mt-4 ml-4 space-y-2 border-l-2 border-gray-100 pl-4 animate-in slide-in-from-top-2 fade-in">
+      {subtasks.map(st => (
+        <li key={st.id} className="flex items-center gap-3 group/sub">
+          <button
+            onClick={() => onToggle(st.id, st.status)}
+            className={`
+                h-5 w-5 rounded border flex items-center justify-center transition-colors flex-shrink-0 shadow-sm
+                ${st.status === 'complete' 
+                  ? 'bg-brand border-brand text-white scale-105' 
+                  : 'border-gray-300 hover:border-brand bg-white'}
+            `}
+          >
+            {st.status === 'complete' && <Check className="h-3 w-3" />}
+          </button>
+          <span 
+            className={`
+              text-sm transition-all duration-300 
+              ${st.status === 'complete' ? 'line-through text-gray-400' : 'text-gray-700 group-hover/sub:text-black'}
+            `}
+          >
+            {st.name}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
 }
 
-const formatTime = (timeString: string) => {
-    const [hours, minutes] = timeString.split(':')
-    return new Date(0, 0, 0, +hours, +minutes).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-}
+// --- Main Component ---
 
 export default function ChoreItem({ chore, showActions, status, members = [], currentUserId = '' }: Props) {
   const [isPending, startTransition] = useTransition()
-  const [isNudging, setIsNudging] = useState(false) // For nudge button spinner
+  const [isNudging, setIsNudging] = useState(false)
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [showSubtasks, setShowSubtasks] = useState(false)
@@ -50,28 +82,40 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
   
   const { interact, triggerHaptic } = useGameFeel()
 
+  // 1. Advanced Optimistic Reducer (Quick Win #4)
   const [optimisticChore, setOptimisticChore] = useOptimistic(
     chore,
-    (state, newStatus: string) => ({
-      ...state,
-      status: newStatus
-    })
+    (state, action: OptimisticAction) => {
+      switch (action.type) {
+        case 'SET_STATUS':
+          return { ...state, status: action.status }
+        case 'TOGGLE_SUBTASK':
+          return {
+            ...state,
+            subtasks: state.subtasks?.map(s => 
+              s.id === action.subtaskId 
+                ? { ...s, status: s.status === 'complete' ? 'pending' : 'complete' }
+                : s
+            )
+          }
+        default:
+          return state
+      }
+    }
   )
 
   const isCompleted = optimisticChore.status === 'complete'
   const isShared = (chore.assigned_to?.length ?? 0) > 1
-  
-  // Logic for Nudge Button:
-  // Show if: Not completed AND assigned to someone else (not just me)
   const isAssignedToOthers = chore.assigned_to && chore.assigned_to.some(id => id !== currentUserId)
   const showNudge = !isCompleted && isAssignedToOthers && showActions
 
-  // Subtask Logic
-  const subtasks = chore.subtasks || []
+  // Subtask Progress Calculation
+  const subtasks = optimisticChore.subtasks || []
   const completedSubtasks = subtasks.filter(s => s.status === 'complete').length
   const totalSubtasks = subtasks.length
   const progress = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0
 
+  // Visual Styles based on Status
   let cardClasses = 'border-border bg-card'
   let statusIconColor = 'text-text-secondary'
 
@@ -93,15 +137,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
     }
   }
 
-  const getTimeIcon = (tag?: string | null) => {
-    switch(tag) {
-        case 'morning': return <Coffee className="h-3 w-3" />
-        case 'afternoon': return <Sun className="h-3 w-3" />
-        case 'evening': return <Moon className="h-3 w-3" />
-        default: return null
-    }
-  }
-
+  // Handlers
   const handleToggleCompletion = async () => {
     interact(isCompleted ? 'neutral' : 'success')
 
@@ -113,7 +149,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
     const nextStatus = isCompleted ? 'pending' : 'complete'
     
     startTransition(async () => {
-      setOptimisticChore(nextStatus)
+      setOptimisticChore({ type: 'SET_STATUS', status: nextStatus })
 
       if (nextStatus === 'complete') {
         confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, disableForReducedMotion: true })
@@ -124,8 +160,11 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
           ? await uncompleteChore(chore.id) 
           : await completeChore(chore.id, [currentUserId])
 
-        if (!result.success) toast.error(result.message || 'Failed to update chore')
-        else {
+        if (!result.success) {
+            toast.error(result.message || 'Failed to update chore')
+            // Revert is automatic via Next.js server action rollback if error throws, 
+            // but manual revert might be needed if action returns { success: false }
+        } else {
           const toastFn = nextStatus === 'complete' ? toast.success : toast.info
           toastFn(result.message, { description: result.motivation })
         }
@@ -136,14 +175,19 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
   }
 
   const handleSubtaskToggle = async (id: number, currentStatus: string) => {
+      // Immediate tactile feedback
+      interact('neutral')
+      
       startTransition(async () => {
-          if (currentStatus !== 'complete') interact('success')
+          // 1. Optimistic Update
+          setOptimisticChore({ type: 'TOGGLE_SUBTASK', subtaskId: id })
+          
+          // 2. Server Action
           await toggleChoreStatus({ id, status: currentStatus } as any)
       })
   }
 
   const handleNudge = async () => {
-      // Find the first assignee that isn't me
       const targetId = chore.assigned_to?.find(id => id !== currentUserId)
       if (!targetId) return
 
@@ -161,6 +205,17 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
       }
   }
 
+  const formatTime = (timeString: string) => {
+    const [hours, minutes] = timeString.split(':')
+    return new Date(0, 0, 0, +hours, +minutes).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  }
+
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return 'No due date'
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat('en-GB', { month: 'short', day: 'numeric' }).format(date)
+  }
+
   return (
     <>
       <li 
@@ -171,8 +226,11 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
           ${isCompleted ? 'opacity-80' : 'opacity-100'}
         `}
       >
+        {/* Top Row: Checkbox + Content + Avatars */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
+            
+            {/* Main Checkbox */}
             <button
               onClick={handleToggleCompletion}
               disabled={isPending || (totalSubtasks > 0 && progress < 100)}
@@ -198,10 +256,14 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                 {chore.name}
               </h4>
               
+              {/* Time Tags */}
               <div className="flex flex-wrap items-center gap-2 mt-1">
                   {chore.time_of_day && chore.time_of_day !== 'any' && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary bg-background/50 px-1.5 py-0.5 rounded capitalize">
-                          {getTimeIcon(chore.time_of_day)} {chore.time_of_day}
+                          {chore.time_of_day === 'morning' && <Coffee className="h-3 w-3" />}
+                          {chore.time_of_day === 'afternoon' && <Sun className="h-3 w-3" />}
+                          {chore.time_of_day === 'evening' && <Moon className="h-3 w-3" />}
+                          {chore.time_of_day}
                       </span>
                   )}
                   {chore.exact_time && (
@@ -211,6 +273,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                   )}
               </div>
 
+              {/* Subtask Progress Bar */}
               {totalSubtasks > 0 && (
                   <div className="mt-3 w-full max-w-[240px]">
                       <div className="flex justify-between text-xs text-text-secondary mb-1 font-medium">
@@ -233,6 +296,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                   </div>
               )}
 
+              {/* Notes */}
               {chore.notes && (
                 <div className="mt-2">
                     <button 
@@ -243,18 +307,14 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                         <span className={`break-words ${showFullNotes ? '' : 'line-clamp-2'}`}>
                             {chore.notes}
                         </span>
-                        {chore.notes.length > 60 && (
-                            <span className="ml-1 text-brand/70 flex-shrink-0">
-                                {showFullNotes ? <ChevronUp className="h-3 w-3 inline" /> : <ChevronDown className="h-3 w-3 inline" />}
-                            </span>
-                        )}
                     </button>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex -space-x-2 overflow-visible pl-2 py-1 flex-shrink-0" role="group" aria-label="Assigned members">
+          {/* Avatars */}
+          <div className="flex -space-x-2 overflow-visible pl-2 py-1 flex-shrink-0">
             {chore.assignees && chore.assignees.length > 0 ? (
                 chore.assignees.map((p, i) => (
                     <div 
@@ -267,37 +327,19 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                     </div>
                 ))
             ) : (
-                <div 
-                  className="h-8 w-8 rounded-full bg-gray-100 border border-border flex items-center justify-center"
-                  aria-label="Assigned to anyone"
-                >
+                <div className="h-8 w-8 rounded-full bg-gray-100 border border-border flex items-center justify-center">
                     <User className="h-4 w-4 text-text-secondary" />
                 </div>
             )}
           </div>
         </div>
 
-        {showSubtasks && totalSubtasks > 0 && (
-            <ul className="mt-4 ml-4 space-y-2 border-l-2 border-gray-100 pl-4 animate-in slide-in-from-top-2 fade-in">
-                {subtasks.map(st => (
-                    <li key={st.id} className="flex items-center gap-3 group/sub">
-                        <button
-                            onClick={() => handleSubtaskToggle(st.id, st.status)}
-                            className={`
-                                h-5 w-5 rounded border flex items-center justify-center transition-colors flex-shrink-0
-                                ${st.status === 'complete' ? 'bg-brand border-brand text-white' : 'border-gray-300 hover:border-brand bg-white'}
-                            `}
-                        >
-                            {st.status === 'complete' && <Check className="h-3 w-3" />}
-                        </button>
-                        <span className={`text-sm transition-colors ${st.status === 'complete' ? 'line-through text-gray-400' : 'text-gray-700 group-hover/sub:text-black'}`}>
-                            {st.name}
-                        </span>
-                    </li>
-                ))}
-            </ul>
+        {/* Collapsible Subtasks List (Extracted Component) */}
+        {showSubtasks && (
+            <SubtaskList subtasks={subtasks} onToggle={handleSubtaskToggle} />
         )}
 
+        {/* Footer Info & Actions */}
         <div className="mt-4 flex items-end justify-between border-t border-border/50 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             {chore.due_date && (
@@ -351,7 +393,12 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
         </div>
       </li>
 
-      <DelayChoreModal isOpen={isDelayModalOpen} onClose={() => setIsDelayModalOpen(false)} choreId={chore.id} />
+      {/* Modals */}
+      <DelayChoreModal 
+        isOpen={isDelayModalOpen} 
+        onClose={() => setIsDelayModalOpen(false)} 
+        choreId={chore.id} 
+      />
       
       <CompleteChoreModal 
         isOpen={isCompleteModalOpen} 

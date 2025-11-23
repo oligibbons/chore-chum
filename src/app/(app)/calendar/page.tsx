@@ -13,7 +13,6 @@ export default async function CalendarPage() {
 
   if (!user) redirect('/')
 
-  // FIX: Fetch raw data and explicitly cast to avoid 'never' type inference errors
   const { data: rawProfile } = await supabase
     .from('profiles')
     .select('household_id')
@@ -95,8 +94,10 @@ export default async function CalendarPage() {
                       key={chore.id} 
                       chore={chore} 
                       showActions={true} 
-                      // If it's today (or overdue moved to today), mark as 'due' style
-                      status={index === 0 ? 'due' : 'upcoming'} 
+                      status={index === 0 ? 'due' : 'upcoming'}
+                      // Pass props for Nudge/Complete interaction
+                      members={data.members}
+                      currentUserId={user.id}
                     />
                  ))}
                </div>
@@ -111,10 +112,24 @@ export default async function CalendarPage() {
                 <h3 className="text-lg font-bold font-heading mb-4 text-text-secondary">Later & Unscheduled</h3>
                 <div className="space-y-3 opacity-80 hover:opacity-100 transition-opacity">
                     {futureChores.map(chore => (
-                        <ChoreItem key={chore.id} chore={chore} showActions={true} status="upcoming" />
+                        <ChoreItem 
+                          key={chore.id} 
+                          chore={chore} 
+                          showActions={true} 
+                          status="upcoming"
+                          members={data.members}
+                          currentUserId={user.id}
+                        />
                     ))}
                     {noDateChores.map(chore => (
-                        <ChoreItem key={chore.id} chore={chore} showActions={true} status="upcoming" />
+                        <ChoreItem 
+                          key={chore.id} 
+                          chore={chore} 
+                          showActions={true} 
+                          status="upcoming"
+                          members={data.members}
+                          currentUserId={user.id}
+                        />
                     ))}
                 </div>
             </div>

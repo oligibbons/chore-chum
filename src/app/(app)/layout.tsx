@@ -11,6 +11,36 @@ import PullToRefresh from '@/components/PullToRefresh'
 import RealtimeChores from '@/components/RealtimeChores'
 import InstallPwaPrompt from '@/components/InstallPwaPrompt'
 
+// Navigation Configuration
+const NAV_ITEMS = [
+  { 
+    href: '/dashboard', 
+    label: 'Dashboard', 
+    icon: LayoutGrid 
+  },
+  { 
+    href: '/calendar', 
+    label: 'Calendar', 
+    icon: Calendar 
+  },
+  { 
+    href: '/feed', 
+    label: 'Feed', 
+    icon: Activity 
+  },
+  { 
+    href: '/rooms', 
+    label: 'Rooms', 
+    icon: Home 
+  },
+  { 
+    href: '/profile', 
+    label: 'Profile', 
+    icon: User,
+    mobileIcon: Settings // Mobile often uses a gear for profile/settings
+  },
+]
+
 export default async function AppLayout({
   children,
 }: {
@@ -51,45 +81,24 @@ export default async function AppLayout({
 
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center gap-1 rounded-full bg-background p-1.5 shadow-sm border border-border/50">
-            <NavLink href="/dashboard">
-              <LayoutGrid className="h-4 w-4" />
-              <span>Dashboard</span>
-            </NavLink>
-            <NavLink href="/calendar">
-              <Calendar className="h-4 w-4" />
-              <span>Calendar</span>
-            </NavLink>
-            <NavLink href="/feed">
-              <Activity className="h-4 w-4" />
-              <span>Feed</span>
-            </NavLink>
-            <NavLink href="/rooms">
-              <Home className="h-4 w-4" />
-              <span>Rooms</span>
-            </NavLink>
-            <NavLink href="/profile">
-              <User className="h-4 w-4" />
-              <span>Profile</span>
-            </NavLink>
+            {NAV_ITEMS.map((item) => (
+              <NavLink key={item.href} href={item.href}>
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
           </nav>
           
           {/* Navigation - Mobile (Icon only) */}
           <nav className="flex md:hidden items-center gap-1">
-            <NavLink href="/dashboard">
-              <LayoutGrid className="h-5 w-5" />
-            </NavLink>
-            <NavLink href="/calendar">
-              <Calendar className="h-5 w-5" />
-            </NavLink>
-            <NavLink href="/rooms">
-              <Home className="h-5 w-5" />
-            </NavLink>
-            <NavLink href="/feed">
-              <Activity className="h-5 w-5" />
-            </NavLink>
-             <NavLink href="/profile">
-              <Settings className="h-5 w-5" />
-            </NavLink>
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.mobileIcon || item.icon
+              return (
+                <NavLink key={item.href} href={item.href}>
+                  <Icon className="h-5 w-5" />
+                </NavLink>
+              )
+            })}
           </nav>
           
           <form action={signOut}>

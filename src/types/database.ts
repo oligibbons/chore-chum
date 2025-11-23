@@ -41,6 +41,26 @@ export type DbActivityLog = Tables<'activity_logs'> & {
   } | null
 }
 
+// New Types for Features
+export type DbBounty = {
+  id: number
+  created_at: string
+  household_id: string
+  created_by: string | null
+  description: string
+  is_active: boolean
+}
+
+export type DbTemplate = {
+  id: number
+  created_at: string
+  household_id: string
+  name: string
+  subtasks: string[] // JSONB array stored as string[]
+  icon?: string
+  created_by: string | null
+}
+
 // Combined Types for UI
 export type ChoreWithDetails = DbChore & {
   assignees: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] | null

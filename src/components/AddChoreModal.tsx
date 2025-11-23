@@ -3,9 +3,10 @@
 
 import { Fragment, useState, FormEvent, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2, Ban } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2, Ban, Sparkles, Save, Users } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
-import { DbProfile, DbRoom } from '@/types/database'
+import { createTemplate, deleteTemplate } from '@/app/template-actions'
+import { DbProfile, DbRoom, DbTemplate } from '@/types/database'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { parseChoreInput } from '@/lib/smart-parser'
@@ -17,6 +18,7 @@ type Props = {
   members: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   rooms: DbRoom[]
   currentUserId: string
+  templates?: DbTemplate[]
 }
 
 type TimeOption = 'morning' | 'afternoon' | 'evening' | 'any';
@@ -25,13 +27,16 @@ function ChoreForm({
   closeModal, 
   members, 
   rooms,
-  currentUserId
+  currentUserId,
+  templates = []
 }: { 
   closeModal: () => void, 
   members: Props['members'], 
   rooms: Props['rooms'],
-  currentUserId: string
+  currentUserId: string,
+  templates?: DbTemplate[]
 }) {
+  const router = useRouter()
   const [pending, setPending] = useState(false)
   const [smartInput, setSmartInput] = useState('')
   const { interact, triggerHaptic } = useGameFeel()
@@ -54,6 +59,9 @@ function ChoreForm({
   const [recurrenceInterval, setRecurrenceInterval] = useState<number | string>(1)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   
+  // Rotation State
+  const [isRotating, setIsRotating] = useState(false)
+
   // Instance State
   const [instanceCount, setInstanceCount] = useState<number | string>(1)
 
@@ -61,14 +69,8 @@ function ChoreForm({
   const [subtasks, setSubtasks] = useState<string[]>([])
   const [newSubtask, setNewSubtask] = useState('')
 
-  const suggestions = [
-    "Wash dishes x2",
-    "Mow the lawn Saturday",
-    "Clean bathroom upstairs",
-    "Take meds at 8am",
-    "Laundry 3 loads",
-    "Tidy garage tomorrow"
-  ]
+  // Template Save State
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false)
 
   const toggleMember = (id: string) => {
     interact('neutral')
@@ -82,6 +84,35 @@ function ChoreForm({
         setSubtasks([...subtasks, newSubtask.trim()])
         setNewSubtask('')
     }
+  }
+
+  const applyTemplate = (template: DbTemplate) => {
+    interact('success')
+    setName(template.name)
+    // Handle JSONB parsing safely
+    let parsedSubtasks: string[] = []
+    if (Array.isArray(template.subtasks)) {
+        parsedSubtasks = template.subtasks
+    } else if (typeof template.subtasks === 'string') {
+        try { parsedSubtasks = JSON.parse(template.subtasks) } catch {}
+    }
+    
+    setSubtasks(parsedSubtasks)
+    setSmartInput('') 
+    toast.success(`Applied "${template.name}"`)
+  }
+
+  const handleDeleteTemplate = async (e: React.MouseEvent, id: number) => {
+      e.stopPropagation()
+      if(!confirm('Delete this template?')) return
+      
+      const result = await deleteTemplate(id)
+      if(result.success) {
+          toast.success('Template deleted')
+          router.refresh() // Re-fetch templates
+      } else {
+          toast.error('Failed to delete')
+      }
   }
 
   const clearDueDate = () => {
@@ -149,6 +180,7 @@ function ChoreForm({
     const formData = new FormData(event.currentTarget)
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
+    formData.append('rotateAssignees', String(isRotating)) // Pass rotation flag
     
     const finalInstances = instanceCount === '' ? 1 : Number(instanceCount)
     formData.append('instances', finalInstances.toString())
@@ -179,8 +211,18 @@ function ChoreForm({
     formData.set('recurrence_type', finalRecurrence)
 
     try {
+      // 1. Create Chore
       const result = await createChore(formData)
       
+      // 2. Create Template (if checked)
+      if (saveAsTemplate) {
+          const templateFormData = new FormData()
+          templateFormData.append('name', name)
+          templateFormData.append('subtasks', JSON.stringify(subtasks))
+          await createTemplate(templateFormData)
+          toast.success("Template saved for next time!")
+      }
+
       if (result.success) {
         toast.success(result.message)
         closeModal()
@@ -210,34 +252,46 @@ function ChoreForm({
                 placeholder="e.g. 'Clean fridge in kitchen x2'"
                 className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
                 autoFocus
+                autoCapitalize="sentences"
+                autoComplete="off"
             />
         </div>
         
-        {/* INTELLIGENCE FEEDBACK */}
-        <div className="h-4 min-h-[1rem] px-1">
-            {smartInput && (
-                <div className="flex flex-wrap gap-3 text-[10px] font-bold text-brand uppercase tracking-wider animate-in fade-in slide-in-from-left-2">
+        {/* INTELLIGENCE FEEDBACK & TEMPLATES */}
+        <div className="min-h-[2rem]">
+            {smartInput ? (
+                <div className="flex flex-wrap gap-3 text-[10px] font-bold text-brand uppercase tracking-wider animate-in fade-in slide-in-from-left-2 px-1">
                     {roomId && <span className="flex items-center gap-1"><Home className="h-3 w-3" /> Room Detected</span>}
                     {assignedIds.length > 0 && <span className="flex items-center gap-1"><User className="h-3 w-3" /> Assignee Detected</span>}
                     {hasDueDate && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Date Set</span>}
                     {Number(instanceCount) > 1 && <span className="flex items-center gap-1"><Copy className="h-3 w-3" /> Multi-count</span>}
                     {exactTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Exact Time</span>}
                 </div>
+            ) : templates.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient items-center">
+                    <span className="text-xs font-bold text-text-secondary self-center mr-1 flex-shrink-0">Your Templates:</span>
+                    {templates.map(t => (
+                        <div key={t.id} className="relative group flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => applyTemplate(t)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-border text-xs font-medium text-text-secondary hover:border-brand hover:text-brand transition-all shadow-sm"
+                            >
+                                <Sparkles className="h-3 w-3 text-brand/70" />
+                                {t.name}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => handleDeleteTemplate(e, t.id)}
+                                className="absolute -top-1 -right-1 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Delete Template"
+                            >
+                                <X className="h-2 w-2" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
             )}
-        </div>
-        
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient">
-            {suggestions.map(s => (
-                <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSmartInput(s)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-text-secondary hover:bg-brand-light hover:text-brand transition-colors whitespace-nowrap flex-shrink-0"
-                >
-                    <PlusCircle className="h-3 w-3" />
-                    {s}
-                </button>
-            ))}
         </div>
       </div>
 
@@ -255,6 +309,7 @@ function ChoreForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             className={`mt-1 block w-full rounded-xl border bg-background p-3 transition-all focus:border-brand focus:ring-brand ${isShaking ? 'border-red-500 ring-2 ring-red-200 animate-shake' : 'border-border'}`}
+            autoCapitalize="sentences"
         />
       </div>
 
@@ -400,9 +455,26 @@ function ChoreForm({
 
       {/* ADVANCED RECURRENCE */}
       <div className="p-4 bg-gray-50 rounded-xl border border-border space-y-4">
-        <div className="flex items-center gap-2">
-            <Repeat className="h-5 w-5 text-brand" />
-            <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <Repeat className="h-5 w-5 text-brand" />
+                <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
+            </div>
+            
+            {/* ROTATION TOGGLE */}
+            {recurrenceFreq !== 'none' && assignedIds.length > 1 && (
+                <div className="flex items-center gap-2 animate-in fade-in">
+                    <label htmlFor="rotate" className="text-xs font-bold text-brand uppercase cursor-pointer">
+                        Rotate Assignees?
+                    </label>
+                    <div 
+                        onClick={() => setIsRotating(!isRotating)}
+                        className={`w-10 h-6 rounded-full relative cursor-pointer transition-colors ${isRotating ? 'bg-brand' : 'bg-gray-200'}`}
+                    >
+                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isRotating ? 'left-5' : 'left-1'}`} />
+                    </div>
+                </div>
+            )}
         </div>
         
         <div className="flex flex-col gap-3">
@@ -430,6 +502,19 @@ function ChoreForm({
                 <option value="monthly">Month(s)</option>
                 </select>
             </div>
+
+            {/* Rotation Info */}
+            {isRotating && recurrenceFreq !== 'none' && (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 text-blue-700 text-xs rounded-lg animate-in slide-in-from-top-1">
+                    <Users className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                        The task will rotate between the {assignedIds.length} selected people. 
+                        First instance assigned to <strong>{
+                            members.find(m => m.id === assignedIds[0])?.full_name?.split(' ')[0] || 'First Person'
+                        }</strong>.
+                    </p>
+                </div>
+            )}
 
             {recurrenceFreq !== 'none' && (
                 <div className="flex gap-3 items-center animate-in slide-in-from-top-2 fade-in">
@@ -508,6 +593,7 @@ function ChoreForm({
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
                 placeholder="e.g. 'Sort whites'"
                 className="flex-1 rounded-xl border-border bg-background p-2 text-sm"
+                autoCapitalize="sentences"
               />
               <button 
                 type="button" 
@@ -551,6 +637,7 @@ function ChoreForm({
                     rows={2}
                     placeholder="Add details..."
                     className="mt-1 block w-full rounded-xl border-border bg-background p-3 focus:border-brand focus:ring-brand"
+                    autoCapitalize="sentences"
                 />
             </div>
              <div>
@@ -573,25 +660,45 @@ function ChoreForm({
       </details>
 
       {/* ACTIONS */}
-      <div className="flex items-center justify-end space-x-4 pt-4">
-        <button
-          type="button"
-          onClick={closeModal}
-          className="rounded-xl px-5 py-3 font-heading text-base font-semibold text-text-secondary transition-all hover:bg-gray-100"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={pending}
-          className="flex items-center justify-center rounded-xl bg-brand px-6 py-3 font-heading text-base font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {pending ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            `Create ${instanceCount === '' || Number(instanceCount) <= 1 ? '' : instanceCount + ' '} Chore${instanceCount === '' || Number(instanceCount) <= 1 ? '' : 's'}`
-          )}
-        </button>
+      <div className="pt-4 space-y-4">
+        
+        {/* SAVE AS TEMPLATE TOGGLE */}
+        {name.length > 0 && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+                <input 
+                    type="checkbox" 
+                    id="saveAsTemplate" 
+                    checked={saveAsTemplate}
+                    onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                    className="rounded text-brand focus:ring-brand border-gray-300"
+                />
+                <label htmlFor="saveAsTemplate" className="text-sm text-text-secondary font-medium flex items-center gap-1">
+                    <Save className="h-3 w-3" />
+                    Save as a new template
+                </label>
+            </div>
+        )}
+
+        <div className="flex items-center justify-end space-x-4">
+            <button
+            type="button"
+            onClick={closeModal}
+            className="rounded-xl px-5 py-3 font-heading text-base font-semibold text-text-secondary transition-all hover:bg-gray-100"
+            >
+            Cancel
+            </button>
+            <button
+            type="submit"
+            disabled={pending}
+            className="flex items-center justify-center rounded-xl bg-brand px-6 py-3 font-heading text-base font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70"
+            >
+            {pending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+                `Create ${instanceCount === '' || Number(instanceCount) <= 1 ? '' : instanceCount + ' '} Chore${instanceCount === '' || Number(instanceCount) <= 1 ? '' : 's'}`
+            )}
+            </button>
+        </div>
       </div>
     </form>
   )
@@ -649,6 +756,7 @@ export default function AddChoreModal(props: Props) {
                     members={props.members}
                     rooms={props.rooms}
                     currentUserId={props.currentUserId}
+                    templates={props.templates}
                 />
 
               </Dialog.Panel>

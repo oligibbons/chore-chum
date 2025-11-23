@@ -9,6 +9,8 @@ import Link from 'next/link'
 import FloatingActionLink from '@/components/FloatingActionLink'
 import AddChoreModal from '@/components/AddChoreModal'
 import { getRoomsAndMembers } from '@/app/room-actions'
+import { getTemplates } from '@/app/template-actions'
+import { getActiveBounty } from '@/app/bounty-actions'
 import EditChoreModal from '@/components/EditChoreModal'
 import { ChoreWithDetails } from '@/types/database'
 import FilterBar from '@/components/FilterBar' 
@@ -19,6 +21,7 @@ import DailyProgress from '@/components/DailyProgress'
 import Greeting from '@/components/Greeting'
 import AppBadgeUpdater from '@/components/AppBadgeUpdater'
 import ChoreDisplay from '@/components/ChoreDisplay'
+import BountyManager from '@/components/BountyManager'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,9 +68,12 @@ export default async function DashboardPage(props: DashboardProps) {
   const householdId = profile.household_id
   const userName = profile.full_name?.split(' ')[0] || 'User'
 
-  const [data, roomData] = await Promise.all([
+  // Fetch all necessary data in parallel
+  const [data, roomData, templates, activeBounty] = await Promise.all([
     getChoreDisplayData(householdId),
     getRoomsAndMembers(householdId),
+    getTemplates(),
+    getActiveBounty()
   ])
 
   // --- Active Members Logic ---
@@ -190,15 +196,46 @@ export default async function DashboardPage(props: DashboardProps) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-1 gap-6">
-            <ChoreDisplay title="Overdue" chores={overdueChores} status="overdue" />
-            <ChoreDisplay title="Due Soon" chores={dueSoonChores} status="due" />
-            <ChoreDisplay title="Upcoming" chores={upcomingChores} status="upcoming" />
+            <ChoreDisplay 
+                title="Overdue" 
+                chores={overdueChores} 
+                status="overdue" 
+                members={roomData.members}
+                currentUserId={user.id}
+            />
+            <ChoreDisplay 
+                title="Due Soon" 
+                chores={dueSoonChores} 
+                status="due" 
+                members={roomData.members}
+                currentUserId={user.id}
+            />
+            <ChoreDisplay 
+                title="Upcoming" 
+                chores={upcomingChores} 
+                status="upcoming" 
+                members={roomData.members}
+                currentUserId={user.id}
+            />
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-6">
-            <Leaderboard members={roomData.members} chores={allHouseholdChores} />
+            {/* Bounty Manager (Client Component handles interactions) */}
+            <BountyManager />
+            
+            <Leaderboard 
+                members={roomData.members} 
+                chores={allHouseholdChores} 
+                activeBountyDescription={activeBounty?.description} 
+            />
             <div className="pt-4 border-t border-border">
-                <ChoreDisplay title="Completed" chores={completedChores} status="completed" />
+                <ChoreDisplay 
+                    title="Completed" 
+                    chores={completedChores} 
+                    status="completed" 
+                    members={roomData.members}
+                    currentUserId={user.id}
+                />
             </div>
         </div>
       </div>
@@ -218,6 +255,7 @@ export default async function DashboardPage(props: DashboardProps) {
           members={roomData.members}
           rooms={roomData.rooms}
           currentUserId={user.id}
+          templates={templates}
         />
       )}
 

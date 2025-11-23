@@ -4,7 +4,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useEffect } from 'react'
 import { createRoom, deleteRoom, FormState } from '@/app/room-actions'
-import { Trash2, Loader2, Home, ArrowRight, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Trash2, Loader2, Home, ArrowRight, AlertTriangle, ExternalLink, Bug, Skull } from 'lucide-react'
 import { RoomWithChoreCount } from '@/types/database'
 import { toast } from 'sonner'
 import { getRoomIcon } from '@/lib/room-icons'
@@ -137,53 +137,79 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
           ) : (
             rooms.map((room) => {
                 // Visual "Rot" Logic:
-                const isRotting = (room.overdue_count ?? 0) > 3 || room.chore_count > 8;
+                const overdueCount = room.overdue_count ?? 0;
+                const isRotting = overdueCount > 2;
+                const isCritical = overdueCount > 5;
                 
                 return (
                   <div
                     key={room.id}
-                    // Make the whole card clickable to navigate
                     onClick={() => router.push(`/dashboard?roomId=${room.id}`)}
                     className={`
-                        group relative flex items-center justify-between rounded-xl border p-4 shadow-card transition-all hover:shadow-card-hover cursor-pointer
-                        ${isRotting ? 'bg-amber-50 border-amber-200' : 'bg-card border-border hover:border-brand/30'}
+                        group relative flex items-center justify-between rounded-xl border p-4 shadow-card transition-all hover:shadow-card-hover cursor-pointer overflow-hidden
+                        ${isCritical 
+                            ? 'bg-stone-100 border-stone-300' 
+                            : isRotting 
+                                ? 'bg-amber-50 border-amber-200' 
+                                : 'bg-card border-border hover:border-brand/30'}
                     `}
                   >
-                    <div className="flex items-center space-x-4">
+                    {/* Grime Overlay for Critical Rot */}
+                    {isCritical && (
+                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 pointer-events-none mix-blend-multiply" />
+                    )}
+
+                    <div className="flex items-center space-x-4 z-10">
                         <div className={`
                             relative flex items-center justify-center h-12 w-12 rounded-full transition-all
-                            ${isRotting ? 'bg-amber-100 text-amber-700 grayscale-[0.5]' : 'bg-brand-light text-brand group-hover:scale-110'}
+                            ${isCritical 
+                                ? 'bg-stone-200 text-stone-600 animate-pulse' 
+                                : isRotting 
+                                    ? 'bg-amber-100 text-amber-700 grayscale-[0.3]' 
+                                    : 'bg-brand-light text-brand group-hover:scale-110'}
                         `}>
-                            {/* Render Dynamic Icon based on Name */}
+                            {/* Dynamic Icon */}
                             {getRoomIcon(room.name, "h-6 w-6")}
                             
-                            {/* Rot Overlay */}
+                            {/* Rot Flies / Warning */}
                             {isRotting && (
-                                <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 border-2 border-white" title="Neglected Room">
-                                    <AlertTriangle className="h-3 w-3" />
+                                <div className="absolute -top-2 -right-2 animate-bounce" style={{ animationDuration: '2s' }}>
+                                    {isCritical ? (
+                                        <div className="bg-red-600 text-white rounded-full p-1 shadow-sm border border-white">
+                                            <Skull className="h-3 w-3" />
+                                        </div>
+                                    ) : (
+                                        <div className="bg-amber-500 text-white rounded-full p-1 shadow-sm border border-white">
+                                            <Bug className="h-3 w-3" />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
                         
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
-                            <span className={`font-heading text-lg font-medium ${isRotting ? 'text-amber-900' : 'text-foreground group-hover:text-brand transition-colors'}`}>
+                            <span className={`font-heading text-lg font-medium ${isRotting ? 'text-stone-800' : 'text-foreground group-hover:text-brand transition-colors'}`}>
                                 {room.name}
                             </span>
                             <ExternalLink className="h-3 w-3 text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
-                          <span className={`text-sm ${isRotting ? 'text-amber-700/70' : 'text-text-secondary'}`}>
+                          <span className={`text-sm font-medium ${isCritical ? 'text-red-600' : isRotting ? 'text-amber-700' : 'text-text-secondary'}`}>
                               {room.chore_count} {room.chore_count === 1 ? 'chore' : 'chores'}
-                              {isRotting && " (Needs attention)"}
+                              {isCritical 
+                                ? " • CRITICAL CONDITION" 
+                                : isRotting 
+                                    ? ` • ${overdueCount} overdue` 
+                                    : ""}
                           </span>
                         </div>
                     </div>
                     
-                    <form action={handleDelete} onClick={(e) => e.stopPropagation()}>
+                    <form action={handleDelete} onClick={(e) => e.stopPropagation()} className="z-10">
                       <input type="hidden" name="roomId" value={room.id} />
                       <button
                         type="submit"
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-status-overdue/10 hover:text-status-overdue z-10 relative"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-status-overdue/10 hover:text-status-overdue relative"
                         aria-label="Delete room"
                         title="Delete Room"
                       >

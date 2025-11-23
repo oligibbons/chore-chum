@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChoreWithDetails } from '@/types/database'
+import { ChoreWithDetails, DbProfile } from '@/types/database'
 import ChoreItem from './ChoreItem'
 import { AlertOctagon, AlertTriangle, Calendar, CheckCircle2, ChevronDown, ChevronUp, Coffee } from 'lucide-react'
 
@@ -10,6 +10,8 @@ type Props = {
   title: string
   chores: ChoreWithDetails[]
   status: 'overdue' | 'due' | 'upcoming' | 'completed'
+  members?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
+  currentUserId?: string
 }
 
 const getStatusConfig = (status: Props['status']) => {
@@ -53,6 +55,8 @@ export default function ChoreDisplay({
   title,
   chores,
   status,
+  members,
+  currentUserId
 }: Props) {
   const config = getStatusConfig(status)
   const [isOpen, setIsOpen] = useState(config.defaultOpen)
@@ -98,6 +102,8 @@ export default function ChoreDisplay({
                                 chore={chore}
                                 status={status === 'completed' ? 'upcoming' : status} 
                                 showActions={true}
+                                members={members}
+                                currentUserId={currentUserId}
                             />
                         ))}
                     </div>

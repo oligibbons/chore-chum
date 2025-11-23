@@ -1,9 +1,10 @@
+// src/components/ZenMode.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChoreWithDetails, DbProfile } from '@/types/database'
-import { X, ArrowRight, Sparkles, Flower2, Timer, Sun, Moon, Coffee, Layers, Users } from 'lucide-react'
+import { X, ArrowRight, Sparkles, Flower2, Timer, Sun, Moon, Coffee, Layers } from 'lucide-react'
 import ChoreItem from './ChoreItem'
 import { useGameFeel } from '@/hooks/use-game-feel'
 import { notifyZenStart } from '@/app/push-actions'
@@ -11,7 +12,7 @@ import Avatar from './Avatar'
 
 type Props = {
   chores: ChoreWithDetails[]
-  activeMembers?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[] // Phase 3
+  activeMembers?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   currentUserId?: string
 }
 
@@ -200,6 +201,8 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                                 chore={currentChore} 
                                 showActions={true} 
                                 status="due" // Force standard styling
+                                members={activeMembers} // Allow completing with others
+                                currentUserId={currentUserId}
                             />
                         </div>
                     </div>
@@ -223,7 +226,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
             </div>
             )}
 
-            {/* Phase 3: Social Momentum Pill */}
+            {/* Social Momentum Pill */}
             {othersWorking.length > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in duration-700">
                     <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-teal-900/10 backdrop-blur-md border border-teal-900/5 text-teal-800 shadow-lg">

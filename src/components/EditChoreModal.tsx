@@ -3,7 +3,7 @@
 
 import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check, Ban } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check, Ban, Users, Save } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -36,7 +36,6 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     if (!rec || rec === 'none') return { freq: 'none', interval: 1, until: '' }
     if (rec.startsWith('custom:')) {
         const parts = rec.split(':')
-        // custom:daily:3 or custom:daily:3:2025-12-31
         return { 
             freq: parts[1], 
             interval: parseInt(parts[2]) || 1,
@@ -48,9 +47,13 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
 
   const initialRec = parseRecurrence(chore.recurrence_type)
   const [recurrenceFreq, setRecurrenceFreq] = useState(initialRec.freq)
-  // Input Fix: Allow string for easier editing
   const [recurrenceInterval, setRecurrenceInterval] = useState<number | string>(initialRec.interval)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(initialRec.until)
+
+  // Rotation State
+  // Check if existing chore has rotation data
+  const initialRotation = (chore.custom_recurrence as any)?.rotation;
+  const [isRotating, setIsRotating] = useState(!!initialRotation)
 
   // Date State
   const [dueDate, setDueDate] = useState(chore.due_date ? new Date(chore.due_date).toISOString().split('T')[0] : '')
@@ -80,6 +83,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     setPending(true)
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
+    formData.append('rotateAssignees', String(isRotating)) // Pass rotation flag
     
     // Serialize Recurrence
     let finalRecurrence = 'none'
@@ -293,9 +297,26 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
 
       {/* ADVANCED RECURRENCE */}
       <div className="p-4 bg-gray-50 rounded-xl border border-border space-y-4">
-        <div className="flex items-center gap-2">
-            <Repeat className="h-5 w-5 text-brand" />
-            <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <Repeat className="h-5 w-5 text-brand" />
+                <h4 className="font-heading font-semibold text-sm">Recurrence</h4>
+            </div>
+
+            {/* ROTATION TOGGLE (EDIT MODE) */}
+            {recurrenceFreq !== 'none' && assignedIds.length > 1 && (
+                <div className="flex items-center gap-2 animate-in fade-in">
+                    <label htmlFor="rotate" className="text-xs font-bold text-brand uppercase cursor-pointer">
+                        Rotate Assignees?
+                    </label>
+                    <div 
+                        onClick={() => setIsRotating(!isRotating)}
+                        className={`w-10 h-6 rounded-full relative cursor-pointer transition-colors ${isRotating ? 'bg-brand' : 'bg-gray-200'}`}
+                    >
+                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isRotating ? 'left-5' : 'left-1'}`} />
+                    </div>
+                </div>
+            )}
         </div>
         
         <div className="flex flex-col gap-3">
@@ -323,6 +344,19 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
                 <option value="monthly">Month(s)</option>
                 </select>
             </div>
+
+            {/* Rotation Info */}
+            {isRotating && recurrenceFreq !== 'none' && (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 text-blue-700 text-xs rounded-lg animate-in slide-in-from-top-1">
+                    <Users className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                        Rotating between {assignedIds.length} people. 
+                        Next instance will assign to {
+                            members.find(m => m.id === assignedIds[1] || m.id === assignedIds[0])?.full_name?.split(' ')[0]
+                        }.
+                    </p>
+                </div>
+            )}
 
             {recurrenceFreq !== 'none' && (
                 <div className="flex gap-3 items-center animate-in slide-in-from-top-2 fade-in">
