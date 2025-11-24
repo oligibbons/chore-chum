@@ -21,9 +21,13 @@ export const metadata: Metadata = {
   description: "Your friendly household chore manager.",
   manifest: "/manifest.json",
   icons: {
-    icon: '/broom-icon.svg',
-    shortcut: '/broom-icon.svg',
-    apple: '/icon-192.png', // Crucial for iOS PWA install
+    // Updated to point to your new PNGs instead of the old SVG
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+    ],
+    shortcut: '/icon-192.png',
+    apple: '/icon-192.png',
     other: {
       rel: 'apple-touch-icon-precomposed',
       url: '/icon-192.png',
