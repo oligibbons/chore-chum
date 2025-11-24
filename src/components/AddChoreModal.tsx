@@ -3,7 +3,11 @@
 
 import { Fragment, useState, FormEvent, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2, Ban, Sparkles, Save, Users } from 'lucide-react'
+import { 
+  X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, 
+  Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2, Ban, 
+  Sparkles, Save, Users, ShoppingCart, Layers 
+} from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { createTemplate, deleteTemplate } from '@/app/template-actions'
 import { DbProfile, DbRoom, DbTemplate } from '@/types/database'
@@ -42,7 +46,7 @@ function ChoreForm({
   const { interact, triggerHaptic } = useGameFeel()
   const [isShaking, setIsShaking] = useState(false)
   
-  // State
+  // --- Form State ---
   const [name, setName] = useState('')
   const [assignedIds, setAssignedIds] = useState<string[]>([])
   const [roomId, setRoomId] = useState('')
@@ -71,6 +75,11 @@ function ChoreForm({
 
   // Template Save State
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
+  const [notes, setNotes] = useState('')
+
+  // --- NEW: Intelligence Feedback State ---
+  const [detectedTags, setDetectedTags] = useState<string[]>([])
+  const [isShopping, setIsShopping] = useState(false)
 
   const toggleMember = (id: string) => {
     interact('neutral')
@@ -99,6 +108,7 @@ function ChoreForm({
     
     setSubtasks(parsedSubtasks)
     setSmartInput('') 
+    setDetectedTags(['Template Applied'])
     toast.success(`Applied "${template.name}"`)
   }
 
@@ -109,7 +119,7 @@ function ChoreForm({
       const result = await deleteTemplate(id)
       if(result.success) {
           toast.success('Template deleted')
-          router.refresh() // Re-fetch templates
+          router.refresh() 
       } else {
           toast.error('Failed to delete')
       }
@@ -125,15 +135,20 @@ function ChoreForm({
       if (!dueDate) setDueDate(new Date().toISOString().split('T')[0])
   }
 
-  // Smart Parsing Logic
+  // --- Smart Parsing Logic (Enhanced) ---
   useEffect(() => {
     const timer = setTimeout(() => {
-        if (!smartInput.trim()) return
+        if (!smartInput.trim()) {
+            setDetectedTags([])
+            setIsShopping(false)
+            return
+        }
 
         const parsed = parseChoreInput(smartInput, members, rooms, currentUserId)
         
         if (parsed.name) setName(parsed.name)
         if (parsed.roomId) setRoomId(parsed.roomId.toString())
+        // Only override assignedIds if explicit intent found
         if (parsed.assignedTo) setAssignedIds([parsed.assignedTo]) 
         
         if (parsed.recurrence) {
@@ -159,7 +174,13 @@ function ChoreForm({
             setInstanceCount(parsed.instances)
         }
 
-    }, 600) 
+        if (parsed.subtasks.length > 0) setSubtasks(parsed.subtasks)
+
+        // Visual Feedback Update
+        setIsShopping(parsed.isShoppingList)
+        setDetectedTags(parsed.tags)
+
+    }, 500) // 500ms debounce
 
     return () => clearTimeout(timer)
   }, [smartInput, members, rooms, currentUserId])
@@ -180,7 +201,7 @@ function ChoreForm({
     const formData = new FormData(event.currentTarget)
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
-    formData.append('rotateAssignees', String(isRotating)) // Pass rotation flag
+    formData.append('rotateAssignees', String(isRotating)) 
     
     const finalInstances = instanceCount === '' ? 1 : Number(instanceCount)
     formData.append('instances', finalInstances.toString())
@@ -239,18 +260,24 @@ function ChoreForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       
-      {/* SMART INPUT HERO */}
+      {/* --- SMART INPUT HERO (Updated Visuals) --- */}
       <div className="relative space-y-3">
-        <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Wand2 className="h-5 w-5 text-brand animate-pulse" />
+        <div className="relative group">
+            <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors duration-500 ${isShopping ? 'text-green-600' : 'text-brand'}`}>
+                {isShopping ? <ShoppingCart className="h-5 w-5 animate-bounce" /> : <Wand2 className="h-5 w-5 animate-pulse" />}
             </div>
             <input
                 type="text"
                 value={smartInput}
                 onChange={(e) => setSmartInput(e.target.value)}
-                placeholder="e.g. 'Clean fridge in kitchen x2'"
-                className="block w-full rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 pl-10 text-lg font-medium placeholder:text-text-secondary/50 focus:border-brand focus:ring-brand transition-all"
+                placeholder={isShopping ? "Add items to list..." : "e.g. 'Deep clean bathroom for Ben tomorrow'"}
+                className={`
+                    block w-full rounded-2xl border-2 p-4 pl-10 text-lg font-medium focus:ring-0 transition-all duration-500
+                    ${isShopping 
+                        ? 'border-green-200 bg-green-50 focus:border-green-500 text-green-900 placeholder:text-green-700/50' 
+                        : 'border-brand/20 bg-brand/5 focus:border-brand text-foreground placeholder:text-text-secondary/50'
+                    }
+                `}
                 autoFocus
                 autoCapitalize="sentences"
                 autoComplete="off"
@@ -258,17 +285,15 @@ function ChoreForm({
         </div>
         
         {/* INTELLIGENCE FEEDBACK & TEMPLATES */}
-        <div className="min-h-[2rem]">
-            {smartInput ? (
-                <div className="flex flex-wrap gap-3 text-[10px] font-bold text-brand uppercase tracking-wider animate-in fade-in slide-in-from-left-2 px-1">
-                    {roomId && <span className="flex items-center gap-1"><Home className="h-3 w-3" /> Room Detected</span>}
-                    {assignedIds.length > 0 && <span className="flex items-center gap-1"><User className="h-3 w-3" /> Assignee Detected</span>}
-                    {hasDueDate && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Date Set</span>}
-                    {Number(instanceCount) > 1 && <span className="flex items-center gap-1"><Copy className="h-3 w-3" /> Multi-count</span>}
-                    {exactTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Exact Time</span>}
-                </div>
-            ) : templates.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient items-center">
+        <div className="min-h-[2rem] flex flex-wrap gap-2 items-center">
+            {detectedTags.length > 0 ? (
+                detectedTags.map((tag, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-brand/10 text-brand-dark text-[10px] font-bold uppercase tracking-wider animate-in zoom-in slide-in-from-left-2" style={{ animationDelay: `${i * 100}ms` }}>
+                        <Sparkles className="h-3 w-3" /> {tag}
+                    </span>
+                ))
+            ) : templates.length > 0 && !smartInput && (
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient items-center w-full">
                     <span className="text-xs font-bold text-text-secondary self-center mr-1 flex-shrink-0">Your Templates:</span>
                     {templates.map(t => (
                         <div key={t.id} className="relative group flex-shrink-0">
@@ -582,16 +607,27 @@ function ChoreForm({
          )}
       </div>
 
-      {/* SUBTASKS UI */}
+      {/* SUBTASKS UI (Updated with Shopping List Logic) */}
       <div className="space-y-2">
-          <label className="block font-heading text-sm font-medium text-text-primary">Sub-steps</label>
+          <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 font-heading text-sm font-medium text-text-primary">
+                  {isShopping ? <ShoppingCart className="h-4 w-4 text-brand" /> : null}
+                  {isShopping ? 'Shopping List Items' : 'Sub-steps'}
+              </label>
+              {subtasks.length > 0 && (
+                  <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-text-secondary font-bold">
+                      {subtasks.length}
+                  </span>
+              )}
+          </div>
+          
           <div className="flex gap-2">
               <input 
                 type="text" 
                 value={newSubtask} 
                 onChange={(e) => setNewSubtask(e.target.value)} 
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
-                placeholder="e.g. 'Sort whites'"
+                placeholder={isShopping ? "e.g. 'Milk'" : "e.g. 'Sort whites'"}
                 className="flex-1 rounded-xl border-border bg-background p-2 text-sm"
                 autoCapitalize="sentences"
               />
@@ -603,12 +639,13 @@ function ChoreForm({
                   <PlusCircle className="h-5 w-5" />
               </button>
           </div>
+          
           {subtasks.length > 0 && (
-              <ul className="space-y-1 pl-1">
+              <ul className="space-y-1 pl-1 max-h-40 overflow-y-auto">
                   {subtasks.map((st, i) => (
-                      <li key={i} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded-lg">
+                      <li key={i} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded-lg animate-in slide-in-from-left-2" style={{ animationDelay: `${i * 50}ms` }}>
                           <div className="flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-brand/50" />
+                              <div className={`w-1.5 h-1.5 rounded-full ${isShopping ? 'bg-green-500' : 'bg-brand/50'}`} />
                               <span>{st}</span>
                           </div>
                           <button 
@@ -625,7 +662,7 @@ function ChoreForm({
       </div>
 
       {/* DETAILS TOGGLE */}
-      <details className="group" open={!!exactTime}>
+      <details className="group" open={!!exactTime || !!notes}>
         <summary className="flex items-center gap-2 text-sm font-medium text-brand cursor-pointer list-none">
             <span>Add Notes & Exact Time</span>
         </summary>
@@ -635,6 +672,8 @@ function ChoreForm({
                     id="notes"
                     name="notes"
                     rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add details..."
                     className="mt-1 block w-full rounded-xl border-border bg-background p-3 focus:border-brand focus:ring-brand"
                     autoCapitalize="sentences"
