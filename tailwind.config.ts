@@ -1,3 +1,4 @@
+// tailwind.config.ts
 import type { Config } from 'tailwindcss'
 import forms from '@tailwindcss/forms'
 
@@ -83,6 +84,11 @@ const config: Config = {
           '0%': { opacity: '0', transform: 'scale(0.95)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
+        // ADDED: Missing keyframe for slide-in animations
+        'slide-in-from-bottom': {
+          '0%': { transform: 'translateY(var(--tw-enter-translate-y, 100%))', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        }
       },
     },
   },
@@ -105,6 +111,7 @@ const config: Config = {
         '.zoom-in': {
           animationName: 'zoom-in',
         },
+        // Adjusted to ensure it uses the variable we define in keyframes
         '.slide-in-from-bottom-2': {
           '--tw-enter-translate-y': '0.5rem',
           animationName: 'slide-in-from-bottom',

@@ -26,12 +26,10 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   const pendingChores = chores.filter(c => c.status !== 'complete')
 
   // 2. Index-Based State (Robust vs Data Updates)
-  // We store an index, not the object itself. This prevents "stale state" issues.
   const [choreIndex, setChoreIndex] = useState(0)
   const [secondsInZen, setSecondsInZen] = useState(0)
 
   // 3. Derived Active Chore (Safe Fallback)
-  // If list is empty, null. If list exists, always returns a valid item via Modulo.
   const activeChore = pendingChores.length > 0 
     ? pendingChores[choreIndex % pendingChores.length] 
     : null
@@ -57,7 +55,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
     }
   }, [isZen])
 
-  // Shuffle once on mount (Client-side only to avoid Hydration Mismatch)
+  // Shuffle once on mount
   useEffect(() => {
     if (isZen && pendingChores.length > 1) {
         setChoreIndex(Math.floor(Math.random() * pendingChores.length))
@@ -76,7 +74,6 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
 
   const handleSkip = useCallback(() => {
      interact('neutral')
-     // Simply increment index. Modulo logic above handles the wrapping.
      setChoreIndex(prev => prev + 1)
   }, [interact])
 
@@ -112,11 +109,11 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   if (!isZen) return null
 
   return (
-    // Fixed container with solid background to cover dashboard
+    // Fixed container with solid background
     <div className="fixed inset-0 z-[100] flex flex-col bg-teal-50 dark:bg-zinc-950 text-foreground animate-in fade-in duration-300">
       
-      {/* Top Bar */}
-      <div className="relative flex items-center justify-between p-6 pt-safe-top z-50">
+      {/* Top Bar - Fixed padding for Safe Area */}
+      <div className="relative flex items-center justify-between p-6 pt-[env(safe-area-inset-top)] z-50">
          <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 px-4 py-2 rounded-full border border-teal-200 dark:border-white/10 shadow-sm">
             <Timer className="h-4 w-4 text-teal-700 dark:text-teal-300" />
             <span className="font-mono text-sm font-bold text-teal-900 dark:text-teal-100 tracking-wider">{formatTime(secondsInZen)}</span>
@@ -154,7 +151,8 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                 </div>
             ) : activeChore ? (
                 // --- ACTIVE CHORE STATE ---
-                <div className="animate-in slide-in-from-bottom-4 fade-in duration-500">
+                // Fixed animation class to use the defined 'slide-in-from-bottom-2'
+                <div className="animate-in slide-in-from-bottom-2 fade-in duration-500">
                     {/* Header Text */}
                     <div className="mb-10 space-y-4">
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/50 dark:bg-white/10 text-teal-900 dark:text-teal-100 font-bold text-xs tracking-widest uppercase border border-teal-200/50 dark:border-white/10">
@@ -180,9 +178,10 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                             <div className="absolute -inset-1 bg-gradient-to-r from-teal-200 to-brand/30 rounded-[2.2rem] blur-xl opacity-30 group-hover:opacity-50 transition duration-1000"></div>
                             
                             <div className="relative bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-white/60 dark:border-white/10 p-2 ring-1 ring-black/5 dark:ring-white/5">
-                                {/* Wrap in UL to satisfy LI requirement of ChoreItem */}
+                                {/* CRITICAL FIX: Added `key` prop to force re-render on chore switch */}
                                 <ul className="m-0 p-0 list-none">
                                     <ChoreItem 
+                                        key={activeChore.id}
                                         chore={activeChore} 
                                         showActions={true} 
                                         status="due" 
@@ -211,8 +210,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                     </div>
                 </div>
             ) : (
-                // Fallback in rare case where list has length but item is null
-                <div className="text-muted-foreground">Loading task...</div>
+                <div className="text-teal-800/50 animate-pulse">Loading task...</div>
             )}
 
             {/* Social Momentum */}
