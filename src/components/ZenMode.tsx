@@ -25,20 +25,18 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   // Ensure we always have a fresh list of pending chores
   const pendingChores = chores.filter(c => c.status !== 'complete')
 
-  // Initialize state immediately
+  // FIXED: Deterministic initialization. 
+  // We MUST NOT use Math.random() here because it causes a Hydration Mismatch (Error #418).
+  // The Server and Client must agree on the initial state. We pick the first one (usually most urgent).
   const [currentChore, setCurrentChore] = useState<ChoreWithDetails | null>(() => {
     if (pendingChores.length > 0) {
-        return pendingChores[Math.floor(Math.random() * pendingChores.length)]
+        return pendingChores[0]
     }
     return null
   })
 
   const [isFading, setIsFading] = useState(false)
   const [secondsInZen, setSecondsInZen] = useState(0)
-
-  // Use a ref to track if we've already picked a chore for this session/list state
-  // This helps avoid dependency loops in useEffect
-  const hasPickedRef = useRef(false)
 
   useEffect(() => {
     if (isZen) {
@@ -72,9 +70,12 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   const handleSkip = useCallback(() => {
      interact('neutral')
      setIsFading(true)
+     
+     // Wait for fade out, then switch
      setTimeout(() => {
         const otherChores = pendingChores.filter(c => c.id !== currentChore?.id)
         if (otherChores.length > 0) {
+           // Randomness is safe here because it happens on user interaction (Client Side only)
            const next = otherChores[Math.floor(Math.random() * otherChores.length)]
            setCurrentChore(next)
         }
@@ -94,35 +95,33 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isZen, closeZenMode, handleSkip])
 
-  // Robust Chore Selection Logic
+  // Robust Auto-Switch Logic
   useEffect(() => {
     if (!isZen) return
 
-    // Case 1: No chores left
+    // 1. If no chores left, clear state
     if (pendingChores.length === 0) {
-        setCurrentChore(null)
+        if (currentChore) setCurrentChore(null)
         return
     }
 
-    // Case 2: No chore selected (e.g. initial load or lost state)
+    // 2. If state is empty but chores exist (e.g. loaded in), pick one
     if (!currentChore) {
-        const randomIndex = Math.floor(Math.random() * pendingChores.length)
-        setCurrentChore(pendingChores[randomIndex])
+        setCurrentChore(pendingChores[0])
         return
     }
 
-    // Case 3: Current chore no longer exists in pending list (e.g. completed by someone else or self)
+    // 3. If current chore was removed/completed by someone else, switch
     const stillExists = pendingChores.find(c => c.id === currentChore.id)
     if (!stillExists) {
         setIsFading(true)
-        // Short delay to allow fade out if rendering
         setTimeout(() => {
-            const randomIndex = Math.floor(Math.random() * pendingChores.length)
-            setCurrentChore(pendingChores[randomIndex])
+            // Pick next available
+            setCurrentChore(pendingChores[0])
             setIsFading(false)
         }, 300)
     }
-  }, [isZen, pendingChores.length, currentChore?.id]) // Depend on ID to detect completion
+  }, [isZen, pendingChores, currentChore])
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60)
@@ -217,7 +216,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                         <div className="absolute -inset-1 bg-gradient-to-r from-teal-200/50 to-brand/30 dark:from-teal-900/50 dark:to-brand/30 rounded-[2.2rem] blur-xl opacity-50 group-hover:opacity-70 transition duration-1000"></div>
                         
                         <div className="relative bg-white/80 dark:bg-black/60 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_40px_rgb(0,0,0,0.08)] border border-white/60 dark:border-white/10 p-1 ring-1 ring-white/80 dark:ring-white/5">
-                            {/* WRAPPED IN UL because ChoreItem renders LI */}
+                            {/* WRAPPED IN UL because ChoreItem renders LI - prevents HTML nesting error */}
                             <ul className="m-0 p-0 list-none">
                                 <ChoreItem 
                                     chore={currentChore} 
