@@ -1,7 +1,7 @@
 // src/components/ZenMode.tsx
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChoreWithDetails, DbProfile } from '@/types/database'
 import { X, ArrowRight, Sparkles, Flower2, Timer, Sun, Moon, Coffee, Layers } from 'lucide-react'
@@ -25,9 +25,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   // Ensure we always have a fresh list of pending chores
   const pendingChores = chores.filter(c => c.status !== 'complete')
 
-  // FIXED: Deterministic initialization. 
-  // We MUST NOT use Math.random() here because it causes a Hydration Mismatch (Error #418).
-  // The Server and Client must agree on the initial state. We pick the first one (usually most urgent).
+  // CONSTANT INITIALIZATION: Always pick index 0 to prevent Hydration Mismatch
   const [currentChore, setCurrentChore] = useState<ChoreWithDetails | null>(() => {
     if (pendingChores.length > 0) {
         return pendingChores[0]
@@ -143,25 +141,20 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   if (!isZen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-background/95 dark:bg-background/95 text-foreground backdrop-blur-3xl animate-in fade-in duration-500">
+    // CHANGED: Static background colors (bg-teal-50 for light, bg-zinc-950 for dark)
+    // Removed complex z-index layering and absolute positioned blobs
+    <div className="fixed inset-0 z-[100] flex flex-col bg-teal-50 dark:bg-zinc-950 text-foreground animate-in fade-in duration-300">
       
-      {/* --- Ethereal Background --- */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          {/* Blobs */}
-          <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-teal-200/30 dark:bg-teal-900/20 rounded-full blur-[120px] animate-pulse-slow" />
-          <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] bg-brand/20 dark:bg-brand/10 rounded-full blur-[120px] animate-pulse-slow" style={{ animationDelay: '1s' }} />
-      </div>
-
       {/* Top Bar */}
-      <div className="relative z-50 flex items-center justify-between p-6">
-         <div className="flex items-center gap-3 bg-white/40 dark:bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/50 dark:border-white/10 shadow-sm">
+      <div className="relative flex items-center justify-between p-6 pt-safe-top">
+         <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 px-4 py-2 rounded-full border border-teal-200 dark:border-white/10 shadow-sm">
             <Timer className="h-4 w-4 text-teal-700 dark:text-teal-300" />
             <span className="font-mono text-sm font-bold text-teal-900 dark:text-teal-100 tracking-wider">{formatTime(secondsInZen)}</span>
          </div>
 
          <button 
             onClick={closeZenMode}
-            className="p-3 rounded-full bg-white/40 dark:bg-black/40 text-teal-800 dark:text-teal-200 border border-white/50 dark:border-white/10 shadow-sm hover:bg-white/60 dark:hover:bg-black/60 transition-all active:scale-95"
+            className="p-3 rounded-full bg-white/60 dark:bg-white/10 text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-white/10 shadow-sm hover:bg-white dark:hover:bg-white/20 transition-all active:scale-95"
             aria-label="Close Zen Mode"
          >
             <X className="h-6 w-6" />
@@ -169,7 +162,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
       </div>
 
       {/* Main Content Area */}
-      <div className="relative z-40 flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto pb-32">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto pb-32">
         <div className="w-full max-w-md mx-auto text-center space-y-10">
             
             {pendingChores.length === 0 ? (
@@ -193,7 +186,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                 
                 {/* Header Text */}
                 <div className="mb-10 space-y-4">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-sm text-teal-900 dark:text-teal-100 font-bold text-xs tracking-widest uppercase border border-white/40 dark:border-white/10">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/50 dark:bg-white/10 text-teal-900 dark:text-teal-100 font-bold text-xs tracking-widest uppercase border border-teal-200/50 dark:border-white/10">
                         {getTimeIcon(currentChore.time_of_day)}
                         <span>Focus Mode</span>
                     </div>
@@ -206,17 +199,16 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                 <div className="relative group min-h-[140px]">
                     {pendingChores.length > 1 && (
                         <div 
-                            className="absolute top-4 left-4 right-4 h-full bg-white/20 dark:bg-white/5 backdrop-blur-sm rounded-[2rem] border border-white/30 dark:border-white/10 shadow-lg z-0 transform scale-[0.95] transition-all duration-700"
+                            className="absolute top-4 left-4 right-4 h-full bg-white/40 dark:bg-white/5 rounded-[2rem] border border-teal-100/50 dark:border-white/10 shadow-lg z-0 transform scale-[0.95] transition-all duration-700"
                             aria-hidden="true"
                         />
                     )}
                     
                     {/* Main Active Card */}
                     <div className="relative z-10 text-left">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-teal-200/50 to-brand/30 dark:from-teal-900/50 dark:to-brand/30 rounded-[2.2rem] blur-xl opacity-50 group-hover:opacity-70 transition duration-1000"></div>
+                        <div className="absolute -inset-1 bg-gradient-to-r from-teal-200 to-brand/30 rounded-[2.2rem] blur-xl opacity-30 group-hover:opacity-50 transition duration-1000"></div>
                         
-                        <div className="relative bg-white/80 dark:bg-black/60 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_40px_rgb(0,0,0,0.08)] border border-white/60 dark:border-white/10 p-1 ring-1 ring-white/80 dark:ring-white/5">
-                            {/* WRAPPED IN UL because ChoreItem renders LI - prevents HTML nesting error */}
+                        <div className="relative bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-white/60 dark:border-white/10 p-2 ring-1 ring-black/5 dark:ring-white/5">
                             <ul className="m-0 p-0 list-none">
                                 <ChoreItem 
                                     chore={currentChore} 
@@ -234,7 +226,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                 <div className="mt-12 flex flex-col items-center gap-6">
                     <button 
                         onClick={handleSkip}
-                        className="group flex items-center justify-center gap-2 mx-auto text-sm font-bold text-teal-700 dark:text-teal-300 hover:text-teal-900 dark:hover:text-teal-100 transition-colors py-2.5 px-5 rounded-xl bg-white/30 dark:bg-white/10 hover:bg-white/50 dark:hover:bg-white/20"
+                        className="group flex items-center justify-center gap-2 mx-auto text-sm font-bold text-teal-700 dark:text-teal-300 hover:text-teal-900 dark:hover:text-teal-100 transition-colors py-2.5 px-5 rounded-xl bg-teal-100/50 dark:bg-white/10 hover:bg-teal-100 dark:hover:bg-white/20"
                     >
                         Skip for now 
                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -251,7 +243,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
             {/* Social Momentum */}
             {othersWorking.length > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in duration-700 w-max max-w-[90vw] z-50">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-teal-900/10 dark:bg-teal-100/10 backdrop-blur-md border border-teal-900/5 dark:border-teal-100/5 text-teal-900 dark:text-teal-100 shadow-lg">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-teal-100 dark:border-white/10 text-teal-900 dark:text-teal-100 shadow-lg">
                         <div className="flex -space-x-2">
                             {othersWorking.slice(0,3).map(m => (
                                 <Avatar key={m.id} url={m.avatar_url} alt={m.full_name || ''} size={24} />
