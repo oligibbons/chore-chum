@@ -31,7 +31,8 @@ export default function Leaderboard({ members, chores, activeBountyDescription }
       if (c.status !== 'complete') return false
       
       // Must be assigned to this member
-      const isAssigned = c.assigned_to?.includes(member.id)
+      // FIXED: Added extra safety check for array type
+      const isAssigned = Array.isArray(c.assigned_to) && c.assigned_to.includes(member.id)
       if (!isAssigned) return false
 
       // Timeframe Filter

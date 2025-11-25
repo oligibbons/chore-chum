@@ -74,7 +74,9 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
   const [isNudging, setIsNudging] = useState(false)
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
-  const [showSubtasks, setShowSubtasks] = useState(false)
+  
+  // FIXED: Default to showing subtasks so users see them immediately
+  const [showSubtasks, setShowSubtasks] = useState(true)
   const [showFullNotes, setShowFullNotes] = useState(false)
   
   const { interact, triggerHaptic } = useGameFeel()

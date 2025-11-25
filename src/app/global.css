@@ -36,37 +36,36 @@
     --radius: 0.75rem;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      /* --- Dark Mode Variables --- */
-      --background: 224 71% 4%;     /* Deep Blue/Black */
-      --foreground: 210 20% 98%;    /* Off-white */
+  /* FIXED: Use .dark class selector instead of media query so the Toggle works */
+  .dark {
+    /* --- Dark Mode Variables --- */
+    --background: 224 71% 4%;     /* Deep Blue/Black */
+    --foreground: 210 20% 98%;    /* Off-white */
 
-      --card: 224 71% 6%;           /* Slightly lighter than bg */
-      --card-foreground: 210 20% 98%;
+    --card: 224 71% 6%;           /* Slightly lighter than bg */
+    --card-foreground: 210 20% 98%;
 
-      --popover: 224 71% 4%;
-      --popover-foreground: 210 20% 98%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 20% 98%;
 
-      --primary: 252 75% 65%;       /* Lighter Violet for dark mode contrast */
-      --primary-foreground: 210 20% 98%;
+    --primary: 252 75% 65%;       /* Lighter Violet for dark mode contrast */
+    --primary-foreground: 210 20% 98%;
 
-      --secondary: 215 27.9% 16.9%;
-      --secondary-foreground: 210 20% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
 
-      --muted: 215 27.9% 16.9%;
-      --muted-foreground: 217.9 10.6% 64.9%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
 
-      --accent: 215 27.9% 16.9%;
-      --accent-foreground: 210 20% 98%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
 
-      --destructive: 0 62.8% 30.6%;
-      --destructive-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
 
-      --border: 215 27.9% 16.9%;
-      --input: 215 27.9% 16.9%;
-      --ring: 252 75% 65%;
-    }
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 252 75% 65%;
   }
 }
 

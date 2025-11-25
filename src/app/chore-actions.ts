@@ -224,16 +224,21 @@ export async function getHouseholdData(
       const rawAssigned = chore.assigned_to
       let assigneeIds: string[] = []
 
-      if (rawAssigned && typeof rawAssigned === 'string') {
-          if (rawAssigned.startsWith('[')) {
-             try {
-                const parsed = JSON.parse(rawAssigned)
-                if (Array.isArray(parsed)) assigneeIds = parsed
-             } catch {
-                assigneeIds = [] 
-             }
-          } else {
-             assigneeIds = [rawAssigned]
+      // FIXED: Handle both string JSON and pre-parsed Object/Array JSONB
+      if (rawAssigned) {
+          if (Array.isArray(rawAssigned)) {
+              assigneeIds = rawAssigned
+          } else if (typeof rawAssigned === 'string') {
+              if (rawAssigned.startsWith('[')) {
+                 try {
+                    const parsed = JSON.parse(rawAssigned)
+                    if (Array.isArray(parsed)) assigneeIds = parsed
+                 } catch {
+                    assigneeIds = [] 
+                 }
+              } else {
+                 assigneeIds = [rawAssigned]
+              }
           }
       }
       
@@ -388,7 +393,7 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
                 const { memberIds, nextIndex } = customRec.rotation;
                 if (Array.isArray(memberIds) && memberIds.length > 0) {
                     const assignee = memberIds[nextIndex % memberIds.length];
-                    nextAssignee = [assignee];
+                    nextAssignee = [assignee]; // Ensure array
 
                     const newNextIndex = (nextIndex + 1) % memberIds.length;
                     
@@ -409,7 +414,7 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
                 household_id: safeChore.household_id,
                 created_by: safeChore.created_by,
                 status: 'pending',
-                assigned_to: (nextAssignee && nextAssignee.length > 0) ? nextAssignee[0] : null, 
+                assigned_to: nextAssignee, 
                 room_id: safeChore.room_id,
                 due_date: nextDate,
                 target_instances: safeChore.target_instances,
@@ -418,7 +423,7 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
                 time_of_day: safeChore.time_of_day,
                 exact_time: safeChore.exact_time,
                 custom_recurrence: nextCustomRecurrence,
-                deadline_type: safeChore.deadline_type // Copy urgency setting
+                deadline_type: safeChore.deadline_type // SAVE
             } as any).select('id').single()
 
             if (insertError) {
@@ -508,7 +513,7 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
-  const deadlineType = formData.get('deadlineType') as string || 'soft' // NEW
+  const deadlineType = formData.get('deadlineType') as string || 'soft'
   
   // Parse AssignedTo
   const rawAssignedTo = formData.get('assignedTo') as string
@@ -522,7 +527,10 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   // Rotation Logic
   const shouldRotate = formData.get('rotateAssignees') === 'true'
   let customRecurrence = null
-  let currentAssignee = assignedTo.length > 0 ? assignedTo[0] : null
+  
+  // FIXED: Ensure currentAssignee is saved as an ARRAY even if it's a single item
+  // This is critical for the JSONB 'contains' (@>) queries in Cron jobs
+  let currentAssignee = assignedTo.length > 0 ? [assignedTo[0]] : null
 
   if (shouldRotate && assignedTo.length > 1) {
       customRecurrence = {
@@ -563,7 +571,7 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
         household_id: householdId,
         created_by: user.id,
         status: 'pending',
-        assigned_to: currentAssignee, 
+        assigned_to: currentAssignee, // Saved as Array
         room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
         due_date: rawDueDate,
         target_instances: 1, 
@@ -572,7 +580,7 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
         time_of_day: rawTimeOfDay || 'any',
         exact_time: exactTime,
         custom_recurrence: customRecurrence,
-        deadline_type: deadlineType // SAVE
+        deadline_type: deadlineType 
       } as any).select('id').single()
 
       if (error) return { success: false, message: error.message }
@@ -643,10 +651,11 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   if (rawAssignedTo) {
       try {
           assignedTo = JSON.parse(rawAssignedTo)
-          currentAssignee = assignedTo.length > 0 ? assignedTo[0] : null
+          // FIXED: Save as ARRAY
+          currentAssignee = assignedTo.length > 0 ? [assignedTo[0]] : null
       } catch {
           assignedTo = [rawAssignedTo]
-          currentAssignee = assignedTo[0]
+          currentAssignee = [assignedTo[0]]
       }
   }
 

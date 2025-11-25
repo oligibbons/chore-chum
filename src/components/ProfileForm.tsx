@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
-import { User, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2, Sun, Moon, Activity, Hand, Palette } from 'lucide-react'
+import { User, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2, Palette, Hand, Sun, Moon, Activity } from 'lucide-react'
 import { updateProfile, leaveHousehold, ProfileFormState } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
@@ -15,6 +15,14 @@ type Props = {
   profile: DbProfile
   household: Pick<DbHousehold, 'name' | 'invite_code'> | null
   email?: string
+}
+
+// FIXED: Typed preferences helper to handle JSONB safely
+type NotificationPreferences = {
+  morning_brief?: boolean
+  evening_motivation?: boolean
+  chore_updates?: boolean
+  nudges?: boolean
 }
 
 const initialState: ProfileFormState = {
@@ -99,10 +107,14 @@ export default function ProfileForm({ profile, household, email }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createSupabaseBrowserClient()
 
-  const prefs = profile.notification_preferences || {
-    morning_brief: true,
-    evening_motivation: true,
-    chore_updates: true
+  // FIXED: Safely cast and default the JSONB preference data
+  // This prevents crashes if the DB column is null or missing keys
+  const rawPrefs = profile.notification_preferences as unknown as NotificationPreferences | null
+  const prefs: NotificationPreferences = {
+    morning_brief: rawPrefs?.morning_brief ?? true,
+    evening_motivation: rawPrefs?.evening_motivation ?? true,
+    chore_updates: rawPrefs?.chore_updates ?? true,
+    nudges: true
   }
 
   useEffect(() => {
