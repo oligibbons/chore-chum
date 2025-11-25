@@ -1,14 +1,15 @@
 // src/components/ZenMode.tsx
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChoreWithDetails, DbProfile } from '@/types/database'
-import { X, ArrowRight, Sparkles, Flower2, Timer, Sun, Moon, Coffee, Layers } from 'lucide-react'
+import { X, ArrowRight, Sparkles, CheckCircle2, Timer, Coffee, Sun, Moon, Flame, Users } from 'lucide-react'
 import ChoreItem from './ChoreItem'
 import { useGameFeel } from '@/hooks/use-game-feel'
 import { notifyZenStart } from '@/app/push-actions'
 import Avatar from './Avatar'
+import confetti from 'canvas-confetti'
 
 type Props = {
   chores: ChoreWithDetails[]
@@ -20,74 +21,91 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   const router = useRouter()
   const searchParams = useSearchParams()
   const isZen = searchParams.get('view') === 'zen'
-  const { interact } = useGameFeel()
   
-  // 1. Filter List
-  const pendingChores = chores.filter(c => c.status !== 'complete')
+  const { interact, triggerHaptic } = useGameFeel()
+  
+  // --- 1. Robust Data Preparation ---
+  // Filter to only pending chores assigned to the current user (or unassigned if that's the logic)
+  // We prefer the list passed in via props which is already filtered in the parent Dashboard
+  const pendingChores = useMemo(() => {
+    return chores.filter(c => c.status !== 'complete')
+  }, [chores])
 
-  // 2. Index-Based State (Robust vs Data Updates)
+  // --- 2. State ---
   const [choreIndex, setChoreIndex] = useState(0)
   const [secondsInZen, setSecondsInZen] = useState(0)
+  const [isExiting, setIsExiting] = useState(false)
 
-  // 3. Derived Active Chore (Safe Fallback)
+  // Derived Active Chore (Safe Circular Access)
   const activeChore = pendingChores.length > 0 
     ? pendingChores[choreIndex % pendingChores.length] 
     : null
 
-  // --- Effects ---
+  const othersWorking = activeMembers.filter(m => m.id !== currentUserId)
 
-  // Notify on entry
-  useEffect(() => {
-    if (isZen) notifyZenStart()
-  }, [isZen])
+  // --- 3. Lifecycle & Effects ---
 
-  // Timer
+  // Notify & Shuffle on Mount
   useEffect(() => {
-    if (!isZen) {
+    if (isZen) {
+      notifyZenStart()
+      // Randomize start point so it feels fresh
+      if (pendingChores.length > 1) {
+        setChoreIndex(Math.floor(Math.random() * pendingChores.length))
+      }
+      // Lock Body Scroll
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
       setSecondsInZen(0)
-      return
     }
-    const interval = setInterval(() => setSecondsInZen(s => s + 1), 1000)
-    document.body.style.overflow = 'hidden'
+
     return () => {
-      clearInterval(interval)
       document.body.style.overflow = 'unset'
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isZen]) // Intentionally run only when Zen toggles
+
+  // Timer Tick
+  useEffect(() => {
+    if (!isZen) return
+    const timer = setInterval(() => setSecondsInZen(s => s + 1), 1000)
+    return () => clearInterval(timer)
   }, [isZen])
 
-  // Shuffle once on mount
-  useEffect(() => {
-    if (isZen && pendingChores.length > 1) {
-        setChoreIndex(Math.floor(Math.random() * pendingChores.length))
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Run once on mount
-
-  // --- Handlers ---
-
-  const closeZenMode = useCallback(() => {
-    interact('neutral')
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete('view')
-    router.push(`?${params.toString()}`)
-  }, [interact, router, searchParams])
-
-  const handleSkip = useCallback(() => {
-     interact('neutral')
-     setChoreIndex(prev => prev + 1)
-  }, [interact])
-
+  // Keyboard Shortcuts
   useEffect(() => {
     if (!isZen) return
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeZenMode()
+      if (e.key === 'Escape') handleClose()
       if (e.key === 'ArrowRight') handleSkip()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isZen, closeZenMode, handleSkip])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isZen])
 
-  // --- Helpers ---
+  // --- 4. Handlers ---
+
+  const handleClose = useCallback(() => {
+    setIsExiting(true)
+    interact('neutral')
+    // Small delay to allow exit animation
+    setTimeout(() => {
+      setIsExiting(false)
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('view')
+      router.push(`?${params.toString()}`)
+    }, 300)
+  }, [interact, router, searchParams])
+
+  const handleSkip = useCallback(() => {
+     triggerHaptic('light')
+     // Increment index to show next card
+     setChoreIndex(prev => prev + 1)
+  }, [triggerHaptic])
+
+  // --- 5. Helpers ---
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60)
@@ -97,142 +115,174 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
 
   const getTimeIcon = (tag?: string | null) => {
     switch(tag) {
-        case 'morning': return <Coffee className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-        case 'afternoon': return <Sun className="h-4 w-4 text-orange-500 dark:text-orange-400" />
-        case 'evening': return <Moon className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-        default: return <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+        case 'morning': return <Coffee className="h-4 w-4 text-amber-600" />
+        case 'afternoon': return <Sun className="h-4 w-4 text-orange-500" />
+        case 'evening': return <Moon className="h-4 w-4 text-indigo-400" />
+        default: return <Sparkles className="h-4 w-4 text-teal-500" />
     }
   }
 
-  const othersWorking = activeMembers.filter(m => m.id !== currentUserId)
+  // --- 6. Render ---
 
   if (!isZen) return null
 
   return (
-    // Fixed container with solid background
-    <div className="fixed inset-0 z-[100] flex flex-col bg-teal-50 dark:bg-zinc-950 text-foreground animate-in fade-in duration-300">
-      
-      {/* Top Bar - Fixed padding for Safe Area */}
-      <div className="relative flex items-center justify-between p-6 pt-[env(safe-area-inset-top)] z-50">
-         <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 px-4 py-2 rounded-full border border-teal-200 dark:border-white/10 shadow-sm">
-            <Timer className="h-4 w-4 text-teal-700 dark:text-teal-300" />
-            <span className="font-mono text-sm font-bold text-teal-900 dark:text-teal-100 tracking-wider">{formatTime(secondsInZen)}</span>
+    <div 
+        className={`
+            fixed inset-0 z-[50] flex flex-col 
+            bg-gradient-to-br from-slate-50 via-teal-50 to-indigo-50 
+            dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950
+            text-foreground transition-opacity duration-300 ease-in-out
+            ${isExiting ? 'opacity-0' : 'opacity-100'}
+        `}
+    >
+      {/* BACKGROUND NOISE TEXTURE (Optional for texture) */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('/noise.png')]" />
+
+      {/* --- TOP BAR --- */}
+      <div className="relative z-10 flex items-center justify-between p-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+         {/* Timer Pill */}
+         <div className="flex items-center gap-3 bg-white/80 dark:bg-black/40 px-4 py-2 rounded-full border border-black/5 dark:border-white/10 shadow-sm backdrop-blur-md animate-in slide-in-from-top-2 duration-500">
+            <div className={`w-2 h-2 rounded-full bg-red-500 ${secondsInZen % 2 === 0 ? 'opacity-100' : 'opacity-50'} transition-opacity`} />
+            <span className="font-mono text-sm font-bold text-foreground tracking-widest">
+                {formatTime(secondsInZen)}
+            </span>
          </div>
 
+         {/* Close Button */}
          <button 
-            onClick={closeZenMode}
-            className="p-3 rounded-full bg-white/60 dark:bg-white/10 text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-white/10 shadow-sm hover:bg-white dark:hover:bg-white/20 transition-all active:scale-95"
-            aria-label="Close Zen Mode"
+            onClick={handleClose}
+            className="p-3 rounded-full bg-white/80 dark:bg-black/40 text-muted-foreground hover:text-foreground border border-black/5 dark:border-white/10 shadow-sm hover:shadow-md backdrop-blur-md transition-all active:scale-95"
+            aria-label="Exit Zen Mode"
          >
             <X className="h-6 w-6" />
          </button>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto pb-32 w-full">
-        <div className="w-full max-w-md mx-auto text-center space-y-10">
-            
-            {pendingChores.length === 0 ? (
-                // --- SUCCESS STATE ---
-                <div className="space-y-8 animate-in zoom-in duration-500">
-                    <div className="mx-auto h-40 w-40 flex items-center justify-center rounded-full bg-gradient-to-tr from-teal-300 to-emerald-400 text-white shadow-2xl shadow-teal-200/50 animate-float-up">
-                        <Flower2 className="h-20 w-20 animate-pulse" />
+      {/* --- MAIN CONTENT AREA --- */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-lg mx-auto relative z-10">
+        
+        {pendingChores.length === 0 ? (
+            // --- STATE: ALL DONE ---
+            <div className="text-center space-y-8 animate-in zoom-in duration-500">
+                <div className="relative mx-auto h-48 w-48 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-teal-400/20 rounded-full blur-3xl animate-pulse" />
+                    <div className="relative bg-gradient-to-tr from-teal-400 to-emerald-500 rounded-[2rem] p-8 shadow-2xl shadow-teal-500/20 transform transition-transform hover:scale-105">
+                        <CheckCircle2 className="h-24 w-24 text-white" />
                     </div>
-                    <div className="space-y-3">
-                        <h2 className="text-4xl font-heading font-bold text-teal-950 dark:text-teal-50">Mindful & Done.</h2>
-                        <p className="text-xl text-teal-800/80 dark:text-teal-200/80 max-w-xs mx-auto">Your space is clear, and so is your mind.</p>
-                    </div>
-                    <button 
-                    onClick={closeZenMode}
-                    className="inline-flex items-center rounded-2xl bg-white dark:bg-teal-900 px-8 py-4 text-lg font-bold text-teal-600 dark:text-teal-100 shadow-xl ring-1 ring-teal-100 dark:ring-teal-800 transition-all hover:scale-105 active:scale-95"
-                    >
-                    Return to Dashboard
-                    </button>
                 </div>
-            ) : activeChore ? (
-                // --- ACTIVE CHORE STATE ---
-                // Fixed animation class to use the defined 'slide-in-from-bottom-2'
-                <div className="animate-in slide-in-from-bottom-2 fade-in duration-500">
-                    {/* Header Text */}
-                    <div className="mb-10 space-y-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/50 dark:bg-white/10 text-teal-900 dark:text-teal-100 font-bold text-xs tracking-widest uppercase border border-teal-200/50 dark:border-white/10">
-                            {getTimeIcon(activeChore.time_of_day)}
-                            <span>Focus Mode</span>
-                        </div>
-                        <h2 className="text-3xl md:text-4xl font-heading font-bold text-teal-950 dark:text-white tracking-tight leading-tight">
-                            Just one thing.
-                        </h2>
+                
+                <div className="space-y-2">
+                    <h2 className="text-4xl font-heading font-black text-foreground tracking-tight">
+                        Zen Achieved.
+                    </h2>
+                    <p className="text-xl text-muted-foreground font-medium">
+                        Your list is cleared. Enjoy the peace.
+                    </p>
+                </div>
+
+                <button 
+                    onClick={handleClose}
+                    className="inline-flex items-center gap-2 bg-foreground text-background px-8 py-4 rounded-2xl font-bold text-lg shadow-xl hover:scale-105 active:scale-95 transition-all"
+                >
+                    Return Home
+                </button>
+            </div>
+        ) : activeChore ? (
+            // --- STATE: ACTIVE CHORE ---
+            <div className="w-full space-y-8">
+                
+                {/* Header Info */}
+                <div className="text-center space-y-2 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-100">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 dark:bg-brand/20 text-brand-dark dark:text-brand-light text-xs font-bold uppercase tracking-wider">
+                        {getTimeIcon(activeChore.time_of_day)}
+                        <span>Focus Mode</span>
                     </div>
+                    <h2 className="text-3xl font-heading font-bold text-foreground">
+                        Just one thing.
+                    </h2>
+                </div>
+
+                {/* THE CARD */}
+                {/* KEY PROP IS CRITICAL HERE: It forces a full remount/animation when ID changes */}
+                <div key={activeChore.id} className="relative group perspective-1000">
                     
-                    {/* Stacked Card Visuals */}
-                    <div className="relative group min-h-[140px]">
-                        {pendingChores.length > 1 && (
-                            <div 
-                                className="absolute top-4 left-4 right-4 h-full bg-white/40 dark:bg-white/5 rounded-[2rem] border border-teal-100/50 dark:border-white/10 shadow-lg z-0 transform scale-[0.95]"
-                                aria-hidden="true"
+                    {/* Stack Effect (Visual depth) */}
+                    {pendingChores.length > 1 && (
+                        <div className="absolute top-4 left-4 right-4 h-full bg-white/40 dark:bg-white/5 rounded-[2rem] border border-black/5 dark:border-white/5 shadow-sm -z-10 scale-95 duration-500" />
+                    )}
+
+                    {/* Main Card */}
+                    <div className="
+                        relative bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl 
+                        rounded-[2.5rem] shadow-2xl shadow-brand/10 border border-white/50 dark:border-white/10 
+                        p-2 ring-1 ring-black/5 dark:ring-white/5
+                        animate-in zoom-in-95 slide-in-from-bottom-8 duration-500 ease-out
+                    ">
+                        <ul className="m-0 p-0 list-none">
+                            <ChoreItem 
+                                chore={activeChore} 
+                                showActions={true} 
+                                status="due" 
+                                members={activeMembers} 
+                                currentUserId={currentUserId}
                             />
-                        )}
-                        
-                        {/* Main Active Card */}
-                        <div className="relative z-10 text-left">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-teal-200 to-brand/30 rounded-[2.2rem] blur-xl opacity-30 group-hover:opacity-50 transition duration-1000"></div>
-                            
-                            <div className="relative bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-white/60 dark:border-white/10 p-2 ring-1 ring-black/5 dark:ring-white/5">
-                                {/* CRITICAL FIX: Added `key` prop to force re-render on chore switch */}
-                                <ul className="m-0 p-0 list-none">
-                                    <ChoreItem 
-                                        key={activeChore.id}
-                                        chore={activeChore} 
-                                        showActions={true} 
-                                        status="due" 
-                                        members={activeMembers} 
-                                        currentUserId={currentUserId}
-                                    />
-                                </ul>
-                            </div>
-                        </div>
+                        </ul>
                     </div>
-                    
-                    {/* Controls */}
-                    <div className="mt-12 flex flex-col items-center gap-6">
+                </div>
+
+                {/* Controls */}
+                <div className="flex flex-col items-center gap-4 animate-in fade-in duration-1000 delay-200">
+                    {pendingChores.length > 1 && (
                         <button 
                             onClick={handleSkip}
-                            className="group flex items-center justify-center gap-2 mx-auto text-sm font-bold text-teal-700 dark:text-teal-300 hover:text-teal-900 dark:hover:text-teal-100 transition-colors py-2.5 px-5 rounded-xl bg-teal-100/50 dark:bg-white/10 hover:bg-teal-100 dark:hover:bg-white/20"
+                            className="group flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-white/10 transition-all"
                         >
                             Skip for now 
                             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                         </button>
-                        
-                        <div className="flex items-center gap-2 text-xs font-medium text-teal-700/60 dark:text-teal-200/60">
-                            <Layers className="h-3 w-3" />
-                            <span>{pendingChores.length} tasks remaining</span>
-                        </div>
+                    )}
+                    
+                    <div className="text-xs font-medium text-muted-foreground flex items-center gap-2 opacity-60">
+                        <div className="w-2 h-2 rounded-full bg-foreground/20" />
+                        {pendingChores.length} task{pendingChores.length === 1 ? '' : 's'} remaining
                     </div>
                 </div>
-            ) : (
-                <div className="text-teal-800/50 animate-pulse">Loading task...</div>
-            )}
 
-            {/* Social Momentum */}
-            {othersWorking.length > 0 && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-max max-w-[90vw] z-50">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-teal-100 dark:border-white/10 text-teal-900 dark:text-teal-100 shadow-lg">
-                        <div className="flex -space-x-2">
-                            {othersWorking.slice(0,3).map(m => (
-                                <Avatar key={m.id} url={m.avatar_url} alt={m.full_name || ''} size={24} />
-                            ))}
-                        </div>
-                        <span className="text-xs font-bold">
-                            {othersWorking.length === 1 
-                                ? `${othersWorking[0].full_name?.split(' ')[0]} is also working` 
-                                : `${othersWorking.length} others are working`}
-                        </span>
-                    </div>
-                </div>
-            )}
+            </div>
+        ) : (
+            // --- STATE: LOADING/ERROR FALLBACK ---
+            <div className="flex flex-col items-center justify-center text-muted-foreground animate-pulse">
+                <Sparkles className="h-10 w-10 mb-2 opacity-50" />
+                <p>Finding clarity...</p>
+            </div>
+        )}
 
-        </div>
       </div>
+
+      {/* --- BOTTOM BAR: SOCIAL --- */}
+      <div className="relative z-10 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] flex justify-center">
+         {othersWorking.length > 0 && (
+            <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md border border-brand/20 shadow-lg animate-in slide-in-from-bottom-4 duration-700">
+                <div className="flex -space-x-2">
+                    {othersWorking.slice(0, 3).map(m => (
+                        <div key={m.id} className="ring-2 ring-white dark:ring-zinc-800 rounded-full">
+                            <Avatar url={m.avatar_url} alt={m.full_name || ''} size={24} />
+                        </div>
+                    ))}
+                </div>
+                <div className="text-xs font-bold text-brand-dark dark:text-brand-light flex items-center gap-1.5">
+                    <Flame className="h-3.5 w-3.5 fill-brand text-brand animate-pulse" />
+                    <span>
+                        {othersWorking.length === 1 
+                            ? `${othersWorking[0].full_name?.split(' ')[0]} is focusing` 
+                            : `${othersWorking.length} others focusing`}
+                    </span>
+                </div>
+            </div>
+         )}
+      </div>
+
     </div>
   )
 }
