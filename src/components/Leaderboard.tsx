@@ -27,15 +27,11 @@ export default function Leaderboard({ members, chores, activeBountyDescription }
   // 1. Calculate Scores
   const scores: LeaderboardEntry[] = members.map(member => {
     const count = chores.filter(c => {
-      // Must be completed
       if (c.status !== 'complete') return false
-      
-      // Must be assigned to this member
       // FIXED: Added extra safety check for array type
       const isAssigned = Array.isArray(c.assigned_to) && c.assigned_to.includes(member.id)
       if (!isAssigned) return false
 
-      // Timeframe Filter
       if (timeframe === 'week') {
         const dateToCheck = c.created_at
         const completedDate = new Date(dateToCheck)
@@ -44,7 +40,6 @@ export default function Leaderboard({ members, chores, activeBountyDescription }
         
         return completedDate > sevenDaysAgo
       }
-
       return true
     }).length
     
@@ -56,10 +51,8 @@ export default function Leaderboard({ members, chores, activeBountyDescription }
     }
   })
 
-  // 2. Sort Descending
   const sortedScores = scores.sort((a, b) => b.score - a.score)
 
-  // 3. Icons helper
   const getRankIcon = (index: number) => {
     if (index === 0) return <Crown className="h-5 w-5 text-yellow-500 fill-yellow-500 animate-bounce" style={{ animationDuration: '2s' }} />
     if (index === 1) return <Medal className="h-5 w-5 text-gray-400 fill-gray-400/20" />
@@ -70,8 +63,8 @@ export default function Leaderboard({ members, chores, activeBountyDescription }
   return (
     <div className="flex flex-col h-full rounded-2xl border border-border bg-card p-6 shadow-card relative overflow-hidden">
       
-      {/* Header with Toggle */}
-      <div className="flex items-start justify-between mb-4">
+      {/* --- INTELLIGENT FIX: Tour tag applied to HEADER only --- */}
+      <div className="flex items-start justify-between mb-4" data-tour="leaderboard-card">
         <div className="flex items-center gap-2">
             <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded-lg">
                 <Star className="h-5 w-5" />
@@ -100,7 +93,7 @@ export default function Leaderboard({ members, chores, activeBountyDescription }
         </div>
       </div>
 
-      {/* BOUNTY BANNER */}
+      {/* Bounty Banner */}
       {timeframe === 'week' && activeBountyDescription && (
           <div className="mb-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-3 text-white shadow-lg transform transition-all hover:scale-[1.02] animate-in slide-in-from-top-2">
               <div className="flex items-center gap-2 mb-1">

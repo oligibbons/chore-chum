@@ -148,11 +148,13 @@ export default async function DashboardPage(props: DashboardProps) {
 
   return (
     <div className="space-y-8 pb-24">
-      <ZenMode 
-        chores={myZenChores} 
-        activeMembers={activeMembers}
-        currentUserId={user.id}
-      />
+      <div data-tour="zen-mode-btn">
+        <ZenMode 
+            chores={myZenChores} 
+            activeMembers={activeMembers}
+            currentUserId={user.id}
+        />
+      </div>
       
       <AppBadgeUpdater count={overdueChores.length} />
 
@@ -177,7 +179,6 @@ export default async function DashboardPage(props: DashboardProps) {
                 <Link 
                   href="?view=zen"
                   scroll={false}
-                  data-tour="zen-mode-btn"
                   className="group flex items-center gap-2 pl-3 pr-4 py-2 h-[42px] rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-white text-teal-700 shadow-sm transition-all hover:scale-105 hover:shadow-md active:scale-95"
                 >
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-600 group-hover:bg-teal-200 transition-colors">
@@ -201,13 +202,15 @@ export default async function DashboardPage(props: DashboardProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-1 gap-6" data-tour="chore-list">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-1 gap-6">
+            {/* Targeted Tour ID placed here to highlight ONLY the Overdue header */}
             <ChoreDisplay 
                 title="Overdue" 
                 chores={overdueChores} 
                 status="overdue" 
                 members={roomData.members}
                 currentUserId={user.id}
+                tourId="chore-list"
             />
             <ChoreDisplay 
                 title="Due Soon" 
@@ -227,13 +230,12 @@ export default async function DashboardPage(props: DashboardProps) {
 
         <div className="lg:col-span-1 flex flex-col gap-6">
             <BountyManager />
-            <div data-tour="leaderboard-card">
-                <Leaderboard 
-                    members={roomData.members} 
-                    chores={allHouseholdChores} 
-                    activeBountyDescription={activeBounty?.description} 
-                />
-            </div>
+            {/* Leaderboard handles its own ID internally now via the updated component */}
+            <Leaderboard 
+                members={roomData.members} 
+                chores={allHouseholdChores} 
+                activeBountyDescription={activeBounty?.description} 
+            />
             <div className="pt-4 border-t border-border">
                 <ChoreDisplay 
                     title="Completed" 

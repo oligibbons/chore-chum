@@ -12,6 +12,7 @@ type Props = {
   status: 'overdue' | 'due' | 'upcoming' | 'completed'
   members?: Pick<DbProfile, 'id' | 'full_name' | 'avatar_url'>[]
   currentUserId?: string
+  tourId?: string // <-- NEW PROP
 }
 
 const getStatusConfig = (status: Props['status']) => {
@@ -24,6 +25,7 @@ const getStatusConfig = (status: Props['status']) => {
         emptyIcon: <CheckCircle2 className="h-8 w-8 text-green-500/50 mb-2" />,
         defaultOpen: true
       }
+    // ... (rest of cases remain unchanged)
     case 'due':
       return {
         icon: <AlertTriangle className="h-5 w-5 text-status-due" />,
@@ -56,13 +58,13 @@ export default function ChoreDisplay({
   chores,
   status,
   members,
-  currentUserId
+  currentUserId,
+  tourId // <-- Destructure
 }: Props) {
   const config = getStatusConfig(status)
   const [isOpen, setIsOpen] = useState(config.defaultOpen)
   const [isExpanded, setIsExpanded] = useState(false)
 
-  // Logic: Collapse long lists by default (limit to 4 items)
   const LIMIT = 4
   const shouldClamp = chores.length > LIMIT
   const visibleChores = (shouldClamp && !isExpanded) ? chores.slice(0, LIMIT) : chores
@@ -72,6 +74,8 @@ export default function ChoreDisplay({
       
       <button 
         onClick={() => setIsOpen(!isOpen)}
+        // --- INTELLIGENT FIX: Apply tourId here on the HEADER button only ---
+        data-tour={tourId}
         className="flex items-center justify-between p-3 w-full hover:bg-muted/50 rounded-xl transition-all group"
       >
         <div className="flex items-center gap-3">
@@ -108,7 +112,6 @@ export default function ChoreDisplay({
                         ))}
                     </div>
                     
-                    {/* Show More / Show Less Button */}
                     {shouldClamp && (
                         <button
                             onClick={() => setIsExpanded(!isExpanded)}
