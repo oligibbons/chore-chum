@@ -19,51 +19,51 @@ export const TOUR_STEPS: TutorialStep[] = [
   {
     target: 'welcome-header',
     title: 'Welcome Home',
-    description: "Welcome to ChoreChum! Let's take a quick tour of your new household command center.",
+    description: "Welcome to ChoreChum! Let's get you settled in.",
     position: 'bottom',
     route: '/dashboard'
   },
   {
     target: 'chore-list',
     title: 'Your Task List',
-    description: "This is your main feed. Tap the circle to complete a chore, or tap the card itself to edit details.",
+    description: "Here are your chores. Tap the circle to complete, or tap the card to edit.",
     position: 'top',
+    route: '/dashboard'
+  },
+  {
+    target: 'add-chore-fab',
+    title: 'Add Anything',
+    description: "Tap the + button to create new chores or save templates.",
+    position: 'top', // Explicit top preference for bottom-right FAB
     route: '/dashboard'
   },
   {
     target: 'zen-mode-btn',
     title: 'Zen Mode',
-    description: "Feeling overwhelmed? Zen Mode hides everything except one task, helping you focus.",
+    description: "Overwhelmed? Tap here to focus on just ONE task.",
     position: 'bottom',
     route: '/dashboard'
   },
   {
     target: 'streak-fire',
     title: 'Daily Streak',
-    description: "Consistency is key. Complete at least one chore every day to keep your streak alive!",
+    description: "Complete at least one chore daily to keep the fire burning!",
     position: 'bottom',
     route: '/dashboard'
   },
   {
     target: 'leaderboard-card',
     title: 'Leaderboard',
-    description: "See who's doing their part. Compete for the weekly bounty or just for glory.",
-    position: 'top',
-    route: '/dashboard'
-  },
-  {
-    target: 'add-chore-fab',
-    title: 'Create Chores',
-    description: "Tap the + button to add new tasks. You can also save frequent chores as templates.",
+    description: "Compete for the weekly bounty or just for glory.",
     position: 'top',
     route: '/dashboard'
   },
   
-  // --- ROOMS (Nav Highlight) ---
+  // --- ROOMS ---
   {
     target: 'nav-rooms',
     title: 'Rooms View',
-    description: "Filter your chores by room to clean systematically (e.g., 'Kitchen' only).",
+    description: "Filter chores by room to clean systematically.",
     position: 'top',
     route: '/dashboard'
   },
@@ -72,30 +72,30 @@ export const TOUR_STEPS: TutorialStep[] = [
   {
     target: 'nav-calendar',
     title: 'Planning Ahead',
-    description: "Let's look at the schedule. We'll take you to the Calendar view now.",
+    description: "Let's check the schedule in the Calendar view.",
     position: 'top',
-    route: '/dashboard' // Shows the nav item before moving
+    route: '/dashboard'
   },
   {
     target: 'calendar-view',
     title: 'Weekly Calendar',
-    description: "See what's coming up this week. Good planning prevents the Sunday panic!",
+    description: "See what's coming up this week.",
     position: 'bottom',
-    route: '/calendar' // Navigates user here
+    route: '/calendar'
   },
 
   // --- FEED ---
   {
     target: 'nav-feed',
     title: 'Activity Feed',
-    description: "Curious about what's been happening? Let's check the Feed.",
+    description: "Now let's see what the household has been up to.",
     position: 'top',
     route: '/calendar'
   },
   {
     target: 'feed-view',
     title: 'Household History',
-    description: "A live log of everything: completed chores, new members, and nudges.",
+    description: "A live log of completions, nudges, and new members.",
     position: 'bottom',
     route: '/feed'
   },
@@ -104,21 +104,21 @@ export const TOUR_STEPS: TutorialStep[] = [
   {
     target: 'nav-profile',
     title: 'You',
-    description: "Finally, let's head to your Profile to set things up.",
+    description: "Finally, let's head to your Profile.",
     position: 'top',
     route: '/feed'
   },
   {
     target: 'profile-view',
-    title: 'Your Profile',
-    description: "Manage your notifications, theme, and household settings here.",
+    title: 'Your Settings',
+    description: "Manage notifications, theme, and household settings here.",
     position: 'bottom',
     route: '/profile'
   },
   {
     target: 'tour-restart-btn',
     title: 'All Set!',
-    description: "You're ready to go. If you ever need this tour again, just tap this button.",
+    description: "You're ready! Tap this button anytime to replay this tour.",
     position: 'top',
     route: '/profile'
   }
@@ -148,7 +148,6 @@ export function TutorialProvider({
   const pathname = usePathname()
   const { interact } = useGameFeel()
 
-  // Auto-start for new users
   useEffect(() => {
     if (!hasCompletedTutorial) {
         const timer = setTimeout(() => setIsActive(true), 1500)
@@ -156,7 +155,6 @@ export function TutorialProvider({
     }
   }, [hasCompletedTutorial])
 
-  // Navigation Logic
   useEffect(() => {
     if (!isActive) return
     const step = TOUR_STEPS[currentStepIndex]
