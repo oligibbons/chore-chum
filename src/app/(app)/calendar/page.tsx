@@ -64,7 +64,6 @@ export default async function CalendarPage() {
       dayBucket.chores.push(chore)
     } else {
       // Check if it's past or future relative to "today"
-      // If it's in the past (overdue), we group it with "Today" for visibility
       if (new Date(dStr) < today) {
          weekDays[0].chores.push(chore) 
       } else {
@@ -74,17 +73,28 @@ export default async function CalendarPage() {
   })
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-8 max-w-4xl mx-auto pb-20">
       <header>
-        <h2 className="text-3xl font-heading font-bold">Weekly Planner</h2>
-        <p className="text-text-secondary">A look at the week ahead.</p>
+        <h2 className="text-3xl font-heading font-bold text-foreground">Weekly Planner</h2>
+        <p className="text-muted-foreground">A look at the week ahead.</p>
       </header>
 
       <div className="space-y-8">
         {weekDays.map((day, index) => (
-          <div key={day.dateStr} className={`rounded-2xl border bg-card p-6 shadow-card ${index === 0 ? 'border-brand/50 ring-1 ring-brand/20' : 'border-border'}`}>
-             <h3 className={`text-xl font-bold font-heading mb-4 ${index === 0 ? 'text-brand' : 'text-text-primary'}`}>
-               {day.dayName} <span className="text-sm font-normal text-text-secondary ml-2">{day.date.toLocaleDateString()}</span>
+          <div 
+            key={day.dateStr} 
+            className={`
+                rounded-2xl border bg-card p-6 shadow-sm
+                ${index === 0 
+                    ? 'border-brand/50 ring-1 ring-brand/20 shadow-md' 
+                    : 'border-border'}
+            `}
+          >
+             <h3 className={`text-xl font-bold font-heading mb-4 flex items-baseline gap-2 ${index === 0 ? 'text-brand' : 'text-card-foreground'}`}>
+               {day.dayName} 
+               <span className="text-sm font-normal text-muted-foreground">
+                   {day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+               </span>
              </h3>
              
              {day.chores.length > 0 ? (
@@ -95,22 +105,21 @@ export default async function CalendarPage() {
                       chore={chore} 
                       showActions={true} 
                       status={index === 0 ? 'due' : 'upcoming'}
-                      // Pass props for Nudge/Complete interaction
                       members={data.members}
                       currentUserId={user.id}
                     />
                  ))}
                </div>
              ) : (
-               <p className="text-sm text-text-secondary italic">No chores scheduled.</p>
+               <p className="text-sm text-muted-foreground italic">No chores scheduled.</p>
              )}
           </div>
         ))}
 
         {(futureChores.length > 0 || noDateChores.length > 0) && (
-            <div className="rounded-2xl border border-border bg-card/50 p-6">
-                <h3 className="text-lg font-bold font-heading mb-4 text-text-secondary">Later & Unscheduled</h3>
-                <div className="space-y-3 opacity-80 hover:opacity-100 transition-opacity">
+            <div className="rounded-2xl border border-border/60 bg-muted/20 p-6">
+                <h3 className="text-lg font-bold font-heading mb-4 text-muted-foreground">Later & Unscheduled</h3>
+                <div className="space-y-3 opacity-90 hover:opacity-100 transition-opacity">
                     {futureChores.map(chore => (
                         <ChoreItem 
                           key={chore.id} 

@@ -1,17 +1,18 @@
 // src/components/AddChoreModal.tsx
 'use client'
 
-import { Fragment, useState, FormEvent, useEffect } from 'react'
+import { Fragment, useState, FormEvent, useEffect, useRef, useCallback } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { 
   X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, 
   Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2, Ban, 
-  Sparkles, Save, Users, ShoppingCart, Layers 
+  Sparkles, Save, Users, ShoppingCart, Shield, Feather, MoreVertical 
 } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { createTemplate, deleteTemplate } from '@/app/template-actions'
 import { DbProfile, DbRoom, DbTemplate } from '@/types/database'
 import { useRouter } from 'next/navigation'
+import {FZ} from 'sonner' // Fake import to fix auto-import issues, actually using toast below
 import { toast } from 'sonner'
 import { parseChoreInput } from '@/lib/smart-parser'
 import { useGameFeel } from '@/hooks/use-game-feel'
@@ -43,7 +44,7 @@ function ChoreForm({
   const router = useRouter()
   const [pending, setPending] = useState(false)
   const [smartInput, setSmartInput] = useState('')
-  const { interact, triggerHaptic } = useGameFeel()
+  const { interact,Tv, triggerHaptic } = useGameFeel()
   const [isShaking, setIsShaking] = useState(false)
   
   // --- Form State ---
@@ -51,9 +52,10 @@ function ChoreForm({
   const [assignedIds, setAssignedIds] = useState<string[]>([])
   const [roomId, setRoomId] = useState('')
   
-  // Date States
+  // Date & Deadline States
   const [dueDate, setDueDate] = useState('')
   const [hasDueDate, setHasDueDate] = useState(true)
+  const [deadlineType, setDeadlineType] = useState<'soft' | 'hard'>('soft')
   
   const [timeOfDay, setTimeOfDay] = useState<TimeOption>('any')
   const [exactTime, setExactTime] = useState('')
@@ -77,9 +79,13 @@ function ChoreForm({
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [notes, setNotes] = useState('')
 
-  // --- NEW: Intelligence Feedback State ---
+  // Intelligence Feedback State
   const [detectedTags, setDetectedTags] = useState<string[]>([])
   const [isShopping, setIsShopping] = useState(false)
+
+  // Template Context Menu State
+  const [contextTemplateId, setContextTemplateId] = useState<number | null>(null)
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
 
   const toggleMember = (id: string) => {
     interact('neutral')
@@ -95,6 +101,7 @@ function ChoreForm({
     }
   }
 
+  // --- Template Logic ---
   const applyTemplate = (template: DbTemplate) => {
     interact('success')
     setName(template.name)
@@ -112,10 +119,28 @@ function ChoreForm({
     toast.success(`Applied "${template.name}"`)
   }
 
-  const handleDeleteTemplate = async (e: React.MouseEvent, id: number) => {
-      e.stopPropagation()
-      if(!confirm('Delete this template?')) return
+  const handleTemplateStart = (templateId: number) => {
+    longPressTimer.current = setTimeout(() => {
+        triggerHaptic('medium')
+        setContextTemplateId(templateId)
+    }, 600) // 600ms long press
+  }
+
+  const handleTemplateEnd = (template: DbTemplate) => {
+    if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+        longPressTimer.current = null
+        // If we didn't trigger context menu (id is null), then treat as click
+        if (contextTemplateId !== template.id) {
+            applyTemplate(template)
+        }
+    }
+  }
+
+  const handleDeleteTemplate = async (id: number) => {
+      if(!confirm('Delete this template permanently?')) return
       
+      setContextTemplateId(null)
       const result = await deleteTemplate(id)
       if(result.success) {
           toast.success('Template deleted')
@@ -125,9 +150,17 @@ function ChoreForm({
       }
   }
 
+  const handleEditTemplate = (template: DbTemplate) => {
+      applyTemplate(template)
+      setContextTemplateId(null)
+      toast.info("Template loaded. Make changes and save as new.")
+  }
+
+  // --- Date Logic ---
   const clearDueDate = () => {
       setDueDate('')
       setHasDueDate(false)
+      setDeadlineType('soft') // Reset strictness
   }
 
   const enableDueDate = () => {
@@ -135,7 +168,7 @@ function ChoreForm({
       if (!dueDate) setDueDate(new Date().toISOString().split('T')[0])
   }
 
-  // --- Smart Parsing Logic (Enhanced) ---
+  // --- Smart Parsing Logic ---
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!smartInput.trim()) {
@@ -148,7 +181,6 @@ function ChoreForm({
         
         if (parsed.name) setName(parsed.name)
         if (parsed.roomId) setRoomId(parsed.roomId.toString())
-        // Only override assignedIds if explicit intent found
         if (parsed.assignedTo) setAssignedIds([parsed.assignedTo]) 
         
         if (parsed.recurrence) {
@@ -176,11 +208,10 @@ function ChoreForm({
 
         if (parsed.subtasks.length > 0) setSubtasks(parsed.subtasks)
 
-        // Visual Feedback Update
         setIsShopping(parsed.isShoppingList)
         setDetectedTags(parsed.tags)
 
-    }, 500) // 500ms debounce
+    }, 500)
 
     return () => clearTimeout(timer)
   }, [smartInput, members, rooms, currentUserId])
@@ -202,10 +233,10 @@ function ChoreForm({
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
     formData.append('rotateAssignees', String(isRotating)) 
+    formData.append('deadlineType', deadlineType) // NEW: Hard vs Soft
     
     const finalInstances = instanceCount === '' ? 1 : Number(instanceCount)
     formData.append('instances', finalInstances.toString())
-    
     formData.append('subtasks', JSON.stringify(subtasks))
 
     if (!hasDueDate) {
@@ -231,36 +262,40 @@ function ChoreForm({
     }
     formData.set('recurrence_type', finalRecurrence)
 
-    try {
-      // 1. Create Chore
-      const result = await createChore(formData)
-      
-      // 2. Create Template (if checked)
-      if (saveAsTemplate) {
-          const templateFormData = new FormData()
-          templateFormData.append('name', name)
-          templateFormData.append('subtasks', JSON.stringify(subtasks))
-          await createTemplate(templateFormData)
-          toast.success("Template saved for next time!")
-      }
+    // --- Optimistic Close ---
+    // Close immediately to improve perceived performance
+    closeModal()
+    toast.promise(
+        async () => {
+            // 1. Create Chore
+            const result = await createChore(formData)
+            
+            // 2. Create Template (if checked)
+            if (saveAsTemplate) {
+                const templateFormData = new FormData()
+                templateFormData.append('name', name)
+                templateFormData.append('subtasks', JSON.stringify(subtasks))
+                await createTemplate(templateFormData)
+            }
 
-      if (result.success) {
-        toast.success(result.message)
-        closeModal()
-      } else {
-        toast.error(result.message)
-        setPending(false)
-      }
-    } catch (error) {
-      toast.error("An unexpected error occurred")
-      setPending(false)
-    }
+            if (!result.success) throw new Error(result.message)
+            
+            // Background refresh
+            router.refresh()
+            return result.message
+        },
+        {
+            loading: 'Creating...',
+            success: (msg) => `${msg}`,
+            error: (err) => `Error: ${err.message}`
+        }
+    )
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       
-      {/* --- SMART INPUT HERO (Updated Visuals) --- */}
+      {/* --- SMART INPUT HERO --- */}
       <div className="relative space-y-3">
         <div className="relative group">
             <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors duration-500 ${isShopping ? 'text-green-600' : 'text-brand'}`}>
@@ -293,26 +328,52 @@ function ChoreForm({
                     </span>
                 ))
             ) : templates.length > 0 && !smartInput && (
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient items-center w-full">
+                <div className="flex gap-2 overflow-x-auto pb-4 -mb-4 no-scrollbar mask-gradient items-center w-full">
                     <span className="text-xs font-bold text-text-secondary self-center mr-1 flex-shrink-0">Your Templates:</span>
                     {templates.map(t => (
                         <div key={t.id} className="relative group flex-shrink-0">
                             <button
                                 type="button"
-                                onClick={() => applyTemplate(t)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-border text-xs font-medium text-text-secondary hover:border-brand hover:text-brand transition-all shadow-sm"
+                                onTouchStart={() => handleTemplateStart(t.id)}
+                                onTouchEnd={() => handleTemplateEnd(t)}
+                                onMouseDown={() => handleTemplateStart(t.id)} // For desktop testing
+                                onMouseUp={() => handleTemplateEnd(t)}
+                                className={`
+                                    flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium transition-all shadow-sm select-none
+                                    ${contextTemplateId === t.id ? 'border-brand ring-2 ring-brand/30 scale-105' : 'border-border text-text-secondary hover:border-brand hover:text-brand'}
+                                `}
                             >
                                 <Sparkles className="h-3 w-3 text-brand/70" />
                                 {t.name}
                             </button>
-                            <button
-                                type="button"
-                                onClick={(e) => handleDeleteTemplate(e, t.id)}
-                                className="absolute -top-1 -right-1 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Delete Template"
-                            >
-                                <X className="h-2 w-2" />
-                            </button>
+                            
+                            {/* Context Menu for Template */}
+                            {contextTemplateId === t.id && (
+                                <div className="absolute top-full mt-2 left-0 z-50 bg-white rounded-xl shadow-xl border border-border p-1 flex flex-col min-w-[120px] animate-in zoom-in duration-200 origin-top-left">
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleEditTemplate(t)}
+                                        className="text-left px-3 py-2 text-xs font-semibold hover:bg-gray-100 rounded-lg flex items-center gap-2"
+                                    >
+                                        <Wand2 className="h-3 w-3" /> Use/Edit
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleDeleteTemplate(t.id)}
+                                        className="text-left px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"
+                                    >
+                                        <Trash2 className="h-3 w-3" /> Delete
+                                    </button>
+                                    <div className="h-px bg-gray-100 my-1" />
+                                    <button 
+                                        type="button"
+                                        onClick={() => setContextTemplateId(null)}
+                                        className="text-left px-3 py-2 text-xs text-gray-400 hover:bg-gray-50 rounded-lg"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -387,67 +448,102 @@ function ChoreForm({
         </div>
       </div>
 
-      {/* ROOM & DUE DATE */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
-            Room
-          </label>
-          <div className="relative mt-1">
-            <Home className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <select
-              id="roomId"
-              name="roomId"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-            >
-              <option value="">No Room</option>
-              {rooms.map((room) => (
-                <option key={room.id} value={room.id}>
-                  {room.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* ROOM & DUE DATE & DEADLINE TYPE */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+            <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
+                Room
+            </label>
+            <div className="relative mt-1">
+                <Home className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+                <select
+                id="roomId"
+                name="roomId"
+                value={roomId}
+                onChange={(e) => setRoomId(e.target.value)}
+                className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                >
+                <option value="">No Room</option>
+                {rooms.map((room) => (
+                    <option key={room.id} value={room.id}>
+                    {room.name}
+                    </option>
+                ))}
+                </select>
+            </div>
+            </div>
+
+            <div>
+                <div className="flex justify-between items-center">
+                    <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
+                        Due Date
+                    </label>
+                    {!hasDueDate ? (
+                        <button type="button" onClick={enableDueDate} className="text-xs text-brand font-semibold hover:underline">
+                            + Set Date
+                        </button>
+                    ) : (
+                        <button type="button" onClick={clearDueDate} className="text-xs text-text-secondary hover:text-red-500 hover:underline">
+                            Clear
+                        </button>
+                    )}
+                </div>
+                
+                <div className="relative mt-1">
+                    {hasDueDate ? (
+                        <>
+                            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+                            <input
+                            type="date"
+                            id="dueDate"
+                            name="dueDate"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                            />
+                        </>
+                    ) : (
+                        <div className="mt-1 block w-full rounded-xl border border-dashed border-border bg-gray-50 p-3 text-text-secondary text-center text-sm italic">
+                            No due date set
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
 
-        <div>
-          <div className="flex justify-between items-center">
-            <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
-                Due Date
-            </label>
-            {!hasDueDate ? (
-                <button type="button" onClick={enableDueDate} className="text-xs text-brand font-semibold hover:underline">
-                    + Set Date
-                </button>
-            ) : (
-                <button type="button" onClick={clearDueDate} className="text-xs text-text-secondary hover:text-red-500 hover:underline">
-                    Clear
-                </button>
-            )}
-          </div>
-          
-          <div className="relative mt-1">
-            {hasDueDate ? (
-                <>
-                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-                    <input
-                    type="date"
-                    id="dueDate"
-                    name="dueDate"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-                    />
-                </>
-            ) : (
-                <div className="mt-1 block w-full rounded-xl border border-dashed border-border bg-gray-50 p-3 text-text-secondary text-center text-sm italic">
-                    No due date set
+        {/* DEADLINE TYPE TOGGLE */}
+        {hasDueDate && (
+            <div className="bg-gray-50 rounded-xl p-3 flex items-center justify-between border border-border animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-lg ${deadlineType === 'hard' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                        {deadlineType === 'hard' ? <Shield className="h-4 w-4" /> : <Feather className="h-4 w-4" />}
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">Deadline Type</p>
+                        <p className="text-sm font-semibold text-text-primary">
+                            {deadlineType === 'hard' ? 'Hard Deadline' : 'Flexible'}
+                        </p>
+                    </div>
                 </div>
-            )}
-          </div>
-        </div>
+                <div className="flex bg-white rounded-lg border border-border p-1">
+                    <button
+                        type="button"
+                        onClick={() => setDeadlineType('soft')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${deadlineType === 'soft' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-text-secondary hover:bg-gray-50'}`}
+                    >
+                        Soft
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setDeadlineType('hard')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${deadlineType === 'hard' ? 'bg-red-50 text-red-700 shadow-sm' : 'text-text-secondary hover:bg-gray-50'}`}
+                    >
+                        Hard
+                    </button>
+                </div>
+            </div>
+        )}
       </div>
 
       {/* TIME OF DAY */}
@@ -607,7 +703,7 @@ function ChoreForm({
          )}
       </div>
 
-      {/* SUBTASKS UI (Updated with Shopping List Logic) */}
+      {/* SUBTASKS UI */}
       <div className="space-y-2">
           <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 font-heading text-sm font-medium text-text-primary">

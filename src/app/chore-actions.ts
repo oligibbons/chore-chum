@@ -374,12 +374,11 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
         completed_instances: targetInstances,
     }).eq('id', choreId)
 
-    // --- RECURRENCE LOGIC (Updated for Rotation) ---
+    // --- RECURRENCE LOGIC ---
     if (isRecurring) {
         const nextDate = getNextDueDate(safeChore.recurrence_type, safeChore.due_date)
         
         if (nextDate) {
-            // Calculate Next Assignee based on Rotation
             let nextAssignee = safeChore.assigned_to;
             let nextCustomRecurrence = safeChore.custom_recurrence;
 
@@ -388,12 +387,9 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
             if (customRec && customRec.rotation) {
                 const { memberIds, nextIndex } = customRec.rotation;
                 if (Array.isArray(memberIds) && memberIds.length > 0) {
-                    // 1. Assign the next person in line
                     const assignee = memberIds[nextIndex % memberIds.length];
-                    nextAssignee = [assignee]; // Wrap in array for DB consistency
+                    nextAssignee = [assignee];
 
-                    // 2. Increment index for the FUTURE instance
-                    // We use modulo to wrap around safe, although index grows
                     const newNextIndex = (nextIndex + 1) % memberIds.length;
                     
                     nextCustomRecurrence = {
@@ -413,7 +409,7 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
                 household_id: safeChore.household_id,
                 created_by: safeChore.created_by,
                 status: 'pending',
-                assigned_to: (nextAssignee && nextAssignee.length > 0) ? nextAssignee[0] : null, // Use single string for DB
+                assigned_to: (nextAssignee && nextAssignee.length > 0) ? nextAssignee[0] : null, 
                 room_id: safeChore.room_id,
                 due_date: nextDate,
                 target_instances: safeChore.target_instances,
@@ -421,7 +417,8 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
                 completed_instances: 0,
                 time_of_day: safeChore.time_of_day,
                 exact_time: safeChore.exact_time,
-                custom_recurrence: nextCustomRecurrence, // Pass forward the updated rotation state
+                custom_recurrence: nextCustomRecurrence,
+                deadline_type: safeChore.deadline_type // Copy urgency setting
             } as any).select('id').single()
 
             if (insertError) {
@@ -511,6 +508,7 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
 
   const rawName = formData.get('name') as string
   const rawNotes = formData.get('notes') as string
+  const deadlineType = formData.get('deadlineType') as string || 'soft' // NEW
   
   // Parse AssignedTo
   const rawAssignedTo = formData.get('assignedTo') as string
@@ -527,8 +525,6 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   let currentAssignee = assignedTo.length > 0 ? assignedTo[0] : null
 
   if (shouldRotate && assignedTo.length > 1) {
-      // If rotating, we still assign index 0 to the first chore.
-      // We save the full list and set 'nextIndex' to 1.
       customRecurrence = {
           rotation: {
               memberIds: assignedTo,
@@ -575,7 +571,8 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
         completed_instances: 0,
         time_of_day: rawTimeOfDay || 'any',
         exact_time: exactTime,
-        custom_recurrence: customRecurrence // Save rotation config
+        custom_recurrence: customRecurrence,
+        deadline_type: deadlineType // SAVE
       } as any).select('id').single()
 
       if (error) return { success: false, message: error.message }
@@ -636,6 +633,7 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const rawName = formData.get('name') as string
   const rawExactTime = formData.get('exactTime') as string
   const exactTime = rawExactTime && rawExactTime.trim() !== '' ? rawExactTime : null
+  const deadlineType = formData.get('deadlineType') as string || 'soft'
 
   const shouldRotate = formData.get('rotateAssignees') === 'true'
   const rawAssignedTo = formData.get('assignedTo') as string
@@ -653,7 +651,6 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   }
 
   let customRecurrence = null
-  // If rotation is enabled, set up the rotation object
   if (shouldRotate && assignedTo.length > 1) {
       customRecurrence = {
           rotation: {
@@ -672,7 +669,8 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
       room_id: formData.get('roomId') ? Number(formData.get('roomId')) : null,
       due_date: formData.get('dueDate') || null,
       assigned_to: currentAssignee,
-      custom_recurrence: customRecurrence 
+      custom_recurrence: customRecurrence,
+      deadline_type: deadlineType
   }
 
   const { error } = await supabase
@@ -710,8 +708,14 @@ export async function deleteChore(choreId: number): Promise<ActionResponse> {
 export async function delayChore(choreId: number, days: number): Promise<ActionResponse> {
   const supabase: TypedSupabaseClient = await createSupabaseClient()
   
-  const { data: chore } = await supabase.from('chores').select('household_id, name, due_date').eq('id', choreId).single()
+  const { data: chore } = await supabase.from('chores').select('household_id, name, due_date, deadline_type').eq('id', choreId).single()
   if (!chore) return { success: false, message: 'Chore not found' }
+
+  // --- CHECK HARD DEADLINE ---
+  const safeChore = chore as unknown as DbChore
+  if (safeChore.deadline_type === 'hard') {
+      return { success: false, message: "Hard deadlines cannot be delayed!" }
+  }
 
   const baseDate = chore.due_date ? new Date(chore.due_date) : new Date()
   baseDate.setDate(baseDate.getDate() + days)

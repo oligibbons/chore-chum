@@ -68,7 +68,7 @@ export default async function DashboardPage(props: DashboardProps) {
   const householdId = profile.household_id
   const userName = profile.full_name?.split(' ')[0] || 'User'
 
-  // Fetch all necessary data in parallel
+  // Performance: Parallel data fetching
   const [data, roomData, templates, activeBounty] = await Promise.all([
     getChoreDisplayData(householdId),
     getRoomsAndMembers(householdId),
@@ -171,13 +171,16 @@ export default async function DashboardPage(props: DashboardProps) {
                   streak={profile.current_streak || 0} 
                   lastChoreDate={profile.last_chore_date || null}
                 />
+                {/* Zen Button - Matched height/style to Campfire for tidiness */}
                 <Link 
                   href="?view=zen"
                   scroll={false}
-                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-200/50 transition-all hover:scale-105 hover:shadow-lg active:scale-95"
+                  className="group flex items-center gap-2 pl-3 pr-4 py-2 h-[42px] rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-white text-teal-700 shadow-sm transition-all hover:scale-105 hover:shadow-md active:scale-95"
                 >
-                  <Flower2 className="h-4 w-4 transition-transform group-hover:rotate-45" fill="currentColor" />
-                  Zen
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-600 group-hover:bg-teal-200 transition-colors">
+                    <Flower2 className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm font-heading font-bold">Zen Mode</span>
                 </Link>
             </div>
         </div>
@@ -220,9 +223,7 @@ export default async function DashboardPage(props: DashboardProps) {
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-6">
-            {/* Bounty Manager (Client Component handles interactions) */}
             <BountyManager />
-            
             <Leaderboard 
                 members={roomData.members} 
                 chores={allHouseholdChores} 

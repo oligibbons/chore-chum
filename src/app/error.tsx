@@ -1,3 +1,4 @@
+// src/app/error.tsx
 'use client'
 
 import { useEffect } from 'react'
@@ -16,18 +17,18 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background text-foreground">
       <div className="w-full max-w-md text-center space-y-6">
         
-        <div className="mx-auto w-24 h-24 bg-red-50 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
-            <AlertTriangle className="h-12 w-12 text-red-500" />
+        <div className="mx-auto w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
+            <AlertTriangle className="h-12 w-12 text-red-500 dark:text-red-400" />
         </div>
 
         <div className="space-y-2">
             <h2 className="text-2xl font-heading font-bold text-foreground">
                 Something went wrong!
             </h2>
-            <p className="text-text-secondary">
+            <p className="text-muted-foreground">
                 We encountered an error while loading this page. It might be a network glitch.
             </p>
         </div>
@@ -43,7 +44,7 @@ export default function Error({
             
             <Link
                 href="/dashboard"
-                className="flex items-center justify-center gap-2 bg-white border border-border text-text-secondary px-6 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground px-6 py-3 rounded-xl font-bold hover:bg-muted hover:text-foreground transition-all active:scale-95"
             >
                 <Home className="h-5 w-5" />
                 Go Home
@@ -51,7 +52,7 @@ export default function Error({
         </div>
         
         <div className="pt-8">
-            <p className="text-xs text-text-secondary/50 font-mono">
+            <p className="text-xs text-muted-foreground/50 font-mono">
                 Error Digest: {error.digest || 'Unknown'}
             </p>
         </div>

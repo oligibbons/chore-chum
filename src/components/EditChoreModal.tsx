@@ -3,7 +3,7 @@
 
 import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check, Ban, Users, Save } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check, Ban, Users, Save, Shield, Feather } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -51,13 +51,13 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(initialRec.until)
 
   // Rotation State
-  // Check if existing chore has rotation data
   const initialRotation = (chore.custom_recurrence as any)?.rotation;
   const [isRotating, setIsRotating] = useState(!!initialRotation)
 
   // Date State
   const [dueDate, setDueDate] = useState(chore.due_date ? new Date(chore.due_date).toISOString().split('T')[0] : '')
   const [hasDueDate, setHasDueDate] = useState(!!chore.due_date)
+  const [deadlineType, setDeadlineType] = useState<'soft' | 'hard'>(chore.deadline_type || 'soft')
 
   const toggleMember = (id: string) => {
     interact('neutral')
@@ -83,7 +83,8 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     setPending(true)
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
-    formData.append('rotateAssignees', String(isRotating)) // Pass rotation flag
+    formData.append('rotateAssignees', String(isRotating)) 
+    formData.append('deadlineType', deadlineType) // Include deadline type
     
     // Serialize Recurrence
     let finalRecurrence = 'none'
@@ -110,20 +111,21 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
         formData.delete('dueDate')
     }
     
-    try {
-      const result = await updateChore(formData)
-      
-      if (result.success) {
-        toast.success(result.message)
-        closeModal()
-      } else {
-        toast.error(result.message)
-        setPending(false)
-      }
-    } catch (error) {
-      toast.error('Failed to update chore')
-      setPending(false)
-    }
+    // --- Optimistic Performance Boost ---
+    closeModal() // Close immediately
+    
+    toast.promise(
+        async () => {
+            const result = await updateChore(formData)
+            if (!result.success) throw new Error(result.message)
+            return result.message
+        },
+        {
+            loading: 'Updating...',
+            success: (msg) => `${msg}`,
+            error: (err) => `Error: ${err.message}`
+        }
+    )
   }
   
   const timeOptions: TimeOption[] = ['any', 'morning', 'afternoon', 'evening'];
@@ -207,64 +209,99 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
-            Room
-          </label>
-          <div className="relative mt-1">
-            <Home className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-            <select
-              id="roomId"
-              name="roomId"
-              className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-              defaultValue={chore.room_id ?? ''}
-            >
-              <option value="">No Room</option>
-              {rooms.map((room) => (
-                <option key={room.id} value={room.id}>
-                  {room.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+            <label htmlFor="roomId" className="block font-heading text-sm font-medium text-text-primary">
+                Room
+            </label>
+            <div className="relative mt-1">
+                <Home className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+                <select
+                id="roomId"
+                name="roomId"
+                className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                defaultValue={chore.room_id ?? ''}
+                >
+                <option value="">No Room</option>
+                {rooms.map((room) => (
+                    <option key={room.id} value={room.id}>
+                    {room.name}
+                    </option>
+                ))}
+                </select>
+            </div>
+            </div>
+
+            <div>
+            <div className="flex justify-between items-center">
+                <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
+                    Due Date
+                </label>
+                {!hasDueDate ? (
+                    <button type="button" onClick={() => { setHasDueDate(true); setDueDate(new Date().toISOString().split('T')[0]); }} className="text-xs text-brand font-semibold">
+                        + Add Date
+                    </button>
+                ) : (
+                    <button type="button" onClick={() => { setHasDueDate(false); setDueDate(''); }} className="text-xs text-text-secondary hover:text-red-500">
+                        Clear
+                    </button>
+                )}
+            </div>
+            <div className="relative mt-1">
+                {hasDueDate ? (
+                    <>
+                        <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+                        <input
+                        type="date"
+                        id="dueDate"
+                        name="dueDate"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                        />
+                    </>
+                ) : (
+                    <div className="mt-1 block w-full rounded-xl border border-dashed border-border bg-gray-50 p-3 text-text-secondary text-center text-sm italic">
+                        No due date
+                    </div>
+                )}
+            </div>
+            </div>
         </div>
 
-        <div>
-          <div className="flex justify-between items-center">
-            <label htmlFor="dueDate" className="block font-heading text-sm font-medium text-text-primary">
-                Due Date
-            </label>
-            {!hasDueDate ? (
-                <button type="button" onClick={() => { setHasDueDate(true); setDueDate(new Date().toISOString().split('T')[0]); }} className="text-xs text-brand font-semibold">
-                    + Add Date
-                </button>
-            ) : (
-                <button type="button" onClick={() => { setHasDueDate(false); setDueDate(''); }} className="text-xs text-text-secondary hover:text-red-500">
-                    Clear
-                </button>
-            )}
-          </div>
-          <div className="relative mt-1">
-            {hasDueDate ? (
-                <>
-                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
-                    <input
-                    type="date"
-                    id="dueDate"
-                    name="dueDate"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="mt-1 block w-full appearance-none rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
-                    />
-                </>
-            ) : (
-                <div className="mt-1 block w-full rounded-xl border border-dashed border-border bg-gray-50 p-3 text-text-secondary text-center text-sm italic">
-                    No due date
+        {/* DEADLINE TYPE (Edit Mode) */}
+        {hasDueDate && (
+            <div className="bg-gray-50 rounded-xl p-3 flex items-center justify-between border border-border animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-lg ${deadlineType === 'hard' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                        {deadlineType === 'hard' ? <Shield className="h-4 w-4" /> : <Feather className="h-4 w-4" />}
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">Deadline Type</p>
+                        <p className="text-sm font-semibold text-text-primary">
+                            {deadlineType === 'hard' ? 'Hard Deadline' : 'Flexible'}
+                        </p>
+                    </div>
                 </div>
-            )}
-          </div>
-        </div>
+                <div className="flex bg-white rounded-lg border border-border p-1">
+                    <button
+                        type="button"
+                        onClick={() => setDeadlineType('soft')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${deadlineType === 'soft' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-text-secondary hover:bg-gray-50'}`}
+                    >
+                        Soft
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setDeadlineType('hard')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${deadlineType === 'hard' ? 'bg-red-50 text-red-700 shadow-sm' : 'text-text-secondary hover:bg-gray-50'}`}
+                    >
+                        Hard
+                    </button>
+                </div>
+            </div>
+        )}
       </div>
 
        {/* Time of Day Selection */}
@@ -457,7 +494,7 @@ export default function EditChoreModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/30" />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">

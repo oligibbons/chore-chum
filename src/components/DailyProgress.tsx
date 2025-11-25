@@ -76,54 +76,61 @@ export default function DailyProgress({ total, completed, streak, lastChoreDate 
 
   return (
     <>
-        <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-card relative overflow-hidden">
+        {/* Progress Card */}
+        <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-card relative overflow-hidden group">
             <div className="flex flex-col z-10">
-                <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">Daily Goal</span>
+                <span className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1">
+                    Daily Goal {percentage === 100 && <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 animate-spin-slow" />}
+                </span>
                 <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-heading font-bold text-brand">{completed}</span>
+                    <span className={`text-3xl font-heading font-bold ${percentage === 100 ? 'text-green-600' : 'text-brand'}`}>
+                        {completed}
+                    </span>
                     <span className="text-lg text-text-secondary font-medium">/ {total}</span>
                 </div>
-                <p className="text-xs text-text-secondary mt-1">
+                <p className="text-xs text-text-secondary mt-1 font-medium">
                     {percentage === 100 ? "All done! Relax." : `${total - completed} to go`}
                 </p>
             </div>
 
+            {/* Circular Progress */}
             <div className="relative w-20 h-20 flex-shrink-0 flex items-center justify-center">
                 <svg className="transform -rotate-90 w-full h-full">
                     <circle
-                    cx="40"
-                    cy="40"
-                    r={radius}
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="transparent"
-                    className="text-gray-100"
+                        cx="40"
+                        cy="40"
+                        r={radius}
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="transparent"
+                        className="text-gray-100"
                     />
                     <circle
-                    cx="40"
-                    cy="40"
-                    r={radius}
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="transparent"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    className={`transition-all duration-1000 ease-out ${percentage === 100 ? 'text-green-500' : 'text-brand'}`}
+                        cx="40"
+                        cy="40"
+                        r={radius}
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        strokeLinecap="round"
+                        className={`transition-all duration-1000 ease-out ${percentage === 100 ? 'text-green-500' : 'text-brand'}`}
                     />
                 </svg>
                 
                 <div className="absolute inset-0 flex items-center justify-center">
                     {percentage === 100 ? (
-                        <CheckCircle2 className="w-6 h-6 text-green-500 animate-in zoom-in" />
+                        <CheckCircle2 className="w-8 h-8 text-green-500 animate-in zoom-in duration-300" />
                     ) : (
-                        <span className="text-xs font-bold text-brand">{Math.round(progress)}%</span>
+                        <span className="text-sm font-bold text-brand">{Math.round(progress)}%</span>
                     )}
                 </div>
             </div>
             
+            {/* Background Fill Effect on Completion */}
             <div 
-                className={`absolute inset-0 bg-green-50 transition-opacity duration-500 pointer-events-none ${percentage === 100 ? 'opacity-100' : 'opacity-0'}`} 
+                className={`absolute inset-0 bg-gradient-to-r from-green-50/80 to-emerald-50/80 transition-opacity duration-700 pointer-events-none ${percentage === 100 ? 'opacity-100' : 'opacity-0'}`} 
             />
         </div>
 
@@ -147,58 +154,56 @@ export default function DailyProgress({ total, completed, streak, lastChoreDate 
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-500"
-                            enterFrom="opacity-0 scale-50 translate-y-20"
+                            enterFrom="opacity-0 scale-90 translate-y-10"
                             enterTo="opacity-100 scale-100 translate-y-0"
                             leave="ease-in duration-200"
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-3xl bg-white p-8 text-center shadow-2xl transition-all relative">
+                            <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-3xl bg-white p-0 text-center shadow-2xl transition-all relative border-4 border-brand/10">
                                 
+                                {/* Header Graphic */}
+                                <div className="bg-gradient-to-br from-brand-light to-indigo-50 p-8 pb-12 relative overflow-hidden">
+                                    <div className="absolute inset-0 opacity-20 bg-[url('/noise.png')]" />
+                                    <div className="relative z-10 mx-auto w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg animate-bounce-slow">
+                                        <Trophy className="h-12 w-12 text-yellow-500 fill-yellow-500" />
+                                    </div>
+                                    <div className="absolute -bottom-6 left-0 right-0 h-12 bg-white rounded-t-[2rem]" />
+                                </div>
+
+                                <div className="px-8 pb-8 relative z-10 -mt-4">
+                                    <Dialog.Title as="h3" className="text-2xl font-heading font-black text-gray-900 mb-2 tracking-tight">
+                                        Goal Crushed!
+                                    </Dialog.Title>
+                                    
+                                    <p className="text-text-secondary mb-8 font-medium leading-relaxed">
+                                        {motivation}
+                                    </p>
+
+                                    {/* Streak Showcase */}
+                                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 flex items-center justify-between">
+                                        <div className="text-left">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Streak</p>
+                                            <p className="font-bold text-gray-700">Keep it up!</p>
+                                        </div>
+                                        <div className="transform scale-110 origin-right">
+                                            <StreakCampfire streak={streak} lastChoreDate={lastChoreDate} />
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setShowCelebration(false)}
+                                        className="w-full rounded-xl bg-brand hover:bg-brand-dark text-white px-4 py-3.5 text-base font-bold shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-95"
+                                    >
+                                        Awesome
+                                    </button>
+                                </div>
+
                                 <button 
                                     onClick={() => setShowCelebration(false)}
-                                    className="absolute top-4 right-4 p-2 rounded-full text-gray-400 hover:bg-gray-100 transition-colors"
+                                    className="absolute top-4 right-4 p-2 rounded-full bg-white/50 hover:bg-white text-gray-500 transition-colors"
                                 >
                                     <X className="h-5 w-5" />
-                                </button>
-
-                                <div className="mx-auto w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
-                                    <Trophy className="h-12 w-12 text-yellow-500" />
-                                </div>
-
-                                <Dialog.Title as="h3" className="text-3xl font-heading font-bold text-gray-900 mb-2">
-                                    Goal Complete!
-                                </Dialog.Title>
-                                
-                                <p className="text-lg text-gray-600 mb-8 font-medium">
-                                    {motivation}
-                                </p>
-
-                                {/* Streak Showcase */}
-                                <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-2xl p-6 border border-violet-100 mb-8">
-                                    <p className="text-xs font-bold uppercase tracking-widest text-violet-400 mb-4">Current Streak</p>
-                                    
-                                    <div className="flex justify-center transform scale-125">
-                                        <StreakCampfire streak={streak} lastChoreDate={lastChoreDate} />
-                                    </div>
-                                    
-                                    {streak > 3 ? (
-                                        <div className="mt-4 flex items-center justify-center gap-2 text-violet-700 font-bold text-sm">
-                                            <Sparkles className="h-4 w-4" />
-                                            <span>Keep the fire burning!</span>
-                                        </div>
-                                    ) : (
-                                        <div className="mt-4 flex items-center justify-center gap-2 text-violet-600 font-medium text-sm">
-                                            <span>Great start! Come back tomorrow.</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <button
-                                    onClick={() => setShowCelebration(false)}
-                                    className="w-full rounded-xl bg-gray-900 px-4 py-3.5 text-base font-bold text-white shadow-lg hover:bg-gray-800 hover:scale-[1.02] transition-all active:scale-95"
-                                >
-                                    Awesome, close this
                                 </button>
 
                             </Dialog.Panel>

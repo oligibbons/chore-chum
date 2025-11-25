@@ -1,3 +1,4 @@
+// src/app/push-actions.ts
 'use server'
 
 import { createSupabaseClient } from '@/lib/supabase/server'
@@ -66,16 +67,27 @@ export async function notifyHousehold(
 ) {
   const supabase: TypedSupabaseClient = await createSupabaseClient()
   
+  // 1. Fetch members AND their preferences
   const { data: members } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, notification_preferences')
     .eq('household_id', householdId)
 
   if (!members) return
 
+  // 2. Filter recipients based on Preferences
   const recipientIds = members
+    .filter(m => {
+        if (m.id === excludeUserId) return false
+        
+        // Check 'chore_updates' preference (default to true if missing)
+        const prefs = m.notification_preferences as any
+        if (prefs && prefs.chore_updates === false) {
+            return false
+        }
+        return true
+    })
     .map(m => m.id)
-    .filter(id => id !== excludeUserId)
 
   await Promise.all(
     recipientIds.map(id => sendPushToUser(id, payload))
@@ -110,7 +122,7 @@ export async function notifyZenStart() {
     return // Too soon, don't spam
   }
 
-  // 2. Log Activity (Actions as the debounce marker)
+  // 2. Log Activity
   await supabase.from('activity_logs').insert({
     household_id: profile.household_id,
     user_id: user.id,
@@ -119,15 +131,22 @@ export async function notifyZenStart() {
     details: null
   } as any)
 
-  // 3. Send Notification
+  // 3. Send Notification (Always send Zen alerts, they are rare and important)
   const firstName = profile.full_name?.split(' ')[0] || 'Someone'
-  await notifyHousehold(
-    profile.household_id,
-    {
-      title: 'Focus Mode 🧘',
-      body: `${firstName} is focusing on chores right now.`,
-      url: '/dashboard?view=zen' // Join them!
-    },
-    user.id
-  )
+  
+  // We manually fetch members here to skip the 'chore_updates' preference filter
+  // because Zen Mode is a special "Beacon" event
+  const { data: members } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('household_id', profile.household_id)
+    .neq('id', user.id)
+
+  if (members) {
+      await Promise.all(members.map(m => sendPushToUser(m.id, {
+        title: 'Focus Mode 🧘',
+        body: `${firstName} is focusing on chores right now.`,
+        url: '/dashboard?view=zen' // Join them!
+      })))
+  }
 }

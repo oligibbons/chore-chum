@@ -47,7 +47,7 @@ export default function DelayChoreModal({ isOpen, onClose, choreId }: Props) {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/30" />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -61,22 +61,22 @@ export default function DelayChoreModal({ isOpen, onClose, choreId }: Props) {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-card p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-card p-6 text-left align-middle shadow-xl transition-all border border-border">
                 
                 <div className="flex items-center justify-between mb-4">
-                  <Dialog.Title as="h3" className="text-xl font-heading font-semibold flex items-center gap-2">
+                  <Dialog.Title as="h3" className="text-xl font-heading font-semibold flex items-center gap-2 text-card-foreground">
                     <CalendarClock className="h-5 w-5 text-brand" />
                     Delay Chore
                   </Dialog.Title>
                   <button
                     onClick={onClose}
-                    className="rounded-full p-2 text-text-secondary transition-colors hover:bg-background"
+                    className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <X className="h-5 w-5" />
                   </button>
                 </div>
                 
-                <p className="text-text-secondary mb-4">
+                <p className="text-muted-foreground mb-4 text-sm">
                   Need more time? Delaying this chore will push its due date forward.
                 </p>
 
@@ -88,7 +88,7 @@ export default function DelayChoreModal({ isOpen, onClose, choreId }: Props) {
                     id="delayDays"
                     value={days}
                     onChange={(e) => setDays(Number(e.target.value))}
-                    className="block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+                    className="block w-full rounded-xl border-input bg-background p-3 transition-all focus:border-brand focus:ring-brand text-foreground"
                   >
                     <option value={1}>1 Day</option>
                     <option value={2}>2 Days</option>
@@ -103,14 +103,14 @@ export default function DelayChoreModal({ isOpen, onClose, choreId }: Props) {
                 <div className="flex items-center justify-end space-x-3">
                   <button
                     onClick={onClose}
-                    className="rounded-xl px-4 py-2.5 text-sm font-semibold text-text-secondary hover:bg-gray-100"
+                    className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDelay}
                     disabled={pending}
-                    className="flex items-center justify-center rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-brand-dark disabled:opacity-70"
+                    className="flex items-center justify-center rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-brand-dark disabled:opacity-70 transition-all active:scale-95"
                   >
                     {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Delay'}
                   </button>

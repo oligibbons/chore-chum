@@ -1,3 +1,4 @@
+// src/app/not-found.tsx
 import Link from 'next/link'
 import { Map, ArrowLeft } from 'lucide-react'
 
@@ -7,7 +8,7 @@ export default function NotFound() {
       
       <div className="space-y-6 max-w-md w-full">
         <div className="relative mx-auto w-32 h-32">
-            <div className="absolute inset-0 bg-brand/10 rounded-full animate-pulse" />
+            <div className="absolute inset-0 bg-brand/10 dark:bg-brand/20 rounded-full animate-pulse" />
             <div className="absolute inset-0 flex items-center justify-center">
                 <Map className="h-16 w-16 text-brand opacity-50" />
             </div>
@@ -15,8 +16,8 @@ export default function NotFound() {
 
         <div className="space-y-2">
             <h1 className="text-4xl font-heading font-bold text-foreground">404</h1>
-            <h2 className="text-xl font-semibold text-text-primary">Lost in the house?</h2>
-            <p className="text-text-secondary">
+            <h2 className="text-xl font-semibold text-foreground">Lost in the house?</h2>
+            <p className="text-muted-foreground">
                 We searched the Kitchen, the Living Room, and even behind the Sofa, but we couldn't find that page.
             </p>
         </div>

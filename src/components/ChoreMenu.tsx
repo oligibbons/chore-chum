@@ -20,6 +20,7 @@ export default function ChoreMenu({ chore }: Props) {
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this chore? This cannot be undone.')) {
+      // Optimistic update: visually remove immediately
       setIsDeleted(true)
 
       startTransition(async () => {
@@ -27,6 +28,7 @@ export default function ChoreMenu({ chore }: Props) {
         if (result.success) {
             toast.success(result.message)
         } else {
+            // Revert if failed
             setIsDeleted(false)
             toast.error(result.message || 'Failed to delete chore')
         }
@@ -40,7 +42,7 @@ export default function ChoreMenu({ chore }: Props) {
     <Menu as="div" className="relative inline-block text-left">
       <MenuButton 
         disabled={isPending}
-        className="rounded-full p-2 text-text-secondary transition-all hover:bg-background hover:text-text-primary disabled:opacity-50"
+        className="rounded-full p-2 text-muted-foreground transition-all hover:bg-muted hover:text-foreground disabled:opacity-50"
         aria-label="Chore actions menu"
       >
         <MoreVertical className="h-5 w-5" />
@@ -55,12 +57,9 @@ export default function ChoreMenu({ chore }: Props) {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        {/* FIX: 'anchor="bottom end"' tells Headless UI to intelligently position 
-            this popup outside of the scroll container, fixing the clipping issue.
-        */}
         <MenuItems 
             anchor="bottom end"
-            className="z-50 mt-1 w-48 origin-top-right divide-y divide-border rounded-xl bg-white shadow-xl ring-1 ring-black/5 focus:outline-none"
+            className="z-50 mt-1 w-48 origin-top-right divide-y divide-border rounded-xl bg-popover shadow-xl ring-1 ring-black/5 focus:outline-none border border-border"
         >
           <div className="p-1">
             <MenuItem>
@@ -69,10 +68,12 @@ export default function ChoreMenu({ chore }: Props) {
                   href={`?modal=edit-chore&choreId=${chore.id}`}
                   scroll={false}
                   className={`group flex w-full items-center rounded-lg p-2 text-sm font-medium ${
-                    focus ? 'bg-brand-light text-brand-dark' : 'text-text-primary'
+                    focus 
+                        ? 'bg-brand-light dark:bg-brand/20 text-brand-dark dark:text-brand-light' 
+                        : 'text-popover-foreground'
                   }`}
                 >
-                  <Edit className="mr-2 h-4 w-4 text-text-secondary group-hover:text-brand-dark" aria-hidden="true" />
+                  <Edit className="mr-2 h-4 w-4 text-muted-foreground group-hover:text-brand dark:group-hover:text-brand-light" aria-hidden="true" />
                   Edit Chore
                 </Link>
               )}
@@ -84,7 +85,9 @@ export default function ChoreMenu({ chore }: Props) {
                 <button
                   onClick={handleDelete}
                   className={`group flex w-full items-center rounded-lg p-2 text-sm font-medium ${
-                    focus ? 'bg-status-overdue/10 text-status-overdue' : 'text-status-overdue'
+                    focus 
+                        ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' 
+                        : 'text-red-500 dark:text-red-400'
                   }`}
                 >
                   <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />

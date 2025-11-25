@@ -19,15 +19,15 @@ const getStatusConfig = (status: Props['status']) => {
     case 'overdue':
       return {
         icon: <AlertOctagon className="h-5 w-5 text-status-overdue" />,
-        pillClasses: 'bg-status-overdue/10 text-status-overdue',
+        pillClasses: 'bg-status-overdue/10 text-status-overdue border-status-overdue/20',
         emptyText: "Nothing overdue. Nice!",
-        emptyIcon: <CheckCircle2 className="h-8 w-8 text-green-400 mb-2 opacity-50" />,
+        emptyIcon: <CheckCircle2 className="h-8 w-8 text-green-500/50 mb-2" />,
         defaultOpen: true
       }
     case 'due':
       return {
         icon: <AlertTriangle className="h-5 w-5 text-status-due" />,
-        pillClasses: 'bg-status-due/10 text-status-due',
+        pillClasses: 'bg-status-due/10 text-status-due border-status-due/20',
         emptyText: "You're all caught up for today!",
         emptyIcon: <Coffee className="h-8 w-8 text-brand/40 mb-2" />,
         defaultOpen: true
@@ -35,17 +35,17 @@ const getStatusConfig = (status: Props['status']) => {
     case 'completed':
       return {
         icon: <CheckCircle2 className="h-5 w-5 text-status-complete" />,
-        pillClasses: 'bg-status-complete/10 text-status-complete',
+        pillClasses: 'bg-status-complete/10 text-status-complete border-status-complete/20',
         emptyText: "No completed chores yet.",
-        emptyIcon: <div className="h-8 w-8 rounded-full border-2 border-dashed border-gray-300 mb-2" />,
+        emptyIcon: <div className="h-8 w-8 rounded-full border-2 border-dashed border-muted mb-2" />,
         defaultOpen: false
       }
     default:
       return {
         icon: <Calendar className="h-5 w-5 text-text-secondary" />,
-        pillClasses: 'bg-gray-100 text-text-secondary',
+        pillClasses: 'bg-muted text-text-secondary border-border',
         emptyText: "Nothing scheduled.",
-        emptyIcon: <Calendar className="h-8 w-8 text-gray-300 mb-2" />,
+        emptyIcon: <Calendar className="h-8 w-8 text-muted-foreground/50 mb-2" />,
         defaultOpen: true
       }
   }
@@ -68,11 +68,11 @@ export default function ChoreDisplay({
   const visibleChores = (shouldClamp && !isExpanded) ? chores.slice(0, LIMIT) : chores
 
   return (
-    <div className="flex flex-col space-y-2 bg-white/50 rounded-2xl border border-transparent hover:border-border/60 transition-colors">
+    <div className="flex flex-col space-y-2 bg-card/30 dark:bg-card/10 rounded-2xl border border-transparent hover:border-border/60 transition-colors">
       
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between p-3 w-full hover:bg-gray-50/80 rounded-xl transition-all group"
+        className="flex items-center justify-between p-3 w-full hover:bg-muted/50 rounded-xl transition-all group"
       >
         <div className="flex items-center gap-3">
           {config.icon}
@@ -80,7 +80,7 @@ export default function ChoreDisplay({
             {title}
           </h3>
           <span 
-            className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${config.pillClasses}`}
+            className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${config.pillClasses}`}
           >
             {chores.length}
           </span>
@@ -95,7 +95,7 @@ export default function ChoreDisplay({
         <div className="px-1 pb-2 animate-in slide-in-from-top-2 fade-in duration-300">
             {chores.length > 0 ? (
                 <div className="space-y-3">
-                    <div className="max-h-[600px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+                    <div className="max-h-[600px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                         {visibleChores.map((chore) => (
                             <ChoreItem
                                 key={chore.id}
@@ -123,7 +123,7 @@ export default function ChoreDisplay({
                     )}
                 </div>
             ) : (
-                <div className="rounded-xl border-2 border-dashed border-border/60 bg-card/30 p-6 text-center flex flex-col items-center justify-center min-h-[100px]">
+                <div className="rounded-xl border-2 border-dashed border-border/60 bg-muted/30 p-6 text-center flex flex-col items-center justify-center min-h-[100px]">
                 {config.emptyIcon}
                 <p className="font-medium text-text-secondary text-sm">
                     {config.emptyText}

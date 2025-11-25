@@ -1,8 +1,9 @@
+// src/components/ProfileForm.tsx
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
-import { User, Copy, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2 } from 'lucide-react'
+import { User, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2, Sun, Moon, Activity, Hand } from 'lucide-react'
 import { updateProfile, leaveHousehold, ProfileFormState } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
@@ -34,6 +35,60 @@ function SaveButton() {
   )
 }
 
+function Toggle({ 
+  name, 
+  label, 
+  description, 
+  icon: Icon, 
+  defaultChecked, 
+  disabled = false 
+}: { 
+  name?: string, 
+  label: string, 
+  description: string, 
+  icon: any, 
+  defaultChecked?: boolean, 
+  disabled?: boolean 
+}) {
+  const [checked, setChecked] = useState(defaultChecked || false)
+
+  return (
+    <div className={`flex items-start justify-between p-3 rounded-xl border transition-all ${disabled ? 'bg-gray-50 border-gray-100 opacity-80' : 'bg-white border-border hover:border-brand/30'}`}>
+      <div className="flex items-start gap-3">
+        <div className={`mt-1 p-1.5 rounded-lg ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-brand/5 text-brand'}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-text-primary">{label}</p>
+          <p className="text-xs text-text-secondary leading-tight max-w-[200px]">{description}</p>
+        </div>
+      </div>
+      
+      <div className="relative inline-flex items-center cursor-pointer mt-1">
+        <input 
+          type="checkbox" 
+          name={name} 
+          className="sr-only peer" 
+          checked={checked}
+          onChange={(e) => !disabled && setChecked(e.target.checked)}
+          disabled={disabled}
+          value="true"
+        />
+        <div className={`
+          w-11 h-6 rounded-full peer peer-focus:ring-4 peer-focus:ring-brand/20 
+          peer-checked:after:translate-x-full peer-checked:after:border-white 
+          after:content-[''] after:absolute after:top-0.5 after:left-[2px] 
+          after:bg-white after:border-gray-300 after:border after:rounded-full 
+          after:h-5 after:w-5 after:transition-all
+          ${disabled 
+            ? 'bg-gray-200 after:bg-gray-400' 
+            : 'bg-gray-200 peer-checked:bg-brand'}
+        `}></div>
+      </div>
+    </div>
+  )
+}
+
 export default function ProfileForm({ profile, household, email }: Props) {
   const [state, formAction] = useFormState(updateProfile, initialState)
   const [copied, setCopied] = useState(false)
@@ -42,6 +97,13 @@ export default function ProfileForm({ profile, household, email }: Props) {
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createSupabaseBrowserClient()
+
+  // Preferences with safe defaults
+  const prefs = profile.notification_preferences || {
+    morning_brief: true,
+    evening_motivation: true,
+    chore_updates: true
+  }
 
   useEffect(() => {
     if (state.message) {
@@ -83,7 +145,6 @@ export default function ProfileForm({ profile, household, email }: Props) {
   const handleShareCode = async () => {
     if (!household?.invite_code) return
 
-    // Native Share (Mobile)
     if (navigator.share) {
       try {
         await navigator.share({
@@ -92,10 +153,9 @@ export default function ProfileForm({ profile, household, email }: Props) {
           url: window.location.origin
         })
       } catch (err) {
-        // Ignore abort errors
+        // Ignore abort
       }
     } else {
-      // Fallback to Copy
       navigator.clipboard.writeText(household.invite_code)
       setCopied(true)
       toast.success("Invite code copied")
@@ -190,30 +250,69 @@ export default function ProfileForm({ profile, household, email }: Props) {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              {/* NOTIFICATION SETTINGS */}
+              <div className="pt-6 border-t border-border mt-6">
+                <h3 className="mb-4 font-heading text-lg font-semibold flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-brand" />
+                    Notifications
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Toggle 
+                        name="notif_morning"
+                        label="Morning Brief"
+                        description="8am daily summary of tasks."
+                        icon={Sun}
+                        defaultChecked={prefs.morning_brief}
+                    />
+                    <Toggle 
+                        name="notif_evening"
+                        label="Evening Motivation"
+                        description="8pm nudge for remaining tasks."
+                        icon={Moon}
+                        defaultChecked={prefs.evening_motivation}
+                    />
+                    <Toggle 
+                        name="notif_updates"
+                        label="Activity"
+                        description="When housemates complete tasks."
+                        icon={Activity}
+                        defaultChecked={prefs.chore_updates}
+                    />
+                    {/* Nudges are always on */}
+                    <Toggle 
+                        label="Direct Nudges"
+                        description="When someone specifically nudges you."
+                        icon={Hand}
+                        defaultChecked={true}
+                        disabled={true}
+                    />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-6">
                 <SaveButton />
               </div>
             </form>
           </div>
         </div>
 
-        {/* Card 2: Preferences (Notifications) */}
+        {/* Card 2: App Info */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
            <h2 className="mb-4 font-heading text-xl font-semibold flex items-center gap-2">
-              <Bell className="h-5 w-5 text-brand" />
-              Preferences
+              <Share2 className="h-5 w-5 text-brand" />
+              App Info
            </h2>
-           
            <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-text-primary">Push Notifications</p>
-                <p className="text-sm text-text-secondary">Get alerted about new and completed chores.</p>
+                <p className="font-medium text-text-primary">Push Permissions</p>
+                <p className="text-sm text-text-secondary">Ensure your device allows notifications.</p>
               </div>
               <button 
                 onClick={() => (window as any).requestPushPermission?.()}
                 className="rounded-lg bg-brand-light px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors"
               >
-                Enable
+                Check Status
               </button>
            </div>
         </div>
@@ -290,7 +389,7 @@ export default function ProfileForm({ profile, household, email }: Props) {
                 disabled
                 className="mt-3 w-full rounded-lg border border-transparent px-4 py-2 text-sm font-semibold text-status-overdue/50 cursor-not-allowed"
             >
-                Delete Account (Coming Soon)
+                Delete Account
             </button>
         </div>
 

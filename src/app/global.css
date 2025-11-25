@@ -3,43 +3,125 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    overscroll-behavior-y: none;
+  :root {
+    /* --- Light Mode Variables --- */
+    --background: 210 40% 98%;    /* #f8fafc */
+    --foreground: 224 20% 13%;    /* #1e293b */
+    
+    --card: 0 0% 100%;            /* #ffffff */
+    --card-foreground: 224 20% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 20% 13%;
+
+    --primary: 252 75% 60%;       /* #8b5cf6 (Violet-500) */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 252 75% 60%;
+
+    --radius: 0.75rem;
   }
 
-  html {
-    overscroll-behavior-y: none;
-  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* --- Dark Mode Variables --- */
+      --background: 224 71% 4%;     /* Deep Blue/Black */
+      --foreground: 210 20% 98%;    /* Off-white */
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-lexend), sans-serif;
-  }
+      --card: 224 71% 6%;           /* Slightly lighter than bg */
+      --card-foreground: 210 20% 98%;
 
-  input, textarea, select {
-    font-size: 16px !important;
-  }
+      --popover: 224 71% 4%;
+      --popover-foreground: 210 20% 98%;
 
-  @media (min-width: 640px) {
-    input, textarea, select {
-      font-size: 0.875rem !important; 
+      --primary: 252 75% 65%;       /* Lighter Violet for dark mode contrast */
+      --primary-foreground: 210 20% 98%;
+
+      --secondary: 215 27.9% 16.9%;
+      --secondary-foreground: 210 20% 98%;
+
+      --muted: 215 27.9% 16.9%;
+      --muted-foreground: 217.9 10.6% 64.9%;
+
+      --accent: 215 27.9% 16.9%;
+      --accent-foreground: 210 20% 98%;
+
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 210 20% 98%;
+
+      --border: 215 27.9% 16.9%;
+      --input: 215 27.9% 16.9%;
+      --ring: 252 75% 65%;
     }
   }
 }
 
-@layer utilities {
-  .animate-flicker {
-    animation: flicker 3s infinite alternate;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-tap-highlight-color: transparent;
   }
   
+  /* Mobile Optimization */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-lexend), sans-serif;
+  }
+  input, textarea, select {
+    font-size: 16px !important; /* Prevent iOS zoom */
+  }
+}
+
+@layer utilities {
+  /* Hide Scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Edge Fades */
+  .mask-gradient {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  }
+
+  /* ANIMATIONS */
+  
+  /* "Nope" Shake (Hard Deadline Warning) */
+  .animate-shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  /* Zen Mode Breathing */
+  .animate-pulse-slow {
+    animation: pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
   .animate-float-up {
     animation: float-up 2s infinite ease-in;
   }
-
-  /* WOW FACTOR: The "Nope" Shake */
-  .animate-shake {
-    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+  
+  /* Flame Flicker */
+  .animate-flicker {
+    animation: flicker 3s infinite alternate;
   }
 
   @keyframes shake {

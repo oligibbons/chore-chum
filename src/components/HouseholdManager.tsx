@@ -69,10 +69,10 @@ export default function HouseholdManager() {
     <div className="mx-auto w-full max-w-4xl space-y-8">
       
       <div className="text-center">
-        <h1 className="text-4xl font-heading font-bold">
+        <h1 className="text-4xl font-heading font-bold text-foreground">
           Welcome to ChoreChum!
         </h1>
-        <p className="mt-2 text-lg text-text-secondary">
+        <p className="mt-2 text-lg text-muted-foreground">
           To get started, create a new household or join an existing one.
         </p>
       </div>
@@ -80,14 +80,14 @@ export default function HouseholdManager() {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         
         {/* --- Card 1: Create --- */}
-        <div className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-card">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
+        <div className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-sm hover:shadow-md transition-shadow">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light dark:bg-brand/20 text-brand">
             <Home className="h-6 w-6" />
           </div>
-          <h2 className="mb-2 font-heading text-2xl font-semibold">
+          <h2 className="mb-2 font-heading text-2xl font-semibold text-card-foreground">
             Create a Household
           </h2>
-          <p className="mb-6 flex-1 text-text-secondary">
+          <p className="mb-6 flex-1 text-muted-foreground">
             Start a new home base for your family, roommates, or team.
           </p>
           
@@ -95,7 +95,7 @@ export default function HouseholdManager() {
             <div>
               <label
                 htmlFor="householdName"
-                className="block font-heading text-sm font-medium text-text-primary"
+                className="block font-heading text-sm font-medium text-foreground"
               >
                 Household Name
               </label>
@@ -105,7 +105,7 @@ export default function HouseholdManager() {
                 name="householdName"
                 required
                 placeholder="e.g. 'The Johnson Family'"
-                className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+                className="mt-1 block w-full rounded-xl border-input bg-background p-3 transition-all focus:border-brand focus:ring-brand placeholder:text-muted-foreground/50"
               />
             </div>
             <SubmitButton text="Create Household" icon={<ArrowRight className="h-5 w-5" />} />
@@ -113,14 +113,14 @@ export default function HouseholdManager() {
         </div>
 
         {/* --- Card 2: Join --- */}
-        <div className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-card">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
+        <div className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-sm hover:shadow-md transition-shadow">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light dark:bg-brand/20 text-brand">
             <Users className="h-6 w-6" />
           </div>
-          <h2 className="mb-2 font-heading text-2xl font-semibold">
+          <h2 className="mb-2 font-heading text-2xl font-semibold text-card-foreground">
             Join a Household
           </h2>
-          <p className="mb-6 flex-1 text-text-secondary">
+          <p className="mb-6 flex-1 text-muted-foreground">
             Got an invite code? Enter it here to join your household.
           </p>
           
@@ -128,7 +128,7 @@ export default function HouseholdManager() {
             <div>
               <label
                 htmlFor="inviteCode"
-                className="block font-heading text-sm font-medium text-text-primary"
+                className="block font-heading text-sm font-medium text-foreground"
               >
                 Invite Code
               </label>
@@ -138,7 +138,7 @@ export default function HouseholdManager() {
                 name="inviteCode"
                 required
                 placeholder="ABC123"
-                className="mt-1 block w-full rounded-xl border-border bg-background p-3 uppercase transition-all focus:border-brand focus:ring-brand"
+                className="mt-1 block w-full rounded-xl border-input bg-background p-3 uppercase transition-all focus:border-brand focus:ring-brand placeholder:text-muted-foreground/50"
               />
             </div>
             <SubmitButton text="Join Household" icon={<ArrowRight className="h-5 w-5" />} />

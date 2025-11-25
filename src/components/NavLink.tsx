@@ -14,20 +14,19 @@ export default function NavLink({ href, children }: NavLinkProps) {
   const pathname = usePathname()
   const isActive = pathname === href
   
-  // QUICK WIN: Haptic Navigation
   const { triggerHaptic } = useGameFeel()
 
   return (
     <Link
       href={href}
-      onClick={() => triggerHaptic('light')} // Subtle tap feel
+      onClick={() => triggerHaptic('light')}
       className={`
         flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold
-        transition-all
+        transition-all duration-200
         ${
           isActive
-            ? 'bg-card text-brand shadow-sm' 
-            : 'text-text-secondary hover:text-text-primary' 
+            ? 'bg-brand-light dark:bg-brand/20 text-brand dark:text-brand-light shadow-sm' 
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50' 
         }
       `}
     >

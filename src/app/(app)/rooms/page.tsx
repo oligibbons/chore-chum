@@ -22,7 +22,6 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
   if (!profile?.household_id) redirect('/dashboard')
 
   const householdId = profile.household_id
-  const todayStr = new Date().toISOString()
 
   // Fetch Rooms with:
   // 1. Total Chore Count
@@ -45,7 +44,7 @@ async function getRooms(): Promise<RoomWithChoreCount[]> {
     return []
   }
 
-  // Post-process to get counts (Supabase standard count is simpler, but we need specific conditions)
+  // Post-process to get counts
   const rooms = (roomsData || []).map((room: any) => {
       const pendingChores = room.chores || []
       
@@ -70,12 +69,12 @@ export default async function RoomsPage() {
   const rooms = await getRooms()
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-20">
       <header className="mb-6">
-        <h2 className="text-4xl font-heading font-bold">
+        <h2 className="text-4xl font-heading font-bold text-foreground">
           Household Rooms
         </h2>
-        <p className="mt-1 text-lg max-w-2xl text-text-secondary">
+        <p className="mt-1 text-lg max-w-2xl text-muted-foreground">
           Manage the locations in your home. Tap a room to see what needs doing.
         </p>
       </header>

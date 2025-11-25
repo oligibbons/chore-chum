@@ -10,10 +10,11 @@ export default function InstallPwaPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
 
   useEffect(() => {
+    // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
     if (isStandalone) return
 
-    // QUICK WIN: Check for a recent dismissal (14 days)
+    // Check if recently dismissed (14 days)
     const dismissedAt = localStorage.getItem('installDismissedAt')
     if (dismissedAt) {
         const daysSince = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24)
@@ -24,6 +25,7 @@ export default function InstallPwaPrompt() {
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
     setIsIOS(isIosDevice)
 
+    // Capture the Android/Chrome install event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e)
@@ -32,8 +34,8 @@ export default function InstallPwaPrompt() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
+    // For iOS, we show the custom instructions after a delay
     if (isIosDevice) {
-        // Small delay to not annoy immediately on load
         setTimeout(() => setShowPrompt(true), 3000)
     }
 
@@ -44,7 +46,6 @@ export default function InstallPwaPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    // QUICK WIN: Save timestamp to localStorage instead of session
     localStorage.setItem('installDismissedAt', Date.now().toString())
   }
 
@@ -100,7 +101,7 @@ export default function InstallPwaPrompt() {
                 ) : (
                     <button
                         onClick={handleInstallClick}
-                        className="w-full bg-brand text-white font-bold py-2.5 rounded-xl hover:bg-brand-dark transition-colors"
+                        className="w-full bg-brand text-white font-bold py-2.5 rounded-xl hover:bg-brand-dark transition-colors shadow-lg shadow-brand/20"
                     >
                         Install App
                     </button>

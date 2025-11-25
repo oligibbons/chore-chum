@@ -54,12 +54,25 @@ export async function updateProfile(
   const fullName = formData.get('fullName') as string
   const avatarUrl = formData.get('avatarUrl') as string
   
+  // Notification Preferences
+  const notif_morning = formData.get('notif_morning') === 'true'
+  const notif_evening = formData.get('notif_evening') === 'true'
+  const notif_updates = formData.get('notif_updates') === 'true'
+
   if (!fullName || fullName.trim().length < 2) {
     return { success: false, message: 'Name must be at least 2 characters.', timestamp: Date.now() }
   }
 
-  const updateData: TablesUpdate<'profiles'> = { 
+  const notification_preferences = {
+      morning_brief: notif_morning,
+      evening_motivation: notif_evening,
+      chore_updates: notif_updates,
+      nudges: true // Always true
+  }
+
+  const updateData: any = { 
     full_name: fullName.trim(),
+    notification_preferences: notification_preferences, // Save as JSONB
     updated_at: new Date().toISOString()
   }
 
@@ -85,7 +98,7 @@ export async function updateProfile(
   revalidatePath('/profile')
   revalidatePath('/dashboard')
   
-  return { success: true, message: 'Profile updated successfully', timestamp: Date.now() }
+  return { success: true, message: 'Profile settings updated', timestamp: Date.now() }
 }
 
 export async function leaveHousehold() {
@@ -94,7 +107,6 @@ export async function leaveHousehold() {
   
   if (!profile || !profile.household_id) throw new Error('No household to leave')
 
-  // Phase 1.3: Orphaned Data Handling
   // Check how many members are left in the household
   const { count } = await supabase
     .from('profiles')

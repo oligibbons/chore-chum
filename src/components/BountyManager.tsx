@@ -68,14 +68,14 @@ export default function BountyManager() {
   }
 
   if (loading) return (
-    <div className="h-24 rounded-2xl bg-gray-100 animate-pulse" />
+    <div className="h-24 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
   )
 
   // --- View 1: No Active Bounty ---
   if (!bounty) {
     if (isCreating) {
         return (
-            <div className="rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-4 animate-in fade-in slide-in-from-top-2">
+            <div className="rounded-2xl border border-dashed border-brand/30 bg-brand/5 dark:bg-brand/10 p-4 animate-in fade-in slide-in-from-top-2">
                 <form onSubmit={handleCreate} className="flex flex-col gap-3">
                     <label className="text-sm font-bold text-brand flex items-center gap-2">
                         <Gift className="h-4 w-4" />
@@ -86,14 +86,14 @@ export default function BountyManager() {
                         value={newDescription}
                         onChange={(e) => setNewDescription(e.target.value)}
                         placeholder="e.g. 'Winner picks the movie tonight'"
-                        className="w-full rounded-xl border-border text-sm focus:border-brand focus:ring-brand"
+                        className="w-full rounded-xl border-border bg-background text-sm focus:border-brand focus:ring-brand text-foreground"
                         autoFocus
                     />
                     <div className="flex gap-2 justify-end">
                         <button 
                             type="button" 
                             onClick={() => setIsCreating(false)}
-                            className="px-3 py-1.5 text-xs font-bold text-text-secondary hover:bg-gray-100 rounded-lg"
+                            className="px-3 py-1.5 text-xs font-bold text-text-secondary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
                         >
                             Cancel
                         </button>
@@ -114,7 +114,7 @@ export default function BountyManager() {
     return (
         <button 
             onClick={() => setIsCreating(true)}
-            className="w-full rounded-2xl border-2 border-dashed border-gray-200 p-4 flex items-center justify-center gap-2 text-gray-400 hover:border-brand/50 hover:text-brand hover:bg-brand/5 transition-all group"
+            className="w-full rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 p-4 flex items-center justify-center gap-2 text-gray-400 dark:text-gray-500 hover:border-brand/50 hover:text-brand hover:bg-brand/5 dark:hover:bg-brand/10 transition-all group"
         >
             <Plus className="h-5 w-5 group-hover:scale-110 transition-transform" />
             <span className="font-medium">Set a Weekly Bounty</span>
@@ -124,7 +124,7 @@ export default function BountyManager() {
 
   // --- View 2: Active Bounty Display ---
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-white shadow-lg shadow-orange-200 transition-transform hover:scale-[1.01]">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 dark:from-amber-600 dark:to-orange-700 p-6 text-white shadow-lg shadow-orange-200 dark:shadow-none transition-transform hover:scale-[1.01]">
         
         {/* Shine Effect */}
         <div className="absolute -top-10 -right-10 h-32 w-32 bg-white/20 rounded-full blur-2xl pointer-events-none" />

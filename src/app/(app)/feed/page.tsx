@@ -4,19 +4,21 @@ import { createSupabaseClient } from '@/lib/supabase/server'
 import { getActivityFeed } from '@/app/feed-actions'
 import { redirect } from 'next/navigation'
 import Avatar from '@/components/Avatar'
-import { Check, Plus, Trash2, Clock, Edit2, Bell, Zap } from 'lucide-react'
+import { Check, Plus, Trash2, Clock, Edit2, Bell, Zap, LogOut, LogIn } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
 function getActionIcon(type: string) {
     switch(type) {
-        case 'create': return <div className="bg-blue-100 text-blue-600 p-1.5 rounded-full"><Plus className="h-4 w-4" /></div>
-        case 'complete': return <div className="bg-green-100 text-green-600 p-1.5 rounded-full"><Check className="h-4 w-4" /></div>
-        case 'delete': return <div className="bg-red-100 text-red-600 p-1.5 rounded-full"><Trash2 className="h-4 w-4" /></div>
-        case 'delay': return <div className="bg-amber-100 text-amber-600 p-1.5 rounded-full"><Clock className="h-4 w-4" /></div>
-        case 'nudge': return <div className="bg-purple-100 text-purple-600 p-1.5 rounded-full"><Bell className="h-4 w-4" /></div>
-        case 'zen_start': return <div className="bg-teal-100 text-teal-600 p-1.5 rounded-full"><Zap className="h-4 w-4" /></div>
-        default: return <div className="bg-gray-100 text-gray-600 p-1.5 rounded-full"><Edit2 className="h-4 w-4" /></div>
+        case 'create': return <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-2 rounded-full"><Plus className="h-4 w-4" /></div>
+        case 'complete': return <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 p-2 rounded-full"><Check className="h-4 w-4" /></div>
+        case 'delete': return <div className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-2 rounded-full"><Trash2 className="h-4 w-4" /></div>
+        case 'delay': return <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-2 rounded-full"><Clock className="h-4 w-4" /></div>
+        case 'nudge': return <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-2 rounded-full"><Bell className="h-4 w-4" /></div>
+        case 'zen_start': return <div className="bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 p-2 rounded-full"><Zap className="h-4 w-4" /></div>
+        case 'join': return <div className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 p-2 rounded-full"><LogIn className="h-4 w-4" /></div>
+        case 'leave': return <div className="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 p-2 rounded-full"><LogOut className="h-4 w-4" /></div>
+        default: return <div className="bg-muted text-muted-foreground p-2 rounded-full"><Edit2 className="h-4 w-4" /></div>
     }
 }
 
@@ -29,6 +31,8 @@ function getActionText(type: string, details: any) {
         case 'nudge': return 'nudged a housemate about'
         case 'zen_start': return 'entered Zen Mode'
         case 'update': return 'updated'
+        case 'join': return 'joined the household'
+        case 'leave': return 'left the household'
         default: return 'touched'
     }
 }
@@ -52,50 +56,50 @@ export default async function FeedPage() {
   const logs = await getActivityFeed(profile.household_id)
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pb-20">
+    <div className="max-w-2xl mx-auto space-y-8 pb-20">
       <header>
-        <h2 className="text-3xl font-heading font-bold">Activity Feed</h2>
-        <p className="text-text-secondary">See what's happening in your household.</p>
+        <h2 className="text-3xl font-heading font-bold text-foreground">Activity Feed</h2>
+        <p className="text-muted-foreground">See what's happening in your household.</p>
       </header>
 
-      <div className="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
+      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
          {logs.length === 0 ? (
-             <div className="p-12 text-center text-text-secondary flex flex-col items-center gap-4">
-                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center">
-                    <ActivityIcon className="h-6 w-6 text-gray-400" />
+             <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-4">
+                <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center">
+                    <ActivityIcon className="h-8 w-8 opacity-50" />
                 </div>
                 <p>No activity recorded yet.</p>
              </div>
          ) : (
              <ul className="divide-y divide-border">
                  {logs.map(log => (
-                     <li key={log.id} className="p-4 flex items-start gap-4 hover:bg-gray-50 transition-colors">
-                         <div className="flex-shrink-0">
+                     <li key={log.id} className="p-4 flex items-start gap-4 hover:bg-muted/30 transition-colors">
+                         <div className="flex-shrink-0 mt-1">
                             <Avatar 
                                 url={log.profiles?.avatar_url} 
                                 alt={log.profiles?.full_name || 'Unknown'} 
-                                size={40} 
+                                size={36} 
                             />
                          </div>
-                         <div className="flex-1 min-w-0">
+                         <div className="flex-1 min-w-0 pt-0.5">
                              <div className="flex flex-wrap items-center gap-x-1.5 mb-1">
-                                <span className="font-semibold text-sm text-text-primary">
+                                <span className="font-bold text-sm text-foreground">
                                     {log.profiles?.full_name?.split(' ')[0] || 'Someone'}
                                 </span>
-                                <span className="text-sm text-text-secondary">
+                                <span className="text-sm text-muted-foreground">
                                     {getActionText(log.action_type, log.details)}
                                 </span>
-                                <span className="font-bold text-sm text-text-primary break-all">
+                                <span className="font-semibold text-sm text-foreground break-all">
                                     {log.entity_name}
                                 </span>
                              </div>
-                             <p className="text-xs text-text-secondary">
+                             <p className="text-xs text-muted-foreground font-medium">
                                  {new Date(log.created_at).toLocaleString([], { 
                                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
                                  })}
                              </p>
                          </div>
-                         <div className="flex-shrink-0">
+                         <div className="flex-shrink-0 self-center">
                              {getActionIcon(log.action_type)}
                          </div>
                      </li>

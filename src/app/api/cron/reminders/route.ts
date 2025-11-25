@@ -4,83 +4,149 @@ import { sendNotification } from '@/lib/push'
 import { Database } from '@/types/supabase'
 import { NextResponse } from 'next/server'
 
-// Force this route to be dynamic (not cached) so it runs every time
+// Force dynamic to ensure it runs freshly every time
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  // We use a SERVICE_ROLE key because this runs on the server without a user session
+  // Service Role key is required for background processing without a user session
   const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Time Window Logic:
-  // We want to catch tasks due around "Now + 5 minutes".
-  // To be safe against late cron runs, we check a window:
-  // FROM: Now (anything just due)
-  // TO:   Now + 15 mins (due very soon)
-  // AND:  Has NOT been reminded today.
-  
-  // NOTE: You must run this migration for this to work:
-  // alter table chores add column last_reminded_at timestamptz;
+  const { searchParams } = new URL(request.url)
+  const type = searchParams.get('type') // 'morning', 'evening', or null (standard)
 
-  const now = new Date()
-  const windowEnd = new Date(now.getTime() + 15 * 60 * 1000) // +15 mins
-  
-  // String formatting for 'time' column comparison (HH:MM)
-  const nowStr = now.toTimeString().slice(0, 5)
-  const windowEndStr = windowEnd.toTimeString().slice(0, 5)
+  let notificationsSent = 0
 
   try {
-    // 1. Find pending chores due in our window
-    // Note: Supabase/Postgres 'time' comparison is tricky with ranges wrapping midnight.
-    // We assume simple day-time for V1.
+    // --- CASE 1: MORNING BRIEF (8 AM) ---
+    if (type === 'morning') {
+      // 1. Get all profiles who want morning briefs
+      // Note: We filter in JS because JSONB filtering can be complex depending on DB version/types
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, household_id, notification_preferences')
+      
+      const recipients = profiles?.filter((p: any) => {
+        const prefs = p.notification_preferences
+        // Default to true if not set, or check explicit true
+        return !prefs || prefs.morning_brief !== false
+      }) || []
+
+      // 2. For each recipient, count their pending chores
+      for (const profile of recipients) {
+        const { count } = await supabase
+          .from('chores')
+          .select('id', { count: 'exact', head: true })
+          .eq('household_id', profile.household_id)
+          .eq('status', 'pending')
+          // Simple logic: Count chores assigned to them OR unassigned
+          .or(`assigned_to.cs.{"${profile.id}"},assigned_to.is.null`) 
+
+        if (count && count > 0) {
+           const { data: subs } = await supabase
+             .from('push_subscriptions')
+             .select('subscription')
+             .eq('user_id', profile.id)
+           
+           if (subs && subs.length > 0) {
+             const payload = {
+               title: 'Morning Brief ☀️',
+               body: `You have ${count} pending chores today. Let's crush them!`,
+               url: '/dashboard'
+             }
+             await Promise.all(subs.map(s => sendNotification(s.subscription as any, payload)))
+             notificationsSent += subs.length
+           }
+        }
+      }
+      
+      return NextResponse.json({ success: true, type: 'morning', sent: notificationsSent })
+    }
+
+    // --- CASE 2: EVENING MOTIVATION (8 PM) ---
+    if (type === 'evening') {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, household_id, notification_preferences')
+      
+      const recipients = profiles?.filter((p: any) => {
+        const prefs = p.notification_preferences
+        return !prefs || prefs.evening_motivation !== false
+      }) || []
+
+      for (const profile of recipients) {
+        // Check strictly for overdue or due today
+        const today = new Date().toISOString().split('T')[0]
+        
+        const { count } = await supabase
+          .from('chores')
+          .select('id', { count: 'exact', head: true })
+          .eq('household_id', profile.household_id)
+          .eq('status', 'pending')
+          .lte('due_date', today) // Due today or before
+          .or(`assigned_to.cs.{"${profile.id}"},assigned_to.is.null`)
+
+        if (count && count > 0) {
+           const { data: subs } = await supabase
+             .from('push_subscriptions')
+             .select('subscription')
+             .eq('user_id', profile.id)
+           
+           if (subs && subs.length > 0) {
+             const payload = {
+               title: 'Finish Strong 💪',
+               body: `${count} tasks left. You can do this!`,
+               url: '/dashboard'
+             }
+             await Promise.all(subs.map(s => sendNotification(s.subscription as any, payload)))
+             notificationsSent += subs.length
+           }
+        }
+      }
+      return NextResponse.json({ success: true, type: 'evening', sent: notificationsSent })
+    }
+
+    // --- CASE 3: STANDARD REMINDERS (Exact Time) ---
+    // Runs frequently (e.g. every 15 mins)
     
-    const { data: chores, error } = await supabase
+    const now = new Date()
+    const windowEnd = new Date(now.getTime() + 15 * 60 * 1000) // +15 mins
+    const nowStr = now.toTimeString().slice(0, 5)
+    const windowEndStr = windowEnd.toTimeString().slice(0, 5)
+
+    const { data: chores } = await supabase
       .from('chores')
       .select('id, name, assigned_to, household_id, exact_time, last_reminded_at')
       .eq('status', 'pending')
-      .neq('exact_time', null) 
-      // Logic: We filter in JS for precise "Not Reminded Recently" check 
-      // to avoid complex SQL logic for the MVP
-      
-    if (error) throw error
-    if (!chores || chores.length === 0) return NextResponse.json({ message: 'No chores pending with exact time.' })
+      .neq('exact_time', null)
 
-    let notificationsSent = 0
     const choresToUpdate: number[] = []
 
-    // 2. Filter and Notify
-    for (const chore of chores) {
-        const choreTime = chore.exact_time as string // HH:MM:00
+    for (const chore of (chores || [])) {
+        const choreTime = chore.exact_time as string
         const choreHM = choreTime.slice(0, 5)
 
-        // A. Check Time Window
-        // Simple check: is choreTime >= nowStr AND choreTime <= windowEndStr
+        // Check Time Window
         if (choreHM < nowStr || choreHM > windowEndStr) continue
 
-        // B. Check if already reminded today
+        // Check already reminded today
         if (chore.last_reminded_at) {
             const lastReminded = new Date(chore.last_reminded_at)
-            if (lastReminded.getDate() === now.getDate()) {
-                // Already reminded today, skip
-                continue
-            }
+            if (lastReminded.getDate() === now.getDate()) continue
         }
 
-        // --- Send Logic ---
+        // Send
         const assigneeIds: string[] = []
         if (chore.assigned_to) {
             try {
-                // Handle array or string legacy
-                const parsed = typeof chore.assigned_to === 'string' && chore.assigned_to.startsWith('[') 
+                const parsed = typeof chore.assigned_to === 'string' 
                     ? JSON.parse(chore.assigned_to) 
-                    : [chore.assigned_to]
+                    : (Array.isArray(chore.assigned_to) ? chore.assigned_to : [chore.assigned_to])
                 
                 if (Array.isArray(parsed)) assigneeIds.push(...parsed)
-            } catch {
-                // Fallback
-            }
+            } catch {}
         }
 
         if (assigneeIds.length === 0) continue
@@ -96,24 +162,22 @@ export async function GET(request: Request) {
                 body: `"${chore.name}" is due soon!`,
                 url: '/dashboard'
             }
-
             await Promise.all(subs.map(s => sendNotification(s.subscription as any, payload)))
             notificationsSent += subs.length
             choresToUpdate.push(chore.id)
         }
     }
 
-    // 3. Update `last_reminded_at` to prevent spamming
     if (choresToUpdate.length > 0) {
         await supabase
             .from('chores')
-            .update({ last_reminded_at: new Date().toISOString() } as any) // Cast to any if types aren't updated yet
+            .update({ last_reminded_at: new Date().toISOString() } as any)
             .in('id', choresToUpdate)
     }
 
     return NextResponse.json({ 
         success: true, 
-        choresChecked: chores.length,
+        type: 'exact_time',
         remindersSent: choresToUpdate.length,
         notificationsSent 
     })

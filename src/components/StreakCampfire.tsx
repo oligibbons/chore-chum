@@ -17,23 +17,16 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
   useEffect(() => setIsClient(true), [])
 
   // --- Logic: Streak State Determination ---
-  // We determine the status based on the client's local "Today".
-  // - Active: User has completed a chore today.
-  // - Risk: User completed a chore yesterday (needs to extend today).
-  // - Inactive: Last chore was older than yesterday (streak technically broken/frozen).
-  
   let status: 'active' | 'risk' | 'inactive' = 'inactive'
   
   if (isClient && streak > 0 && lastChoreDate) {
     const now = new Date()
-    // Format dates as YYYY-MM-DD in local time for comparison
     const todayStr = now.toLocaleDateString('en-CA') 
     
     const yesterday = new Date(now)
     yesterday.setDate(yesterday.getDate() - 1)
     const yesterdayStr = yesterday.toLocaleDateString('en-CA')
 
-    // lastChoreDate from DB is YYYY-MM-DD string
     if (lastChoreDate === todayStr) {
         status = 'active'
     } else if (lastChoreDate === yesterdayStr) {
@@ -44,7 +37,6 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
   }
 
   // --- Logic: Tiers & Progress Math ---
-  // Milestones: 3, 7, 14, 30
   let nextMilestone = 3
   let prevMilestone = 0
   
@@ -56,61 +48,61 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
   const rawProgress = ((streak - prevMilestone) / (nextMilestone - prevMilestone)) * 100
   const progress = Math.min(100, Math.max(0, rawProgress))
 
-  // SVG Circle Configuration
+  // SVG Config
   const radius = 14
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (progress / 100) * circumference
 
-  // --- Visual Config ---
-  let icon = <Flame className="w-5 h-5 text-gray-400" />
+  // --- Visual Config (Dark Mode Compatible) ---
+  let icon = <Flame className="w-5 h-5 text-muted-foreground" />
   let label = "No Streak"
   let subLabel = "Complete a chore"
-  let containerStyles = "bg-gray-100/80 border-gray-200 text-gray-500"
-  let ringColor = "text-gray-300"
+  // Standardized height (h-[42px]) to match Zen Button
+  let containerStyles = "h-[42px] bg-card border-border text-muted-foreground" 
+  let ringColor = "text-muted"
 
   if (streak > 0) {
-      // 1. Determine Base Tier Visuals
       if (streak < 3) {
-          // SPARK (1-2 Days)
+          // SPARK
           label = `${streak} Day Spark`
           subLabel = "Keep it going!"
-          icon = <Flame className={`w-5 h-5 ${status === 'active' ? 'text-orange-400' : 'text-orange-300'}`} />
-          containerStyles = "bg-orange-50 border-orange-100 text-orange-700"
+          icon = <Flame className={`w-5 h-5 ${status === 'active' ? 'text-orange-400' : 'text-orange-300/50'}`} />
+          containerStyles = "h-[42px] bg-orange-50/50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400"
           ringColor = "text-orange-400"
       } else if (streak < 7) {
-          // CAMPFIRE (3-6 Days)
+          // CAMPFIRE
           label = `${streak} Day Campfire`
           subLabel = "Heating up!"
           icon = <Flame className={`w-5 h-5 ${status === 'active' ? 'text-orange-500 fill-orange-500' : 'text-orange-400'}`} />
-          containerStyles = "bg-orange-100/50 border-orange-200 text-orange-800"
+          containerStyles = "h-[42px] bg-orange-100/50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700 text-orange-800 dark:text-orange-300"
           ringColor = "text-orange-500"
       } else if (streak < 30) {
-          // BLAZE (7-29 Days)
+          // BLAZE
           label = `${streak} Day Blaze`
           subLabel = "You're on fire!"
           icon = <Flame className={`w-5 h-5 ${status === 'active' ? 'text-red-500 fill-red-500 animate-flicker' : 'text-red-400'}`} />
-          containerStyles = "bg-red-50 border-red-200 text-red-900"
+          containerStyles = "h-[42px] bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-900 dark:text-red-400"
           ringColor = "text-red-500"
       } else {
-          // MYTHIC (30+ Days)
+          // MYTHIC
           label = `${streak} Day Mythic`
           subLabel = "Unstoppable."
           icon = <Zap className={`w-5 h-5 ${status === 'active' ? 'text-violet-500 fill-violet-500 animate-bounce' : 'text-violet-400'}`} />
-          containerStyles = "bg-violet-50 border-violet-200 text-violet-900 shadow-sm"
+          containerStyles = "h-[42px] bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800 text-violet-900 dark:text-violet-400 shadow-sm"
           ringColor = "text-violet-500"
       }
 
-      // 2. Apply Status Overrides
+      // Status Overrides
       if (status === 'risk') {
           icon = <Wind className="w-5 h-5 text-amber-600 animate-pulse" />
           subLabel = "Extend it today!"
-          containerStyles = "bg-amber-50 border-amber-300 ring-2 ring-amber-400/30 text-amber-800 animate-pulse"
+          containerStyles = "h-[42px] bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 ring-2 ring-amber-400/30 text-amber-800 dark:text-amber-400 animate-pulse"
           ringColor = "text-amber-500"
       } else if (status === 'inactive') {
-          icon = <AlertCircle className="w-5 h-5 text-gray-400" />
+          icon = <AlertCircle className="w-5 h-5 text-muted-foreground" />
           subLabel = "Streak broken?"
-          containerStyles = "bg-gray-100 border-gray-200 text-gray-500 grayscale"
-          ringColor = "text-gray-300"
+          containerStyles = "h-[42px] bg-muted/50 border-border text-muted-foreground grayscale"
+          ringColor = "text-muted"
       }
   }
 
@@ -118,27 +110,27 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
     <button 
         onClick={() => interact('neutral')}
         className={`
-            group relative flex items-center gap-3 pl-2 pr-4 py-2 rounded-2xl border transition-all duration-300
+            group relative flex items-center gap-3 pl-2 pr-4 py-1 rounded-2xl border transition-all duration-300
             hover:scale-105 active:scale-95 shadow-sm hover:shadow-md
             ${containerStyles}
         `}
         title={`Next milestone: ${nextMilestone} days`}
     >
        {/* Progress Ring Wrapper */}
-       <div className="relative flex items-center justify-center w-10 h-10 flex-shrink-0">
+       <div className="relative flex items-center justify-center w-8 h-8 flex-shrink-0">
           {/* Background Circle */}
           <svg className="absolute inset-0 transform -rotate-90 w-full h-full pointer-events-none">
             <circle 
-                cx="20" cy="20" r={radius} 
+                cx="16" cy="16" r={radius} 
                 stroke="currentColor" 
                 strokeWidth="3" 
                 fill="transparent" 
-                className="text-black/5" 
+                className="text-black/5 dark:text-white/10" 
             />
             {/* Active Progress Circle */}
             {streak > 0 && (
                 <circle
-                    cx="20" cy="20" r={radius} 
+                    cx="16" cy="16" r={radius} 
                     stroke="currentColor" 
                     strokeWidth="3" 
                     fill="transparent"
@@ -164,7 +156,7 @@ export default function StreakCampfire({ streak, lastChoreDate }: Props) {
             </span>
             {streak >= 30 && <Trophy className="w-3 h-3 text-yellow-500" />}
           </div>
-          <span className="text-[10px] font-bold opacity-80 leading-none mt-1">
+          <span className="text-[10px] font-bold opacity-80 leading-none mt-0.5">
             {subLabel}
           </span>
        </div>

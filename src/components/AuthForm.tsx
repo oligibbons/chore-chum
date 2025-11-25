@@ -1,11 +1,11 @@
+// src/components/AuthForm.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import { signInWithEmail, signUpWithEmail, AuthFormState } from '@/app/actions'
 import { Loader2, Mail, Lock, User, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
-import { useEffect } from 'react'
 
 const initialState: AuthFormState = {
   success: false,
@@ -33,11 +33,9 @@ function SubmitButton({ text }: { text: string }) {
 export default function AuthForm() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   
-  // Separate states for signin/signup so errors don't persist when switching
   const [signInState, signInAction] = useFormState(signInWithEmail, initialState)
   const [signUpState, signUpAction] = useFormState(signUpWithEmail, initialState)
 
-  // Toast Effects
   useEffect(() => {
     if (signInState.message && !signInState.success) toast.error(signInState.message)
   }, [signInState])
@@ -52,11 +50,13 @@ export default function AuthForm() {
   return (
     <div className="w-full max-w-sm mx-auto">
       {/* Toggle */}
-      <div className="mb-8 flex rounded-xl bg-gray-100 p-1 border border-border">
+      <div className="mb-8 flex rounded-xl bg-muted p-1 border border-border">
         <button
           onClick={() => setMode('signin')}
           className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${
-            mode === 'signin' ? 'bg-white text-brand shadow-sm' : 'text-text-secondary hover:text-text-primary'
+            mode === 'signin' 
+              ? 'bg-card text-brand shadow-sm' 
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Sign In
@@ -64,7 +64,9 @@ export default function AuthForm() {
         <button
           onClick={() => setMode('signup')}
           className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${
-            mode === 'signup' ? 'bg-white text-brand shadow-sm' : 'text-text-secondary hover:text-text-primary'
+            mode === 'signup' 
+              ? 'bg-card text-brand shadow-sm' 
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Sign Up
@@ -77,28 +79,28 @@ export default function AuthForm() {
           <div>
             <label className="sr-only" htmlFor="email">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 id="email"
                 name="email"
                 type="email"
                 required
                 placeholder="Email address"
-                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                className="block w-full rounded-xl border-input bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
           <div>
             <label className="sr-only" htmlFor="password">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 id="password"
                 name="password"
                 type="password"
                 required
                 placeholder="Password"
-                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                className="block w-full rounded-xl border-input bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
@@ -109,35 +111,35 @@ export default function AuthForm() {
           <div>
             <label className="sr-only" htmlFor="fullName">Full Name</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 id="fullName"
                 name="full_name"
                 type="text"
                 required
                 placeholder="Full Name"
-                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                className="block w-full rounded-xl border-input bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
           <div>
             <label className="sr-only" htmlFor="email">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 id="email"
                 name="email"
                 type="email"
                 required
                 placeholder="Email address"
-                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                className="block w-full rounded-xl border-input bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
           <div>
             <label className="sr-only" htmlFor="password">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary" />
+              <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 id="password"
                 name="password"
@@ -145,7 +147,7 @@ export default function AuthForm() {
                 required
                 minLength={6}
                 placeholder="Password (min 6 chars)"
-                className="block w-full rounded-xl border-border bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand"
+                className="block w-full rounded-xl border-input bg-background p-3 pl-10 transition-all focus:border-brand focus:ring-brand text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
@@ -153,7 +155,7 @@ export default function AuthForm() {
         </form>
       )}
       
-      <p className="mt-6 text-center text-xs text-text-secondary">
+      <p className="mt-6 text-center text-xs text-muted-foreground">
         By continuing, you agree to our Terms of Service and Privacy Policy.
       </p>
     </div>

@@ -70,8 +70,8 @@ export async function createTemplate(formData: FormData): Promise<TemplateState>
         household_id: householdId,
         created_by: userId,
         name: name.trim(),
-        subtasks: subtasks, // Supabase handles string[] to jsonb conversion usually, or we cast
-        icon: 'Sparkles' // Default icon for now
+        subtasks: subtasks, // Supabase handles string[] to jsonb conversion usually
+        icon: 'Sparkles' 
       } as any)
 
     if (error) throw error

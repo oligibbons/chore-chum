@@ -33,14 +33,14 @@ export default function FilterBar({ rooms }: Props) {
     <div className="flex flex-col gap-3 w-full">
         
         {/* 1. Me / Everyone Toggle */}
-        <div className="flex bg-card border border-border rounded-xl p-1 self-start">
+        <div className="flex bg-card border border-border rounded-xl p-1 self-start shadow-sm">
             <button
                 onClick={() => updateParams('assignee', null)}
                 className={`
                     flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all
                     ${viewMode === 'all' 
-                        ? 'bg-brand-light text-brand shadow-sm' 
-                        : 'text-text-secondary hover:text-text-primary'}
+                        ? 'bg-brand-light text-brand shadow-sm dark:bg-brand/20 dark:text-brand-light' 
+                        : 'text-text-secondary hover:text-text-primary hover:bg-muted/50'}
                 `}
             >
                 <Users className="h-4 w-4" />
@@ -51,8 +51,8 @@ export default function FilterBar({ rooms }: Props) {
                 className={`
                     flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all
                     ${viewMode === 'me' 
-                        ? 'bg-brand-light text-brand shadow-sm' 
-                        : 'text-text-secondary hover:text-text-primary'}
+                        ? 'bg-brand-light text-brand shadow-sm dark:bg-brand/20 dark:text-brand-light' 
+                        : 'text-text-secondary hover:text-text-primary hover:bg-muted/50'}
                 `}
             >
                 <User className="h-4 w-4" />
@@ -68,7 +68,7 @@ export default function FilterBar({ rooms }: Props) {
                 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all border
                 ${!currentRoomId 
                     ? 'bg-brand text-white border-brand shadow-md' 
-                    : 'bg-white text-text-secondary border-border hover:border-brand hover:text-brand'
+                    : 'bg-card text-text-secondary border-border hover:border-brand hover:text-brand'
                 }
                 `}
             >
@@ -82,7 +82,7 @@ export default function FilterBar({ rooms }: Props) {
                     whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all border
                     ${currentRoomId === room.id.toString()
                     ? 'bg-brand text-white border-brand shadow-md'
-                    : 'bg-white text-text-secondary border-border hover:border-brand hover:text-brand'
+                    : 'bg-card text-text-secondary border-border hover:border-brand hover:text-brand'
                     }
                 `}
                 >

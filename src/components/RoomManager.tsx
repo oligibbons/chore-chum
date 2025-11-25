@@ -4,7 +4,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useEffect } from 'react'
 import { createRoom, deleteRoom, FormState } from '@/app/room-actions'
-import { Trash2, Loader2, Home, ArrowRight, AlertTriangle, ExternalLink, Bug, Skull } from 'lucide-react'
+import { Trash2, Loader2, Home, ArrowRight, Bug, Skull, Sparkles, AlertTriangle } from 'lucide-react'
 import { RoomWithChoreCount } from '@/types/database'
 import { toast } from 'sonner'
 import { getRoomIcon } from '@/lib/room-icons'
@@ -127,95 +127,117 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
         <h3 className="mb-4 font-heading text-2xl font-semibold">
           Existing Rooms ({rooms.length})
         </h3>
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {rooms.length === 0 ? (
-            <div className="rounded-xl border-2 border-dashed border-border bg-card/50 p-8 text-center">
+            <div className="col-span-full rounded-xl border-2 border-dashed border-border bg-card/50 p-8 text-center">
               <p className="font-medium text-text-secondary">
                 No rooms created yet.
               </p>
             </div>
           ) : (
             rooms.map((room) => {
-                // Visual "Rot" Logic:
-                const overdueCount = room.overdue_count ?? 0;
-                const isRotting = overdueCount > 2;
-                const isCritical = overdueCount > 5;
+                // --- Visual Rot Logic ---
+                const overdue = room.overdue_count ?? 0;
                 
+                // Levels: 0 (Clean), 1 (Grimy), 2 (Filthy), 3 (Critical)
+                let rotLevel = 0;
+                if (overdue > 0) rotLevel = 1;
+                if (overdue > 3) rotLevel = 2;
+                if (overdue > 7) rotLevel = 3;
+
+                let cardStyles = 'bg-card border-border hover:border-brand/50';
+                let iconBg = 'bg-brand-light text-brand';
+                let statusText = 'Sparkling';
+                let statusColor = 'text-text-secondary';
+
+                if (rotLevel === 1) {
+                    // Grimy: Slight sepia/yellow tint
+                    cardStyles = 'bg-[#fffcf5] border-amber-200 hover:border-amber-300';
+                    iconBg = 'bg-amber-100 text-amber-600';
+                    statusText = 'Grimy';
+                    statusColor = 'text-amber-600';
+                } else if (rotLevel === 2) {
+                    // Filthy: Noise texture, brown tint
+                    cardStyles = 'bg-[#faf5f0] border-orange-300 hover:border-orange-400 overflow-hidden relative';
+                    iconBg = 'bg-orange-200 text-orange-800';
+                    statusText = 'Filthy';
+                    statusColor = 'text-orange-700 font-bold';
+                } else if (rotLevel === 3) {
+                    // Critical: Red/Brown, pulsating
+                    cardStyles = 'bg-[#fff0f0] border-red-300 ring-1 ring-red-100 overflow-hidden relative';
+                    iconBg = 'bg-red-200 text-red-900 animate-pulse';
+                    statusText = 'CRITICAL';
+                    statusColor = 'text-red-700 font-black tracking-widest';
+                }
+
                 return (
                   <div
                     key={room.id}
                     onClick={() => router.push(`/dashboard?roomId=${room.id}`)}
                     className={`
-                        group relative flex items-center justify-between rounded-xl border p-4 shadow-card transition-all hover:shadow-card-hover cursor-pointer overflow-hidden
-                        ${isCritical 
-                            ? 'bg-stone-100 border-stone-300' 
-                            : isRotting 
-                                ? 'bg-amber-50 border-amber-200' 
-                                : 'bg-card border-border hover:border-brand/30'}
+                        group relative flex flex-col justify-between rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md cursor-pointer h-[160px]
+                        ${cardStyles}
                     `}
                   >
-                    {/* Grime Overlay for Critical Rot */}
-                    {isCritical && (
+                    {/* Noise Overlay for Rot > 1 */}
+                    {rotLevel >= 2 && (
                         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 pointer-events-none mix-blend-multiply" />
                     )}
 
-                    <div className="flex items-center space-x-4 z-10">
+                    {/* Flies Animation for Rot > 1 */}
+                    {rotLevel >= 2 && (
+                        <div className="absolute top-2 right-2 animate-bounce-slow pointer-events-none opacity-50">
+                            <Bug className="h-4 w-4 text-stone-600 transform rotate-12" />
+                        </div>
+                    )}
+                    {rotLevel >= 3 && (
+                        <div className="absolute bottom-10 left-4 animate-pulse pointer-events-none opacity-40">
+                            <Bug className="h-3 w-3 text-stone-800 transform -rotate-45" />
+                        </div>
+                    )}
+
+                    <div className="flex justify-between items-start relative z-10">
                         <div className={`
-                            relative flex items-center justify-center h-12 w-12 rounded-full transition-all
-                            ${isCritical 
-                                ? 'bg-stone-200 text-stone-600 animate-pulse' 
-                                : isRotting 
-                                    ? 'bg-amber-100 text-amber-700 grayscale-[0.3]' 
-                                    : 'bg-brand-light text-brand group-hover:scale-110'}
+                            flex items-center justify-center h-12 w-12 rounded-full transition-transform group-hover:scale-110
+                            ${iconBg}
                         `}>
-                            {/* Dynamic Icon */}
                             {getRoomIcon(room.name, "h-6 w-6")}
-                            
-                            {/* Rot Flies / Warning */}
-                            {isRotting && (
-                                <div className="absolute -top-2 -right-2 animate-bounce" style={{ animationDuration: '2s' }}>
-                                    {isCritical ? (
-                                        <div className="bg-red-600 text-white rounded-full p-1 shadow-sm border border-white">
-                                            <Skull className="h-3 w-3" />
-                                        </div>
-                                    ) : (
-                                        <div className="bg-amber-500 text-white rounded-full p-1 shadow-sm border border-white">
-                                            <Bug className="h-3 w-3" />
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                         
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-heading text-lg font-medium ${isRotting ? 'text-stone-800' : 'text-foreground group-hover:text-brand transition-colors'}`}>
-                                {room.name}
-                            </span>
-                            <ExternalLink className="h-3 w-3 text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          <span className={`text-sm font-medium ${isCritical ? 'text-red-600' : isRotting ? 'text-amber-700' : 'text-text-secondary'}`}>
-                              {room.chore_count} {room.chore_count === 1 ? 'chore' : 'chores'}
-                              {isCritical 
-                                ? " • CRITICAL CONDITION" 
-                                : isRotting 
-                                    ? ` • ${overdueCount} overdue` 
-                                    : ""}
-                          </span>
-                        </div>
+                        <form action={handleDelete} onClick={(e) => e.stopPropagation()}>
+                            <input type="hidden" name="roomId" value={room.id} />
+                            <button
+                                type="submit"
+                                className="p-2 text-text-secondary/50 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete Room"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </button>
+                        </form>
                     </div>
                     
-                    <form action={handleDelete} onClick={(e) => e.stopPropagation()} className="z-10">
-                      <input type="hidden" name="roomId" value={room.id} />
-                      <button
-                        type="submit"
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-status-overdue/10 hover:text-status-overdue relative"
-                        aria-label="Delete room"
-                        title="Delete Room"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </form>
+                    <div className="relative z-10">
+                        <h4 className="font-heading text-lg font-bold text-foreground group-hover:text-brand transition-colors truncate">
+                            {room.name}
+                        </h4>
+                        
+                        <div className="flex items-center gap-2 mt-1">
+                            {rotLevel === 0 ? (
+                                <div className="flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                    <Sparkles className="h-3 w-3" />
+                                    Clean
+                                </div>
+                            ) : (
+                                <div className={`flex items-center gap-1 text-xs ${statusColor} bg-white/50 px-2 py-0.5 rounded-full border border-black/5`}>
+                                    {rotLevel === 3 ? <Skull className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                                    {overdue} Overdue
+                                </div>
+                            )}
+                            <span className="text-xs text-text-secondary">
+                                • {room.chore_count} total
+                            </span>
+                        </div>
+                    </div>
                   </div>
                 )
             })

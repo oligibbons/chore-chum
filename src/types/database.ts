@@ -19,6 +19,7 @@ export type DbChore = Omit<Tables<'chores'>, 'assigned_to'> & {
   // 'daily', 'weekly', 'monthly', or 'custom:freq:interval:until'
   recurrence_type: string
   parent_chore_id?: number | null 
+  deadline_type?: 'soft' | 'hard' // NEW: Priority System
 }
 
 export type DbRoom = Tables<'rooms'> & {
@@ -29,6 +30,13 @@ export type DbProfile = Tables<'profiles'> & {
   current_streak?: number
   longest_streak?: number
   last_chore_date?: string | null
+  // NEW: Granular Notification Settings
+  notification_preferences?: {
+    morning_brief?: boolean
+    evening_motivation?: boolean
+    chore_updates?: boolean
+    nudges?: boolean // Usually forced true, but good to have in type
+  }
 }
 
 export type DbHousehold = Tables<'households'>

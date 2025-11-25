@@ -13,20 +13,51 @@ const config: Config = {
         sans: ['var(--font-inter)', 'sans-serif'],
         heading: ['var(--font-lexend)', 'sans-serif'],
       },
+      // Updated to use CSS Variables for Dark Mode support
       colors: {
-        background: 'hsl(210, 40%, 98%)',
-        foreground: 'hsl(224, 20%, 13%)',
-        card: 'hsl(0, 0%, 100%)',
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        // Custom Brands (mapped to CSS vars or static for brand consistency)
         brand: {
-          light: 'hsl(252, 92%, 96%)',
+          light: 'hsl(252, 92%, 96%)', // You might want to var() these later for full dark mode control
           DEFAULT: 'hsl(252, 75%, 60%)',
           dark: 'hsl(252, 75%, 50%)',
         },
         text: {
-          primary: 'hsl(224, 20%, 13%)',
-          secondary: 'hsl(215, 16%, 47%)',
+          primary: "hsl(var(--foreground))",
+          secondary: "hsl(var(--muted-foreground))",
         },
-        border: 'hsl(214, 32%, 91%)',
         status: {
           overdue: 'hsl(350, 78%, 60%)',
           due: 'hsl(38, 92%, 50%)',
@@ -34,10 +65,15 @@ const config: Config = {
         },
       },
       boxShadow: {
-        'card': '0 2px 8px 0 hsla(216, 28%, 7%, 0.04), 0 1px 2px 0 hsla(216, 28%, 7%, 0.02)',
-        'card-hover': '0 8px 24px 0 hsla(216, 28%, 7%, 0.08), 0 4px 8px 0 hsla(216, 28%, 7%, 0.04)',
+        'card': '0 2px 8px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02)',
+        'card-hover': '0 8px 24px 0 rgba(0, 0, 0, 0.08), 0 4px 8px 0 rgba(0, 0, 0, 0.04)',
       },
-      // ANIMATION CONFIGURATION
+      animation: {
+        'fade-in': 'fade-in 0.3s ease-out',
+        'zoom-in': 'zoom-in 0.3s ease-out',
+        'bounce-slow': 'bounce 3s infinite',
+        'spin-slow': 'spin 3s linear infinite',
+      },
       keyframes: {
         'fade-in': {
           '0%': { opacity: '0' },
@@ -48,15 +84,11 @@ const config: Config = {
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
       },
-      animation: {
-        'fade-in': 'fade-in 0.3s ease-out',
-        'zoom-in': 'zoom-in 0.3s ease-out',
-      },
     },
   },
   plugins: [
     forms,
-    // This simple plugin adds the utility classes needed if you don't use tailwindcss-animate
+    // Utility plugin for animation primitives
     function({ addUtilities }: { addUtilities: any }) {
       addUtilities({
         '.animate-in': {
@@ -73,7 +105,11 @@ const config: Config = {
         },
         '.zoom-in': {
           animationName: 'zoom-in',
-        }
+        },
+        '.slide-in-from-bottom-2': {
+          '--tw-enter-translate-y': '0.5rem',
+          animationName: 'slide-in-from-bottom',
+        },
       })
     }
   ],

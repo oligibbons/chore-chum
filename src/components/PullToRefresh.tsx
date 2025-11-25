@@ -13,15 +13,12 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
   const [refreshing, setRefreshing] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   
-  // QUICK WIN: Game Feel hook + state to prevent haptic spam
   const { triggerHaptic } = useGameFeel()
   const [hasTriggeredHaptic, setHasTriggeredHaptic] = useState(false)
 
-  const PULL_THRESHOLD = 120 
   const MAX_PULL = 160 
 
   useEffect(() => {
-    // Prevent native iOS bounce while this component is mounted
     document.body.style.overscrollBehaviorY = 'none'
     return () => {
       document.body.style.overscrollBehaviorY = 'auto'
@@ -30,7 +27,6 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
-      // Only track if we are at the top of the page
       if (window.scrollY <= 5) {
         setStartY(e.touches[0].clientY)
       } else {
@@ -45,11 +41,10 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
       const diff = y - startY
 
       if (diff > 0 && !refreshing) {
-        // Add resistance
         const damped = Math.min(diff * 0.5, MAX_PULL)
         setCurrentY(damped)
         
-        // QUICK WIN: Tactile Snap Logic
+        // Haptic Snap
         if (damped > 80 && !hasTriggeredHaptic) {
             triggerHaptic('light')
             setHasTriggeredHaptic(true)
@@ -57,7 +52,6 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
             setHasTriggeredHaptic(false)
         }
         
-        // Prevent browser navigation/bounce actions
         if (e.cancelable) e.preventDefault() 
       }
     }
@@ -65,17 +59,16 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
     const handleTouchEnd = async () => {
       if (startY === 0) return
 
-      if (currentY > 80) { // Trigger threshold
+      if (currentY > 80) {
         setRefreshing(true)
-        setCurrentY(60) // Snap to loading spinner position
+        setCurrentY(60) // Snap to spinner
         
         router.refresh()
         
-        // Reset after delay
         setTimeout(() => {
           setRefreshing(false)
           setCurrentY(0)
-          setHasTriggeredHaptic(false) // Reset logic
+          setHasTriggeredHaptic(false)
         }, 1500)
       } else {
         setCurrentY(0)
@@ -87,7 +80,6 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
     const el = contentRef.current
     if (!el) return
 
-    // Use non-passive listener to allow preventDefault
     el.addEventListener('touchstart', handleTouchStart, { passive: true })
     el.addEventListener('touchmove', handleTouchMove, { passive: false })
     el.addEventListener('touchend', handleTouchEnd)
@@ -108,7 +100,7 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
         aria-hidden="true"
       >
         <div className={`
-            flex items-center justify-center h-10 w-10 rounded-full bg-white shadow-md border border-border 
+            flex items-center justify-center h-10 w-10 rounded-full bg-card shadow-md border border-border 
             transition-all duration-300
             ${refreshing ? 'opacity-100 rotate-180 scale-110' : 'opacity-0 scale-75'}
         `}>
