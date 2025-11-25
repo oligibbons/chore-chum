@@ -4,7 +4,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useEffect } from 'react'
 import { createRoom, deleteRoom, FormState } from '@/app/room-actions'
-import { Trash2, Loader2, Home, ArrowRight, Bug, Skull, Sparkles, AlertTriangle } from 'lucide-react'
+import { Trash2, Loader2, Home, ArrowRight, Bug, Skull, Sparkles, AlertTriangle, ExternalLink } from 'lucide-react'
 import { RoomWithChoreCount } from '@/types/database'
 import { toast } from 'sonner'
 import { getRoomIcon } from '@/lib/room-icons'
@@ -88,13 +88,13 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
       {/* --- Card 1: Create a Room --- */}
       <div className="md:col-span-1">
         <div className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-card h-full">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-light dark:bg-brand/20 text-brand">
             <Home className="h-6 w-6" />
           </div>
-          <h2 className="mb-2 font-heading text-2xl font-semibold">
+          <h2 className="mb-2 font-heading text-2xl font-semibold text-foreground">
             Add a New Room
           </h2>
-          <p className="mb-6 flex-1 text-text-secondary">
+          <p className="mb-6 flex-1 text-muted-foreground">
             Create a new room for your household.
           </p>
           
@@ -102,7 +102,7 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
             <div>
               <label
                 htmlFor="roomName"
-                className="block font-heading text-sm font-medium text-text-primary"
+                className="block font-heading text-sm font-medium text-foreground"
               >
                 Room Name
               </label>
@@ -112,7 +112,7 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
                 name="roomName"
                 required
                 placeholder="e.g. 'Kitchen'"
-                className="mt-1 block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+                className="mt-1 block w-full rounded-xl border-input bg-background p-3 transition-all focus:border-brand focus:ring-brand placeholder:text-muted-foreground"
               />
             </div>
             <div className="pt-2">
@@ -124,13 +124,13 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
 
       {/* --- Column 2: Existing Rooms List --- */}
       <div className="md:col-span-2">
-        <h3 className="mb-4 font-heading text-2xl font-semibold">
+        <h3 className="mb-4 font-heading text-2xl font-semibold text-foreground">
           Existing Rooms ({rooms.length})
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {rooms.length === 0 ? (
-            <div className="col-span-full rounded-xl border-2 border-dashed border-border bg-card/50 p-8 text-center">
-              <p className="font-medium text-text-secondary">
+            <div className="col-span-full rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 text-center">
+              <p className="font-medium text-muted-foreground">
                 No rooms created yet.
               </p>
             </div>
@@ -146,28 +146,28 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
                 if (overdue > 7) rotLevel = 3;
 
                 let cardStyles = 'bg-card border-border hover:border-brand/50';
-                let iconBg = 'bg-brand-light text-brand';
+                let iconBg = 'bg-brand-light dark:bg-brand/20 text-brand';
                 let statusText = 'Sparkling';
-                let statusColor = 'text-text-secondary';
+                let statusColor = 'text-muted-foreground';
 
                 if (rotLevel === 1) {
                     // Grimy: Slight sepia/yellow tint
-                    cardStyles = 'bg-[#fffcf5] border-amber-200 hover:border-amber-300';
-                    iconBg = 'bg-amber-100 text-amber-600';
+                    cardStyles = 'bg-[#fffcf5] dark:bg-amber-950/10 border-amber-200/50 dark:border-amber-900/50 hover:border-amber-300';
+                    iconBg = 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
                     statusText = 'Grimy';
-                    statusColor = 'text-amber-600';
+                    statusColor = 'text-amber-600 dark:text-amber-400';
                 } else if (rotLevel === 2) {
-                    // Filthy: Noise texture, brown tint
-                    cardStyles = 'bg-[#faf5f0] border-orange-300 hover:border-orange-400 overflow-hidden relative';
-                    iconBg = 'bg-orange-200 text-orange-800';
+                    // Filthy: Noise texture simulation using gradients, brown tint
+                    cardStyles = 'bg-[#faf5f0] dark:bg-orange-950/20 border-orange-300/50 dark:border-orange-800/50 hover:border-orange-400 overflow-hidden relative';
+                    iconBg = 'bg-orange-200 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300';
                     statusText = 'Filthy';
-                    statusColor = 'text-orange-700 font-bold';
+                    statusColor = 'text-orange-700 dark:text-orange-400 font-bold';
                 } else if (rotLevel === 3) {
                     // Critical: Red/Brown, pulsating
-                    cardStyles = 'bg-[#fff0f0] border-red-300 ring-1 ring-red-100 overflow-hidden relative';
-                    iconBg = 'bg-red-200 text-red-900 animate-pulse';
+                    cardStyles = 'bg-[#fff0f0] dark:bg-red-950/20 border-red-300/50 dark:border-red-900/50 ring-1 ring-red-100 dark:ring-red-900/30 overflow-hidden relative';
+                    iconBg = 'bg-red-200 dark:bg-red-900/40 text-red-900 dark:text-red-200 animate-pulse';
                     statusText = 'CRITICAL';
-                    statusColor = 'text-red-700 font-black tracking-widest';
+                    statusColor = 'text-red-700 dark:text-red-400 font-black tracking-widest';
                 }
 
                 return (
@@ -179,20 +179,25 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
                         ${cardStyles}
                     `}
                   >
-                    {/* Noise Overlay for Rot > 1 */}
+                    {/* CSS-based Noise Overlay for Rot > 1 */}
                     {rotLevel >= 2 && (
-                        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 pointer-events-none mix-blend-multiply" />
+                        <div 
+                            className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply dark:mix-blend-overlay"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+                            }}
+                        />
                     )}
 
                     {/* Flies Animation for Rot > 1 */}
                     {rotLevel >= 2 && (
                         <div className="absolute top-2 right-2 animate-bounce-slow pointer-events-none opacity-50">
-                            <Bug className="h-4 w-4 text-stone-600 transform rotate-12" />
+                            <Bug className="h-4 w-4 text-stone-600 dark:text-stone-400 transform rotate-12" />
                         </div>
                     )}
                     {rotLevel >= 3 && (
                         <div className="absolute bottom-10 left-4 animate-pulse pointer-events-none opacity-40">
-                            <Bug className="h-3 w-3 text-stone-800 transform -rotate-45" />
+                            <Bug className="h-3 w-3 text-stone-800 dark:text-stone-300 transform -rotate-45" />
                         </div>
                     )}
 
@@ -208,7 +213,7 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
                             <input type="hidden" name="roomId" value={room.id} />
                             <button
                                 type="submit"
-                                className="p-2 text-text-secondary/50 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                 title="Delete Room"
                             >
                                 <Trash2 className="h-4 w-4" />
@@ -223,17 +228,17 @@ export default function RoomManager({ rooms }: { rooms: RoomWithPotentialRot[] }
                         
                         <div className="flex items-center gap-2 mt-1">
                             {rotLevel === 0 ? (
-                                <div className="flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full border border-green-100 dark:border-green-900/50">
                                     <Sparkles className="h-3 w-3" />
                                     Clean
                                 </div>
                             ) : (
-                                <div className={`flex items-center gap-1 text-xs ${statusColor} bg-white/50 px-2 py-0.5 rounded-full border border-black/5`}>
+                                <div className={`flex items-center gap-1 text-xs ${statusColor} bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded-full border border-black/5 dark:border-white/5`}>
                                     {rotLevel === 3 ? <Skull className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
                                     {overdue} Overdue
                                 </div>
                             )}
-                            <span className="text-xs text-text-secondary">
+                            <span className="text-xs text-muted-foreground">
                                 • {room.chore_count} total
                             </span>
                         </div>

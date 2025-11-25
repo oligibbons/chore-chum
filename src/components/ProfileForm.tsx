@@ -3,12 +3,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
-import { User, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2, Sun, Moon, Activity, Hand } from 'lucide-react'
+import { User, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2, Sun, Moon, Activity, Hand, Palette } from 'lucide-react'
 import { updateProfile, leaveHousehold, ProfileFormState } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import ThemeToggle from './ThemeToggle'
 
 type Props = {
   profile: DbProfile
@@ -53,14 +54,14 @@ function Toggle({
   const [checked, setChecked] = useState(defaultChecked || false)
 
   return (
-    <div className={`flex items-start justify-between p-3 rounded-xl border transition-all ${disabled ? 'bg-gray-50 border-gray-100 opacity-80' : 'bg-white border-border hover:border-brand/30'}`}>
+    <div className={`flex items-start justify-between p-3 rounded-xl border transition-all ${disabled ? 'bg-muted/50 border-border opacity-80' : 'bg-card border-border hover:border-brand/30'}`}>
       <div className="flex items-start gap-3">
-        <div className={`mt-1 p-1.5 rounded-lg ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-brand/5 text-brand'}`}>
+        <div className={`mt-1 p-1.5 rounded-lg ${disabled ? 'bg-muted text-muted-foreground' : 'bg-brand/10 text-brand'}`}>
           <Icon className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-sm font-bold text-text-primary">{label}</p>
-          <p className="text-xs text-text-secondary leading-tight max-w-[200px]">{description}</p>
+          <p className="text-sm font-bold text-foreground">{label}</p>
+          <p className="text-xs text-muted-foreground leading-tight max-w-[200px]">{description}</p>
         </div>
       </div>
       
@@ -76,13 +77,13 @@ function Toggle({
         />
         <div className={`
           w-11 h-6 rounded-full peer peer-focus:ring-4 peer-focus:ring-brand/20 
-          peer-checked:after:translate-x-full peer-checked:after:border-white 
+          peer-checked:after:translate-x-full peer-checked:after:border-card 
           after:content-[''] after:absolute after:top-0.5 after:left-[2px] 
-          after:bg-white after:border-gray-300 after:border after:rounded-full 
+          after:bg-card after:border-muted after:border after:rounded-full 
           after:h-5 after:w-5 after:transition-all
           ${disabled 
-            ? 'bg-gray-200 after:bg-gray-400' 
-            : 'bg-gray-200 peer-checked:bg-brand'}
+            ? 'bg-muted after:bg-muted-foreground' 
+            : 'bg-muted peer-checked:bg-brand'}
         `}></div>
       </div>
     </div>
@@ -98,7 +99,6 @@ export default function ProfileForm({ profile, household, email }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createSupabaseBrowserClient()
 
-  // Preferences with safe defaults
   const prefs = profile.notification_preferences || {
     morning_brief: true,
     evening_motivation: true,
@@ -181,7 +181,7 @@ export default function ProfileForm({ profile, household, email }: Props) {
         
         {/* Card 1: Public Profile */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-          <h2 className="mb-6 font-heading text-xl font-semibold flex items-center gap-2">
+          <h2 className="mb-6 font-heading text-xl font-semibold flex items-center gap-2 text-foreground">
             <User className="h-5 w-5 text-brand" />
             Public Profile
           </h2>
@@ -226,33 +226,42 @@ export default function ProfileForm({ profile, household, email }: Props) {
 
               <div className="grid gap-4">
                 <div>
-                    <label className="block text-xs font-bold uppercase tracking-wide text-text-secondary mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
                         Full Name
                     </label>
                     <input
                         type="text"
                         name="fullName"
                         defaultValue={profile.full_name || ''}
-                        className="block w-full rounded-xl border-border bg-background p-3 transition-all focus:border-brand focus:ring-brand"
+                        className="block w-full rounded-xl border-input bg-background p-3 transition-all focus:border-brand focus:ring-brand text-foreground"
                         placeholder="e.g. Alex Smith"
                     />
                 </div>
                 
                 <div>
-                    <label className="block text-xs font-bold uppercase tracking-wide text-text-secondary mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
                         Email Address
                     </label>
-                    <div className="flex items-center gap-3 rounded-xl border border-border bg-gray-50 p-3 text-text-secondary">
+                    <div className="flex items-center gap-3 rounded-xl border border-input bg-muted/50 p-3 text-muted-foreground">
                         <Mail className="h-4 w-4" />
                         <span>{email || 'No email found'}</span>
                     </div>
-                    <p className="mt-1 text-xs text-text-secondary">Email cannot be changed.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Email cannot be changed.</p>
                 </div>
+              </div>
+
+              {/* APPEARANCE SETTINGS */}
+              <div className="pt-6 border-t border-border mt-6">
+                <h3 className="mb-4 font-heading text-lg font-semibold flex items-center gap-2 text-foreground">
+                    <Palette className="h-5 w-5 text-brand" />
+                    Appearance
+                </h3>
+                <ThemeToggle />
               </div>
 
               {/* NOTIFICATION SETTINGS */}
               <div className="pt-6 border-t border-border mt-6">
-                <h3 className="mb-4 font-heading text-lg font-semibold flex items-center gap-2">
+                <h3 className="mb-4 font-heading text-lg font-semibold flex items-center gap-2 text-foreground">
                     <Bell className="h-5 w-5 text-brand" />
                     Notifications
                 </h3>
@@ -279,7 +288,6 @@ export default function ProfileForm({ profile, household, email }: Props) {
                         icon={Activity}
                         defaultChecked={prefs.chore_updates}
                     />
-                    {/* Nudges are always on */}
                     <Toggle 
                         label="Direct Nudges"
                         description="When someone specifically nudges you."
@@ -299,18 +307,18 @@ export default function ProfileForm({ profile, household, email }: Props) {
 
         {/* Card 2: App Info */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-           <h2 className="mb-4 font-heading text-xl font-semibold flex items-center gap-2">
+           <h2 className="mb-4 font-heading text-xl font-semibold flex items-center gap-2 text-foreground">
               <Share2 className="h-5 w-5 text-brand" />
               App Info
            </h2>
            <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-text-primary">Push Permissions</p>
-                <p className="text-sm text-text-secondary">Ensure your device allows notifications.</p>
+                <p className="font-medium text-foreground">Push Permissions</p>
+                <p className="text-sm text-muted-foreground">Ensure your device allows notifications.</p>
               </div>
               <button 
                 onClick={() => (window as any).requestPushPermission?.()}
-                className="rounded-lg bg-brand-light px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors"
+                className="rounded-lg bg-brand-light dark:bg-brand/20 px-4 py-2 text-sm font-bold text-brand dark:text-brand-light hover:bg-brand/20 transition-colors"
               >
                 Check Status
               </button>
@@ -325,47 +333,47 @@ export default function ProfileForm({ profile, household, email }: Props) {
         {/* Household Card */}
         {household ? (
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h2 className="mb-4 font-heading text-xl font-semibold flex items-center gap-2">
+            <h2 className="mb-4 font-heading text-xl font-semibold flex items-center gap-2 text-foreground">
                 <Home className="h-5 w-5 text-brand" />
                 Household
             </h2>
             
             <div className="space-y-4">
                 <div>
-                    <label className="block text-xs font-bold uppercase tracking-wide text-text-secondary">
+                    <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground">
                         Current Home
                     </label>
-                    <p className="text-lg font-medium text-text-primary mt-0.5">
+                    <p className="text-lg font-medium text-foreground mt-0.5">
                         {household.name}
                     </p>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold uppercase tracking-wide text-text-secondary">
+                    <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground">
                         Invite Code
                     </label>
                     <div className="mt-1 flex items-center gap-2">
-                        <code className="flex-1 rounded-lg border border-border bg-background px-3 py-2 font-mono text-lg font-bold tracking-wider text-brand text-center">
+                        <code className="flex-1 rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-lg font-bold tracking-wider text-brand text-center">
                         {household.invite_code}
                         </code>
                         <button
                             onClick={handleShareCode}
-                            className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-background text-text-secondary transition-colors hover:border-brand hover:text-brand"
+                            className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:border-brand hover:text-brand"
                             title="Share Code"
                         >
                         {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
                         </button>
                     </div>
-                    <p className="text-xs text-text-secondary mt-1.5">
+                    <p className="text-xs text-muted-foreground mt-1.5">
                         Share this code to add members.
                     </p>
                 </div>
             </div>
           </div>
         ) : (
-            <div className="rounded-2xl border-2 border-dashed border-border bg-card/50 p-6 text-center">
-                <Home className="h-8 w-8 text-text-secondary mx-auto mb-2" />
-                <p className="text-text-secondary font-medium">No household joined.</p>
+            <div className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center">
+                <Home className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground font-medium">No household joined.</p>
             </div>
         )}
 
@@ -379,7 +387,7 @@ export default function ProfileForm({ profile, household, email }: Props) {
             {household && (
                 <button
                     onClick={handleLeave}
-                    className="w-full rounded-lg border border-status-overdue/30 bg-white px-4 py-2 text-sm font-semibold text-status-overdue transition-all hover:bg-status-overdue hover:text-white shadow-sm"
+                    className="w-full rounded-lg border border-status-overdue/30 bg-card px-4 py-2 text-sm font-semibold text-status-overdue transition-all hover:bg-status-overdue hover:text-white shadow-sm"
                 >
                     Leave Household
                 </button>

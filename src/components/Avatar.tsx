@@ -1,44 +1,47 @@
 // src/components/Avatar.tsx
+'use client'
 
-import Image from 'next/image'
 import { User } from 'lucide-react'
+import { useState } from 'react'
 
 type Props = {
-  url: string | null | undefined
+  url?: string | null
   alt: string
-  size: number
+  size?: number
+  className?: string
 }
 
-// A sleek, reusable component for displaying user avatars
-export default function Avatar({ url, alt, size }: Props) {
-  // Utility for generating Tailwind h/w classes (e.g., size=40 -> h-10 w-10)
-  const sizeClass = `h-${size / 4} w-${size / 4}` 
+export default function Avatar({ url, alt, size = 40, className = '' }: Props) {
+  const [error, setError] = useState(false)
 
-  // Handle case where URL is missing or null (show user icon fallback)
-  if (!url) {
-    return (
-      <div 
-        className={`flex items-center justify-center rounded-full bg-background border border-border text-text-secondary ${sizeClass}`}
-      >
-        <User className="h-5 w-5" />
-      </div>
-    )
-  }
+  const initials = alt
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
 
-  // Normal avatar display
   return (
-    <div 
-      className={`relative overflow-hidden rounded-full ${sizeClass} ring-2 ring-background`} 
-      title={alt}
+    <div
+      className={`relative flex-shrink-0 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border ${className}`}
+      style={{ width: size, height: size }}
     >
-      <Image 
-        src={url} 
-        alt={alt} 
-        fill
-        sizes={`${size}px`}
-        className="object-cover"
-        priority={true} 
-      />
+      {url && !error ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt={alt}
+          className="h-full w-full object-cover"
+          onError={() => setError(true)}
+        />
+      ) : (
+        <span
+          className="font-bold text-muted-foreground select-none flex items-center justify-center w-full h-full"
+          style={{ fontSize: Math.max(10, size * 0.4) }}
+        >
+          {initials || <User style={{ width: size * 0.6, height: size * 0.6 }} />}
+        </span>
+      )}
     </div>
   )
 }

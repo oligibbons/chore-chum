@@ -2,6 +2,8 @@ import type { Config } from 'tailwindcss'
 import forms from '@tailwindcss/forms'
 
 const config: Config = {
+  // Enable class-based dark mode for manual toggling
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -13,7 +15,6 @@ const config: Config = {
         sans: ['var(--font-inter)', 'sans-serif'],
         heading: ['var(--font-lexend)', 'sans-serif'],
       },
-      // Updated to use CSS Variables for Dark Mode support
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -48,9 +49,8 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Custom Brands (mapped to CSS vars or static for brand consistency)
         brand: {
-          light: 'hsl(252, 92%, 96%)', // You might want to var() these later for full dark mode control
+          light: 'hsl(252, 92%, 96%)', 
           DEFAULT: 'hsl(252, 75%, 60%)',
           dark: 'hsl(252, 75%, 50%)',
         },
@@ -88,7 +88,6 @@ const config: Config = {
   },
   plugins: [
     forms,
-    // Utility plugin for animation primitives
     function({ addUtilities }: { addUtilities: any }) {
       addUtilities({
         '.animate-in': {
