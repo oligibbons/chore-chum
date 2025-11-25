@@ -29,7 +29,13 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     (chore.time_of_day as TimeOption) || 'any'
   )
   
-  const [assignedIds, setAssignedIds] = useState<string[]>(chore.assigned_to || [])
+  // FIXED: Defensive parsing of assigned_to. 
+  // Handle legacy data (strings) or unexpected nulls gracefully to avoid "map is not a function" crashes
+  const [assignedIds, setAssignedIds] = useState<string[]>(() => {
+      if (Array.isArray(chore.assigned_to)) return chore.assigned_to
+      if (typeof chore.assigned_to === 'string') return [chore.assigned_to]
+      return []
+  })
 
   // --- Recurrence State Initialization ---
   const parseRecurrence = (rec: string | null) => {

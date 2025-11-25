@@ -22,11 +22,18 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   const isZen = searchParams.get('view') === 'zen'
   const { interact } = useGameFeel()
   
-  const [currentChore, setCurrentChore] = useState<ChoreWithDetails | null>(null)
+  const pendingChores = chores.filter(c => c.status !== 'complete')
+
+  // FIXED: Initialize state immediately to prevent "blank screen" flash
+  const [currentChore, setCurrentChore] = useState<ChoreWithDetails | null>(() => {
+    if (pendingChores.length > 0) {
+        return pendingChores[Math.floor(Math.random() * pendingChores.length)]
+    }
+    return null
+  })
+
   const [isFading, setIsFading] = useState(false)
   const [secondsInZen, setSecondsInZen] = useState(0)
-
-  const pendingChores = chores.filter(c => c.status !== 'complete')
 
   useEffect(() => {
     if (isZen) {
@@ -82,21 +89,31 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isZen, closeZenMode, handleSkip])
 
+  // Auto-switch if current chore is completed or removed
   useEffect(() => {
     if (isZen && pendingChores.length > 0) {
        const currentId = currentChore?.id
        const stillExists = pendingChores.find(c => c.id === currentId)
        
        if (!currentChore || !stillExists) {
-         setIsFading(true)
-         setTimeout(() => {
-            const randomIndex = Math.floor(Math.random() * pendingChores.length)
-            setCurrentChore(pendingChores[randomIndex])
-            setIsFading(false)
-         }, 300)
+         // If we lost the current chore (completed), pick a new one immediately if possible,
+         // otherwise fade to it.
+         if (!currentChore) {
+             // Immediate
+             const randomIndex = Math.floor(Math.random() * pendingChores.length)
+             setCurrentChore(pendingChores[randomIndex])
+         } else {
+             // Fade transition
+             setIsFading(true)
+             setTimeout(() => {
+                const randomIndex = Math.floor(Math.random() * pendingChores.length)
+                setCurrentChore(pendingChores[randomIndex])
+                setIsFading(false)
+             }, 300)
+         }
        }
     }
-  }, [isZen, pendingChores.length, currentChore?.id]) 
+  }, [isZen, pendingChores.length, currentChore, currentChore?.id]) 
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60)
@@ -118,7 +135,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   if (!isZen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-background/95 dark:bg-background/95 backdrop-blur-3xl animate-in fade-in duration-500">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-background/95 dark:bg-background/95 text-foreground backdrop-blur-3xl animate-in fade-in duration-500">
       
       {/* --- Ethereal Background --- */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
