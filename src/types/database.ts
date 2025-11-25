@@ -30,6 +30,7 @@ export type DbProfile = Tables<'profiles'> & {
   current_streak?: number
   longest_streak?: number
   last_chore_date?: string | null
+  tutorial_completed?: boolean // <--- ADDED
   // NEW: Granular Notification Settings
   notification_preferences?: {
     morning_brief?: boolean

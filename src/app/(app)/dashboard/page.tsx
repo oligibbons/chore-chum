@@ -159,7 +159,7 @@ export default async function DashboardPage(props: DashboardProps) {
       {/* Header */}
       <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
+            <div data-tour="welcome-header">
                 <Greeting name={userName} />
                 <p className="text-lg text-text-secondary animate-in fade-in slide-in-from-bottom-1 duration-700 delay-100">
                     {greetingSubtitle}
@@ -167,14 +167,17 @@ export default async function DashboardPage(props: DashboardProps) {
             </div>
             
             <div className="flex items-center gap-3 self-start md:self-auto">
-                <StreakCampfire 
-                  streak={profile.current_streak || 0} 
-                  lastChoreDate={profile.last_chore_date || null}
-                />
-                {/* Zen Button - Matched height/style to Campfire for tidiness */}
+                <div data-tour="streak-fire">
+                    <StreakCampfire 
+                    streak={profile.current_streak || 0} 
+                    lastChoreDate={profile.last_chore_date || null}
+                    />
+                </div>
+                {/* Zen Button */}
                 <Link 
                   href="?view=zen"
                   scroll={false}
+                  data-tour="zen-mode-btn"
                   className="group flex items-center gap-2 pl-3 pr-4 py-2 h-[42px] rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-white text-teal-700 shadow-sm transition-all hover:scale-105 hover:shadow-md active:scale-95"
                 >
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-600 group-hover:bg-teal-200 transition-colors">
@@ -198,7 +201,7 @@ export default async function DashboardPage(props: DashboardProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-1 gap-6">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-1 gap-6" data-tour="chore-list">
             <ChoreDisplay 
                 title="Overdue" 
                 chores={overdueChores} 
@@ -224,11 +227,13 @@ export default async function DashboardPage(props: DashboardProps) {
 
         <div className="lg:col-span-1 flex flex-col gap-6">
             <BountyManager />
-            <Leaderboard 
-                members={roomData.members} 
-                chores={allHouseholdChores} 
-                activeBountyDescription={activeBounty?.description} 
-            />
+            <div data-tour="leaderboard-card">
+                <Leaderboard 
+                    members={roomData.members} 
+                    chores={allHouseholdChores} 
+                    activeBountyDescription={activeBounty?.description} 
+                />
+            </div>
             <div className="pt-4 border-t border-border">
                 <ChoreDisplay 
                     title="Completed" 
@@ -246,6 +251,7 @@ export default async function DashboardPage(props: DashboardProps) {
         scroll={false} 
         className="fixed bottom-8 right-8 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-brand shadow-lg transition-transform hover:scale-105 active:scale-95 hover:bg-brand-dark"
         aria-label="Add new chore"
+        data-tour="add-chore-fab"
       >
         <Plus className="h-8 w-8 text-white" />
       </FloatingActionLink>

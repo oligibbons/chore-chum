@@ -79,7 +79,7 @@ export default async function CalendarPage() {
         <p className="text-muted-foreground">A look at the week ahead.</p>
       </header>
 
-      <div className="space-y-8">
+      <div className="space-y-8" data-tour="calendar-view">
         {weekDays.map((day, index) => (
           <div 
             key={day.dateStr} 

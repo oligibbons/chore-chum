@@ -8,6 +8,7 @@ import { Check, Plus, Trash2, Clock, Edit2, Bell, Zap, LogOut, LogIn } from 'luc
 
 export const dynamic = 'force-dynamic'
 
+// ... (Helper functions getActionIcon and getActionText remain same) ...
 function getActionIcon(type: string) {
     switch(type) {
         case 'create': return <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-2 rounded-full"><Plus className="h-4 w-4" /></div>
@@ -62,7 +63,7 @@ export default async function FeedPage() {
         <p className="text-muted-foreground">See what's happening in your household.</p>
       </header>
 
-      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+      <div data-tour="feed-view" className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
          {logs.length === 0 ? (
              <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-4">
                 <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center">

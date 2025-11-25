@@ -42,6 +42,22 @@ async function getCurrentUserProfile(supabase: TypedSupabaseClient) {
   return profile
 }
 
+// --- ADDED: Tutorial Completion Action ---
+export async function completeTutorial() {
+  const supabase = await createSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) return
+
+  await supabase
+    .from('profiles')
+    .update({ tutorial_completed: true } as any)
+    .eq('id', user.id)
+
+  revalidatePath('/dashboard')
+  revalidatePath('/profile')
+}
+
 export async function updateProfile(
   prevState: ProfileFormState | null, 
   formData: FormData

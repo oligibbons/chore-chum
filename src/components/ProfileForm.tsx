@@ -1,23 +1,25 @@
 // src/components/ProfileForm.tsx
 'use client'
 
+// ... (Imports remain the same)
 import { useState, useRef, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
-import { User, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2, Palette, Hand, Sun, Moon, Activity } from 'lucide-react'
+import { User, Check, Loader2, Mail, Home, ShieldAlert, Upload, Bell, Share2, Palette, Hand, Sun, Moon, Activity, HelpCircle } from 'lucide-react'
 import { updateProfile, leaveHousehold, ProfileFormState } from '@/app/profile-actions'
 import { DbProfile, DbHousehold } from '@/types/database'
 import Avatar from '@/components/Avatar'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ThemeToggle from './ThemeToggle'
+import { useTutorial } from '@/context/TutorialContext'
 
+// ... (Props, Types, SaveButton, Toggle components remain the same)
 type Props = {
   profile: DbProfile
   household: Pick<DbHousehold, 'name' | 'invite_code'> | null
   email?: string
 }
 
-// FIXED: Typed preferences helper to handle JSONB safely
 type NotificationPreferences = {
   morning_brief?: boolean
   evening_motivation?: boolean
@@ -104,11 +106,10 @@ export default function ProfileForm({ profile, household, email }: Props) {
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
   const [isUploading, setIsUploading] = useState(false)
   
+  const { startTutorial } = useTutorial()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createSupabaseBrowserClient()
 
-  // FIXED: Safely cast and default the JSONB preference data
-  // This prevents crashes if the DB column is null or missing keys
   const rawPrefs = profile.notification_preferences as unknown as NotificationPreferences | null
   const prefs: NotificationPreferences = {
     morning_brief: rawPrefs?.morning_brief ?? true,
@@ -323,17 +324,38 @@ export default function ProfileForm({ profile, household, email }: Props) {
               <Share2 className="h-5 w-5 text-brand" />
               App Info
            </h2>
-           <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Push Permissions</p>
-                <p className="text-sm text-muted-foreground">Ensure your device allows notifications.</p>
-              </div>
-              <button 
-                onClick={() => (window as any).requestPushPermission?.()}
-                className="rounded-lg bg-brand-light dark:bg-brand/20 px-4 py-2 text-sm font-bold text-brand dark:text-brand-light hover:bg-brand/20 transition-colors"
-              >
-                Check Status
-              </button>
+           
+           <div className="space-y-6">
+               {/* Push Status */}
+               <div className="flex items-center justify-between pb-4 border-b border-border">
+                  <div>
+                    <p className="font-medium text-foreground">Push Permissions</p>
+                    <p className="text-sm text-muted-foreground">Ensure your device allows notifications.</p>
+                  </div>
+                  <button 
+                    onClick={() => (window as any).requestPushPermission?.()}
+                    className="rounded-lg bg-brand-light dark:bg-brand/20 px-4 py-2 text-sm font-bold text-brand dark:text-brand-light hover:bg-brand/20 transition-colors"
+                  >
+                    Check Status
+                  </button>
+               </div>
+
+               {/* Tutorial Reset */}
+               <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">Guided Tour</p>
+                    <p className="text-sm text-muted-foreground">Replay the introductory tutorial.</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={startTutorial}
+                    data-tour="tour-restart-btn" // <--- Tag added here
+                    className="rounded-lg bg-gray-100 dark:bg-muted px-4 py-2 text-sm font-bold text-foreground hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    Start Tour
+                  </button>
+               </div>
            </div>
         </div>
 

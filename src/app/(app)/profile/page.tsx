@@ -60,7 +60,9 @@ export default async function ProfilePage() {
         </div>
       </header>
 
-      <ProfileForm profile={profile} household={household} email={user.email} />
+      <div data-tour="profile-view">
+        <ProfileForm profile={profile} household={household} email={user.email} />
+      </div>
       
       {/* Sign Out Section */}
       <div className="border-t border-border pt-8 mt-8 flex justify-center">
