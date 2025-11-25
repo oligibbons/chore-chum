@@ -1,7 +1,7 @@
 // src/components/ZenMode.tsx
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChoreWithDetails, DbProfile } from '@/types/database'
 import { X, ArrowRight, Sparkles, Flower2, Timer, Sun, Moon, Coffee, Layers } from 'lucide-react'
@@ -22,9 +22,10 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
   const isZen = searchParams.get('view') === 'zen'
   const { interact } = useGameFeel()
   
+  // Ensure we always have a fresh list of pending chores
   const pendingChores = chores.filter(c => c.status !== 'complete')
 
-  // FIXED: Initialize state immediately to prevent "blank screen" flash
+  // Initialize state immediately
   const [currentChore, setCurrentChore] = useState<ChoreWithDetails | null>(() => {
     if (pendingChores.length > 0) {
         return pendingChores[Math.floor(Math.random() * pendingChores.length)]
@@ -34,6 +35,10 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
 
   const [isFading, setIsFading] = useState(false)
   const [secondsInZen, setSecondsInZen] = useState(0)
+
+  // Use a ref to track if we've already picked a chore for this session/list state
+  // This helps avoid dependency loops in useEffect
+  const hasPickedRef = useRef(false)
 
   useEffect(() => {
     if (isZen) {
@@ -89,31 +94,35 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isZen, closeZenMode, handleSkip])
 
-  // Auto-switch if current chore is completed or removed
+  // Robust Chore Selection Logic
   useEffect(() => {
-    if (isZen && pendingChores.length > 0) {
-       const currentId = currentChore?.id
-       const stillExists = pendingChores.find(c => c.id === currentId)
-       
-       if (!currentChore || !stillExists) {
-         // If we lost the current chore (completed), pick a new one immediately if possible,
-         // otherwise fade to it.
-         if (!currentChore) {
-             // Immediate
-             const randomIndex = Math.floor(Math.random() * pendingChores.length)
-             setCurrentChore(pendingChores[randomIndex])
-         } else {
-             // Fade transition
-             setIsFading(true)
-             setTimeout(() => {
-                const randomIndex = Math.floor(Math.random() * pendingChores.length)
-                setCurrentChore(pendingChores[randomIndex])
-                setIsFading(false)
-             }, 300)
-         }
-       }
+    if (!isZen) return
+
+    // Case 1: No chores left
+    if (pendingChores.length === 0) {
+        setCurrentChore(null)
+        return
     }
-  }, [isZen, pendingChores.length, currentChore, currentChore?.id]) 
+
+    // Case 2: No chore selected (e.g. initial load or lost state)
+    if (!currentChore) {
+        const randomIndex = Math.floor(Math.random() * pendingChores.length)
+        setCurrentChore(pendingChores[randomIndex])
+        return
+    }
+
+    // Case 3: Current chore no longer exists in pending list (e.g. completed by someone else or self)
+    const stillExists = pendingChores.find(c => c.id === currentChore.id)
+    if (!stillExists) {
+        setIsFading(true)
+        // Short delay to allow fade out if rendering
+        setTimeout(() => {
+            const randomIndex = Math.floor(Math.random() * pendingChores.length)
+            setCurrentChore(pendingChores[randomIndex])
+            setIsFading(false)
+        }, 300)
+    }
+  }, [isZen, pendingChores.length, currentChore?.id]) // Depend on ID to detect completion
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60)
@@ -145,7 +154,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
       </div>
 
       {/* Top Bar */}
-      <div className="relative z-20 flex items-center justify-between p-6 pt-safe-top">
+      <div className="relative z-50 flex items-center justify-between p-6">
          <div className="flex items-center gap-3 bg-white/40 dark:bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/50 dark:border-white/10 shadow-sm">
             <Timer className="h-4 w-4 text-teal-700 dark:text-teal-300" />
             <span className="font-mono text-sm font-bold text-teal-900 dark:text-teal-100 tracking-wider">{formatTime(secondsInZen)}</span>
@@ -161,7 +170,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
       </div>
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto pb-32">
+      <div className="relative z-40 flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto pb-32">
         <div className="w-full max-w-md mx-auto text-center space-y-10">
             
             {pendingChores.length === 0 ? (
@@ -204,17 +213,20 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
                     )}
                     
                     {/* Main Active Card */}
-                    <div className="relative z-10">
+                    <div className="relative z-10 text-left">
                         <div className="absolute -inset-1 bg-gradient-to-r from-teal-200/50 to-brand/30 dark:from-teal-900/50 dark:to-brand/30 rounded-[2.2rem] blur-xl opacity-50 group-hover:opacity-70 transition duration-1000"></div>
                         
-                        <div className="relative bg-white/80 dark:bg-black/60 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_40px_rgb(0,0,0,0.08)] border border-white/60 dark:border-white/10 p-4 ring-1 ring-white/80 dark:ring-white/5">
-                            <ChoreItem 
-                                chore={currentChore} 
-                                showActions={true} 
-                                status="due" 
-                                members={activeMembers} 
-                                currentUserId={currentUserId}
-                            />
+                        <div className="relative bg-white/80 dark:bg-black/60 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_40px_rgb(0,0,0,0.08)] border border-white/60 dark:border-white/10 p-1 ring-1 ring-white/80 dark:ring-white/5">
+                            {/* WRAPPED IN UL because ChoreItem renders LI */}
+                            <ul className="m-0 p-0 list-none">
+                                <ChoreItem 
+                                    chore={currentChore} 
+                                    showActions={true} 
+                                    status="due" 
+                                    members={activeMembers} 
+                                    currentUserId={currentUserId}
+                                />
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -239,7 +251,7 @@ export default function ZenMode({ chores, activeMembers = [], currentUserId }: P
 
             {/* Social Momentum */}
             {othersWorking.length > 0 && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in duration-700 w-max max-w-[90vw]">
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in duration-700 w-max max-w-[90vw] z-50">
                     <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-teal-900/10 dark:bg-teal-100/10 backdrop-blur-md border border-teal-900/5 dark:border-teal-100/5 text-teal-900 dark:text-teal-100 shadow-lg">
                         <div className="flex -space-x-2">
                             {othersWorking.slice(0,3).map(m => (
