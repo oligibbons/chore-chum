@@ -68,7 +68,6 @@ export default async function DashboardPage(props: DashboardProps) {
   const householdId = profile.household_id
   const userName = profile.full_name?.split(' ')[0] || 'User'
 
-  // Performance: Parallel data fetching
   const [data, roomData, templates, activeBounty] = await Promise.all([
     getChoreDisplayData(householdId),
     getRoomsAndMembers(householdId),
@@ -76,7 +75,6 @@ export default async function DashboardPage(props: DashboardProps) {
     getActiveBounty()
   ])
 
-  // --- Active Members Logic ---
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const { data: activeLogs } = await supabase
     .from('activity_logs')
@@ -87,7 +85,6 @@ export default async function DashboardPage(props: DashboardProps) {
   const activeUserIds = Array.from(new Set(activeLogs?.map(l => l.user_id)))
   const activeMembers = roomData.members.filter(m => activeUserIds.includes(m.id))
 
-  // --- Daily Goal Logic (Strict) ---
   const startOfDay = new Date();
   startOfDay.setHours(0,0,0,0);
   
@@ -99,14 +96,12 @@ export default async function DashboardPage(props: DashboardProps) {
     .eq('action_type', 'complete')
     .gt('created_at', startOfDay.toISOString())
 
-  // Filter pending load
   const myPendingLoad = [...data.overdue, ...data.dueSoon].filter(c => {
     return c.assigned_to?.includes(user.id) || (!c.assigned_to || c.assigned_to.length === 0)
   })
   
   const totalDailyLoad = (completedTodayCount || 0) + myPendingLoad.length
 
-  // --- Filter Logic ---
   let allChoresRaw = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
 
   if (assigneeFilter === 'me') {
@@ -121,14 +116,12 @@ export default async function DashboardPage(props: DashboardProps) {
   const upcomingChores = allChoresRaw.filter(c => data.upcoming.includes(c))
   const completedChores = allChoresRaw.filter(c => data.completed.includes(c))
 
-  // --- Zen Mode Data ---
   const allHouseholdChores = [...data.overdue, ...data.dueSoon, ...data.upcoming, ...data.completed]
   const myZenChores = allHouseholdChores.filter(c => 
     c.assigned_to?.includes(user.id) && 
     c.status !== 'complete'
   )
 
-  // --- Dynamic Greeting ---
   let greetingSubtitle = "Let's get things done."
   if (totalDailyLoad > 0) {
     const ratio = (completedTodayCount || 0) / totalDailyLoad
@@ -148,13 +141,12 @@ export default async function DashboardPage(props: DashboardProps) {
 
   return (
     <div className="space-y-8 pb-24">
-      <div data-tour="zen-mode-btn">
-        <ZenMode 
-            chores={myZenChores} 
-            activeMembers={activeMembers}
-            currentUserId={user.id}
-        />
-      </div>
+      {/* FIXED: Removed data-tour wrapper from here. ZenMode is a portal/modal so this div has 0 height. */}
+      <ZenMode 
+        chores={myZenChores} 
+        activeMembers={activeMembers}
+        currentUserId={user.id}
+      />
       
       <AppBadgeUpdater count={overdueChores.length} />
 
@@ -175,10 +167,12 @@ export default async function DashboardPage(props: DashboardProps) {
                     lastChoreDate={profile.last_chore_date || null}
                     />
                 </div>
-                {/* Zen Button */}
+                
+                {/* FIXED: data-tour is ON THE LINK itself, ensuring correct highlighting */}
                 <Link 
                   href="?view=zen"
                   scroll={false}
+                  data-tour="zen-mode-btn"
                   className="group flex items-center gap-2 pl-3 pr-4 py-2 h-[42px] rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-white text-teal-700 shadow-sm transition-all hover:scale-105 hover:shadow-md active:scale-95"
                 >
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-600 group-hover:bg-teal-200 transition-colors">
@@ -203,7 +197,6 @@ export default async function DashboardPage(props: DashboardProps) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-1 gap-6">
-            {/* Targeted Tour ID placed here to highlight ONLY the Overdue header */}
             <ChoreDisplay 
                 title="Overdue" 
                 chores={overdueChores} 
@@ -230,12 +223,13 @@ export default async function DashboardPage(props: DashboardProps) {
 
         <div className="lg:col-span-1 flex flex-col gap-6">
             <BountyManager />
-            {/* Leaderboard handles its own ID internally now via the updated component */}
-            <Leaderboard 
-                members={roomData.members} 
-                chores={allHouseholdChores} 
-                activeBountyDescription={activeBounty?.description} 
-            />
+            <div data-tour="leaderboard-card">
+                <Leaderboard 
+                    members={roomData.members} 
+                    chores={allHouseholdChores} 
+                    activeBountyDescription={activeBounty?.description} 
+                />
+            </div>
             <div className="pt-4 border-t border-border">
                 <ChoreDisplay 
                     title="Completed" 

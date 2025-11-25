@@ -26,17 +26,14 @@ export default async function CalendarPage() {
   const data = await getHouseholdData(profile.household_id)
   if (!data) return null
 
-  // Only show active chores
   const chores = data.chores.filter(c => c.status !== 'complete')
 
-  // --- Calendar Logic ---
   const today = new Date()
   today.setHours(0,0,0,0)
   
   const getDayName = (date: Date) => new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(date)
   const getDateString = (date: Date) => date.toISOString().split('T')[0]
 
-  // 1. Generate next 7 days
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today)
     d.setDate(today.getDate() + i)
@@ -58,12 +55,10 @@ export default async function CalendarPage() {
     }
     const dStr = chore.due_date.split('T')[0]
     
-    // Find if it belongs to one of the next 7 days
     const dayBucket = weekDays.find(day => day.dateStr === dStr)
     if (dayBucket) {
       dayBucket.chores.push(chore)
     } else {
-      // Check if it's past or future relative to "today"
       if (new Date(dStr) < today) {
          weekDays[0].chores.push(chore) 
       } else {
@@ -75,11 +70,17 @@ export default async function CalendarPage() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-20">
       <header>
-        <h2 className="text-3xl font-heading font-bold text-foreground">Weekly Planner</h2>
+        {/* FIXED: Tour target moved to header for stability */}
+        <h2 
+            data-tour="calendar-view"
+            className="text-3xl font-heading font-bold text-foreground inline-block"
+        >
+            Weekly Planner
+        </h2>
         <p className="text-muted-foreground">A look at the week ahead.</p>
       </header>
 
-      <div className="space-y-8" data-tour="calendar-view">
+      <div className="space-y-8">
         {weekDays.map((day, index) => (
           <div 
             key={day.dateStr} 
