@@ -3,6 +3,7 @@
 
 import { useFormState, useFormStatus } from 'react-dom'
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation' // <-- Added Router
 import {
   createHousehold,
   joinHousehold,
@@ -38,30 +39,37 @@ function SubmitButton({ text, icon }: { text: string, icon: React.ReactNode }) {
 }
 
 export default function HouseholdManager() {
+  const router = useRouter() // <-- Initialized Router
   const [createState, createAction] = useFormState(createHousehold, initialState)
   const [joinState, joinAction] = useFormState(joinHousehold, initialState)
 
-  // --- Effects for Toasts ---
+  // --- Effects for Toasts & Redirects ---
   
   useEffect(() => {
     if (createState.message) {
       if (createState.success) {
         toast.success(createState.message)
+        // Move the user to the dashboard and force a data refresh
+        router.push('/dashboard')
+        router.refresh()
       } else {
         toast.error(createState.message)
       }
     }
-  }, [createState])
+  }, [createState, router])
 
   useEffect(() => {
     if (joinState.message) {
       if (joinState.success) {
         toast.success(joinState.message)
+        // Move the user to the dashboard and force a data refresh
+        router.push('/dashboard')
+        router.refresh()
       } else {
         toast.error(joinState.message)
       }
     }
-  }, [joinState])
+  }, [joinState, router])
 
   // --------------------------
 
