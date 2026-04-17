@@ -141,7 +141,9 @@ export async function createHousehold(
     // LOG ACTIVITY: Household Created
     await logActivity(householdData.id, 'create', householdName, { type: 'household' })
 
-    revalidatePath('/dashboard')
+    // Update cache for the whole layout so the dashboard view renders
+    revalidatePath('/', 'layout')
+    
     return { success: true, message: 'Household created successfully! Welcome home.', timestamp: Date.now() }
 
   } catch (error: any) {
@@ -219,7 +221,9 @@ export async function joinHousehold(
       actorProfile?.id // Exclude the person joining from receiving their own notification
     )
 
-    revalidatePath('/dashboard')
+    // Update cache for the whole layout so the dashboard view renders
+    revalidatePath('/', 'layout')
+    
     return { success: true, message: 'Joined household successfully!', timestamp: Date.now() }
     
   } catch (error: any) {
