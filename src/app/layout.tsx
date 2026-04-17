@@ -21,7 +21,6 @@ export const metadata: Metadata = {
   description: "Your friendly household chore manager.",
   manifest: "/manifest.json",
   icons: {
-    // Updated to point to your new PNGs instead of the old SVG
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512.png', sizes: '512x512', type: 'image/png' }
@@ -57,8 +56,11 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${lexend.variable} bg-background font-sans text-foreground antialiased`}
       >
+        {/* The ServiceWorkerManager sits high in the tree so it runs immediately */}
         <ServiceWorkerManager />
+        
         {children}
+        
         <Toaster 
           position="top-center" 
           richColors 
