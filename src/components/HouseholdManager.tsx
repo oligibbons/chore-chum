@@ -2,8 +2,7 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation' // <-- Added Router
+import { useEffect, useState } from 'react'
 import {
   createHousehold,
   joinHousehold,
@@ -17,16 +16,19 @@ const initialState: FormState = {
   message: '',
 }
 
-function SubmitButton({ text, icon }: { text: string, icon: React.ReactNode }) {
+function SubmitButton({ text, icon, isRedirecting }: { text: string, icon: React.ReactNode, isRedirecting: boolean }) {
   const { pending } = useFormStatus()
+  
+  // Keep the button spinning if we are in the middle of a hard redirect
+  const isLoading = pending || isRedirecting
 
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={isLoading}
       className="flex w-full items-center justify-center rounded-xl bg-brand px-5 py-3 font-heading text-base font-semibold text-white shadow-lg transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70"
     >
-      {pending ? (
+      {isLoading ? (
         <Loader2 className="h-5 w-5 animate-spin" />
       ) : (
         <>
@@ -39,37 +41,43 @@ function SubmitButton({ text, icon }: { text: string, icon: React.ReactNode }) {
 }
 
 export default function HouseholdManager() {
-  const router = useRouter() // <-- Initialized Router
   const [createState, createAction] = useFormState(createHousehold, initialState)
   const [joinState, joinAction] = useFormState(joinHousehold, initialState)
+  
+  // Track if we are forcing a reload so we can keep the UI in a loading state
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
-  // --- Effects for Toasts & Redirects ---
+  // --- Effects for Toasts & Hard Redirects ---
   
   useEffect(() => {
     if (createState.message) {
       if (createState.success) {
+        setIsRedirecting(true)
         toast.success(createState.message)
-        // Move the user to the dashboard and force a data refresh
-        router.push('/dashboard')
-        router.refresh()
+        // A hard reload forces Next.js to completely dump its cache and re-run layout.tsx
+        // with the fresh household_id from Supabase
+        setTimeout(() => {
+            window.location.href = '/dashboard'
+        }, 800) // Give the toast a moment to be seen
       } else {
         toast.error(createState.message)
       }
     }
-  }, [createState, router])
+  }, [createState])
 
   useEffect(() => {
     if (joinState.message) {
       if (joinState.success) {
+        setIsRedirecting(true)
         toast.success(joinState.message)
-        // Move the user to the dashboard and force a data refresh
-        router.push('/dashboard')
-        router.refresh()
+        setTimeout(() => {
+            window.location.href = '/dashboard'
+        }, 800)
       } else {
         toast.error(joinState.message)
       }
     }
-  }, [joinState, router])
+  }, [joinState])
 
   // --------------------------
 
@@ -112,11 +120,12 @@ export default function HouseholdManager() {
                 id="householdName"
                 name="householdName"
                 required
+                disabled={isRedirecting}
                 placeholder="e.g. 'The Johnson Family'"
-                className="mt-1 block w-full rounded-xl border-input bg-background p-3 transition-all focus:border-brand focus:ring-brand placeholder:text-muted-foreground/50"
+                className="mt-1 block w-full rounded-xl border-input bg-background p-3 transition-all focus:border-brand focus:ring-brand placeholder:text-muted-foreground/50 disabled:opacity-50"
               />
             </div>
-            <SubmitButton text="Create Household" icon={<ArrowRight className="h-5 w-5" />} />
+            <SubmitButton text="Create Household" icon={<ArrowRight className="h-5 w-5" />} isRedirecting={isRedirecting} />
           </form>
         </div>
 
@@ -145,11 +154,12 @@ export default function HouseholdManager() {
                 id="inviteCode"
                 name="inviteCode"
                 required
+                disabled={isRedirecting}
                 placeholder="ABC123"
-                className="mt-1 block w-full rounded-xl border-input bg-background p-3 uppercase transition-all focus:border-brand focus:ring-brand placeholder:text-muted-foreground/50"
+                className="mt-1 block w-full rounded-xl border-input bg-background p-3 uppercase transition-all focus:border-brand focus:ring-brand placeholder:text-muted-foreground/50 disabled:opacity-50"
               />
             </div>
-            <SubmitButton text="Join Household" icon={<ArrowRight className="h-5 w-5" />} />
+            <SubmitButton text="Join Household" icon={<ArrowRight className="h-5 w-5" />} isRedirecting={isRedirecting} />
           </form>
         </div>
       </div>
