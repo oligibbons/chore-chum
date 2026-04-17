@@ -3,6 +3,7 @@
 
 import { useFormState, useFormStatus } from 'react-dom'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   createHousehold,
   joinHousehold,
@@ -14,6 +15,7 @@ import { toast } from 'sonner'
 const initialState: FormState = {
   success: false,
   message: '',
+  timestamp: 0,
 }
 
 function SubmitButton({ text, icon, isRedirecting }: { text: string, icon: React.ReactNode, isRedirecting: boolean }) {
@@ -41,6 +43,7 @@ function SubmitButton({ text, icon, isRedirecting }: { text: string, icon: React
 }
 
 export default function HouseholdManager() {
+  const router = useRouter()
   const [createState, createAction] = useFormState(createHousehold, initialState)
   const [joinState, joinAction] = useFormState(joinHousehold, initialState)
   
@@ -54,16 +57,17 @@ export default function HouseholdManager() {
       if (createState.success) {
         setIsRedirecting(true)
         toast.success(createState.message)
-        // A hard reload forces Next.js to completely dump its cache and re-run layout.tsx
-        // with the fresh household_id from Supabase
+        // router.refresh() forces Next.js to fetch the fresh RSC payload from the server, 
+        // completely bypassing the browser's local HTML cache.
         setTimeout(() => {
-            window.location.href = '/dashboard'
-        }, 800) // Give the toast a moment to be seen
+            router.push('/dashboard')
+            router.refresh()
+        }, 800) 
       } else {
         toast.error(createState.message)
       }
     }
-  }, [createState])
+  }, [createState, router])
 
   useEffect(() => {
     if (joinState.message) {
@@ -71,13 +75,14 @@ export default function HouseholdManager() {
         setIsRedirecting(true)
         toast.success(joinState.message)
         setTimeout(() => {
-            window.location.href = '/dashboard'
+            router.push('/dashboard')
+            router.refresh()
         }, 800)
       } else {
         toast.error(joinState.message)
       }
     }
-  }, [joinState])
+  }, [joinState, router])
 
   // --------------------------
 
