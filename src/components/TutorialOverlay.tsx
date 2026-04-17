@@ -21,7 +21,6 @@ export default function TutorialOverlay() {
   }, [])
 
   // --- 1. Intelligent Tracking Engine ---
-  // Instead of checking once, we check every frame to handle scrolling/resizing/layout shifts smoothly
   const updatePosition = () => {
     if (!isActive || !step) return
 
@@ -60,7 +59,7 @@ export default function TutorialOverlay() {
     }
   }, [isActive, step, currentStepIndex])
 
-  // --- 2. Smart Positioning Logic (The Fix) ---
+  // --- 2. Smart Positioning Logic ---
   useLayoutEffect(() => {
     if (!targetRect) return
 
@@ -77,7 +76,6 @@ export default function TutorialOverlay() {
     }
 
     // Horizontal Clamping: Ensure we never fly off the sides
-    // Calculate ideal center
     let leftPos = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2)
     
     // Clamp to left edge
@@ -90,7 +88,7 @@ export default function TutorialOverlay() {
     const spaceAbove = targetRect.top
     const cardHeightApprox = 200 // Estimate
 
-    let vertical = step.position || 'bottom'
+    let vertical = step?.position || 'bottom'
 
     // Auto-flip if not enough space
     if (vertical === 'bottom' && spaceBelow < cardHeightApprox) vertical = 'top'
@@ -114,12 +112,22 @@ export default function TutorialOverlay() {
   const isLastStep = currentStepIndex === TOUR_STEPS.length - 1
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] touch-none overflow-hidden">
+    <div className="fixed inset-0 z-[10000] overflow-hidden">
       
-      {/* 1. Spotlight Highlight */}
+      {/* --- ESCAPE HATCH 1: GLOBAL CLOSE BUTTON --- */}
+      {/* This renders independently of the target element, ensuring you are never trapped */}
+      <button 
+        onClick={skipTutorial}
+        className="absolute top-6 right-6 z-[10020] p-3 bg-black/50 hover:bg-black/80 text-white rounded-full shadow-2xl transition-colors pointer-events-auto"
+        aria-label="Close tutorial"
+      >
+        <X className="h-6 w-6" />
+      </button>
+
+      {/* 1. Spotlight Highlight & Background */}
       {targetRect ? (
         <div 
-            className="absolute transition-all duration-300 ease-out border-2 border-brand/80 rounded-xl"
+            className="absolute transition-all duration-300 ease-out border-2 border-brand/80 rounded-xl pointer-events-none"
             style={{
                 top: targetRect.top - 4,
                 left: targetRect.left - 4,
@@ -130,19 +138,26 @@ export default function TutorialOverlay() {
             }}
         />
       ) : (
-         <div className="absolute inset-0 bg-black/75 transition-opacity duration-500" />
+         /* --- ESCAPE HATCH 2: CLICKABLE BACKGROUND --- */
+         /* If the target is missing, clicking the dark background will skip the tutorial */
+         <div 
+            className="absolute inset-0 bg-black/85 transition-opacity duration-500 cursor-pointer pointer-events-auto" 
+            onClick={skipTutorial}
+            title="Click anywhere to close"
+         />
       )}
 
       {/* 2. Tooltip Card */}
       {targetRect && (
           <div 
-            className="absolute flex flex-col gap-3 p-5 bg-card text-card-foreground rounded-2xl border border-brand/20 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95"
+            className="absolute flex flex-col gap-3 p-5 bg-card text-card-foreground rounded-2xl border border-brand/20 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto"
             style={tooltipPosition}
           >
             <div className="flex justify-between items-start">
                 <h3 className="font-heading font-bold text-lg text-brand">
-                    {step.title}
+                    {step?.title}
                 </h3>
+                {/* --- ESCAPE HATCH 3: INNER SKIP BUTTON --- */}
                 <button 
                     onClick={skipTutorial}
                     className="text-xs font-bold text-muted-foreground hover:text-foreground p-2 -mr-2 -mt-2 uppercase tracking-wider"
@@ -152,7 +167,7 @@ export default function TutorialOverlay() {
             </div>
             
             <p className="text-sm text-foreground/90 leading-relaxed">
-                {step.description}
+                {step?.description}
             </p>
 
             <div className="flex items-center justify-between pt-2 mt-1">
