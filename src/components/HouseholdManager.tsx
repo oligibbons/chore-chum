@@ -57,17 +57,16 @@ export default function HouseholdManager() {
       if (createState.success) {
         setIsRedirecting(true)
         toast.success(createState.message)
-        // router.refresh() forces Next.js to fetch the fresh RSC payload from the server, 
-        // completely bypassing the browser's local HTML cache.
+        // Using window.location.href forces a hard navigation to the dashboard,
+        // resolving the issue where router.push/refresh fails to update the layout.
         setTimeout(() => {
-            router.push('/dashboard')
-            router.refresh()
+            window.location.href = '/dashboard'
         }, 800) 
       } else {
         toast.error(createState.message)
       }
     }
-  }, [createState, router])
+  }, [createState])
 
   useEffect(() => {
     if (joinState.message) {
@@ -75,14 +74,13 @@ export default function HouseholdManager() {
         setIsRedirecting(true)
         toast.success(joinState.message)
         setTimeout(() => {
-            router.push('/dashboard')
-            router.refresh()
+            window.location.href = '/dashboard'
         }, 800)
       } else {
         toast.error(joinState.message)
       }
     }
-  }, [joinState, router])
+  }, [joinState])
 
   // --------------------------
 
