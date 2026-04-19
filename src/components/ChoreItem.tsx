@@ -2,7 +2,7 @@
 'use client'
 
 import { ChoreWithDetails, DbProfile } from '@/types/database'
-import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, User, ChevronDown, ChevronUp, Hand, Lock, ShieldAlert } from 'lucide-react'
+import { Check, Clock, Home, Calendar, Loader2, RotateCw, FileText, Coffee, Sun, Moon, User, ChevronDown, ChevronUp, Hand, Lock, ShieldAlert, Infinity, Plus } from 'lucide-react'
 import { useTransition, useState, useOptimistic } from 'react'
 import { completeChore, uncompleteChore, toggleChoreStatus, nudgeUser } from '@/app/chore-actions'
 import ChoreMenu from './ChoreMenu'
@@ -29,6 +29,7 @@ type Props = {
 type OptimisticAction = 
   | { type: 'SET_STATUS'; status: string }
   | { type: 'TOGGLE_SUBTASK'; subtaskId: number }
+  | { type: 'LOG_PROGRESS' }
 
 // --- Helper: Subtask List ---
 function SubtaskList({ 
@@ -75,7 +76,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   
-  // FIXED: Default to showing subtasks so users see them immediately
+  // Default to showing subtasks so users see them immediately
   const [showSubtasks, setShowSubtasks] = useState(true)
   const [showFullNotes, setShowFullNotes] = useState(false)
   
@@ -96,6 +97,11 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                 : s
             )
           }
+        case 'LOG_PROGRESS':
+          return {
+              ...state,
+              completed_instances: (state.completed_instances || 0) + 1
+          }
         default:
           return state
       }
@@ -103,6 +109,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
   )
 
   const isCompleted = optimisticChore.status === 'complete'
+  const isContinuous = optimisticChore.target_instances === -1
   const isShared = (chore.assigned_to?.length ?? 0) > 1
   const isAssignedToOthers = chore.assigned_to && chore.assigned_to.some(id => id !== currentUserId)
   const showNudge = !isCompleted && isAssignedToOthers && showActions
@@ -140,12 +147,32 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
   const handleToggleCompletion = async () => {
     interact(isCompleted ? 'neutral' : 'success')
 
-    // If shared, force modal to attribute credit
+    // If shared, force modal to attribute credit (even for logging progress)
     if (!isCompleted && isShared) {
         setIsCompleteModalOpen(true)
         return
     }
 
+    // Continuous Chores log progress without completing
+    if (isContinuous && !isCompleted) {
+        startTransition(async () => {
+            setOptimisticChore({ type: 'LOG_PROGRESS' })
+            confetti({ particleCount: 20, spread: 40, origin: { y: 0.6 }, disableForReducedMotion: true })
+            try {
+                const result = await completeChore(chore.id, [currentUserId])
+                if (!result.success) {
+                    toast.error(result.message || 'Failed to log progress')
+                } else {
+                    toast.success(result.message, { description: result.motivation })
+                }
+            } catch (error) {
+                toast.error("Something went wrong.")
+            }
+        })
+        return
+    }
+
+    // Standard Completion Logic
     const nextStatus = isCompleted ? 'pending' : 'complete'
     
     startTransition(async () => {
@@ -243,7 +270,9 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                     disabled:opacity-50 disabled:cursor-not-allowed
                     ${isCompleted 
                         ? 'h-8 w-8 rounded-full bg-status-complete text-white' 
-                        : 'h-6 w-6 mt-1 rounded-lg border-2 border-text-secondary/40 hover:border-brand hover:bg-brand/5 text-transparent'
+                        : isContinuous
+                            ? 'h-8 w-8 rounded-full border-2 border-brand/50 hover:bg-brand/10 text-brand'
+                            : 'h-6 w-6 mt-1 rounded-lg border-2 border-text-secondary/40 hover:border-brand hover:bg-brand/5 text-transparent'
                     }
                 `}
              >
@@ -251,8 +280,10 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                     <Loader2 className="h-4 w-4 animate-spin" />
                 ) : isCompleted ? (
                     <Check className="h-5 w-5" />
+                ) : isContinuous ? (
+                    <Plus className="h-4 w-4" />
                 ) : (
-                    // Hover state hint
+                    // Hover state hint for normal chores
                     <div className="hidden group-hover:block w-2 h-2 rounded-full bg-brand/50" />
                 )}
              </button>
@@ -283,6 +314,14 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
 
               {/* Metadata Pills */}
               <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {/* Continuous Task Progress Pill */}
+                  {isContinuous && !isCompleted && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold text-brand bg-brand/10 border border-brand/20">
+                          <Infinity className="h-3 w-3" />
+                          <span>Logged: {optimisticChore.completed_instances || 0}</span>
+                      </div>
+                  )}
+
                   {/* Deadline Pill */}
                   {chore.due_date && (
                     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold border ${isHardDeadline ? 'bg-red-50 border-red-100 text-red-700' : 'bg-gray-50 border-gray-100 text-text-secondary'}`}>
@@ -355,10 +394,10 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                     disabled={totalSubtasks > 0 && progress < 100}
                     className="text-sm font-bold text-text-secondary hover:text-brand transition-colors flex items-center gap-1.5 disabled:opacity-50"
                 >
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${isCompleted ? 'bg-brand border-brand' : 'border-current'}`}>
-                        {isCompleted && <Check className="h-3 w-3 text-white" />}
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${isCompleted ? 'bg-brand border-brand' : isContinuous ? 'border-brand/50 text-brand' : 'border-current'}`}>
+                        {isCompleted ? <Check className="h-3 w-3 text-white" /> : isContinuous ? <Plus className="h-3 w-3" /> : null}
                     </div>
-                    Mark Done
+                    {isContinuous ? 'Log Progress' : 'Mark Done'}
                 </button>
 
                 <div className="flex items-center gap-1">
@@ -388,7 +427,7 @@ export default function ChoreItem({ chore, showActions, status, members = [], cu
                         {isHardDeadline ? <Lock className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
                     </button>
 
-                    <ChoreMenu chore={chore} />
+                    <ChoreMenu chore={chore} currentUserId={currentUserId} />
                 </div>
             </div>
         )}

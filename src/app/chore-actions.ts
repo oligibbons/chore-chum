@@ -224,7 +224,6 @@ export async function getHouseholdData(
       const rawAssigned = chore.assigned_to
       let assigneeIds: string[] = []
 
-      // FIXED: Handle both string JSON and pre-parsed Object/Array JSONB
       if (rawAssigned) {
           if (Array.isArray(rawAssigned)) {
               assigneeIds = rawAssigned
@@ -334,6 +333,8 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
 
     const safeChore = chore as unknown as DbChore
     const isSubtask = !!safeChore.parent_chore_id
+    const targetInstances = safeChore.target_instances ?? 1
+    const isContinuous = targetInstances === -1
 
     if (isSubtask) {
         const { error: subError } = await supabase.from('chores').update({ status: 'complete' }).eq('id', choreId)
@@ -356,8 +357,6 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
         return { success: true, message: 'Subtask done!' }
     }
 
-    const targetInstances = safeChore.target_instances ?? 1
-    
     if (completedBy.length > 0) {
         await updateStreaks(supabase, completedBy)
     }
@@ -370,6 +369,36 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
         }
     }
 
+    // --- CONTINUOUS CHORE LOGIC ---
+    if (isContinuous) {
+        await logActivity(safeChore.household_id, 'progress', safeChore.name, { completed_by: names })
+
+        await supabase.from('chores').update({
+            completed_instances: (safeChore.completed_instances || 0) + 1
+        }).eq('id', choreId)
+
+        await notifyHousehold(
+            safeChore.household_id,
+            {
+              title: 'Progress Logged! 🚀',
+              body: `${names} worked on "${safeChore.name}".`,
+              url: '/feed'
+            }
+        )
+
+        revalidatePath('/', 'layout')
+        revalidatePath('/dashboard')
+        revalidatePath('/feed')
+        revalidatePath('/calendar')
+
+        return {
+            success: true,
+            message: 'Progress logged!',
+            motivation: "Keep that momentum going! 🚂"
+        }
+    }
+
+    // --- REGULAR CHORE LOGIC ---
     await logActivity(safeChore.household_id, 'complete', safeChore.name, { completed_by: names })
 
     const isRecurring = safeChore.recurrence_type !== 'none'
@@ -423,7 +452,7 @@ export async function completeChore(choreId: number, completedBy: string[]): Pro
                 time_of_day: safeChore.time_of_day,
                 exact_time: safeChore.exact_time,
                 custom_recurrence: nextCustomRecurrence,
-                deadline_type: safeChore.deadline_type // SAVE
+                deadline_type: safeChore.deadline_type
             } as any).select('id').single()
 
             if (insertError) {
@@ -528,8 +557,6 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   const shouldRotate = formData.get('rotateAssignees') === 'true'
   let customRecurrence = null
   
-  // FIXED: Ensure currentAssignee is saved as an ARRAY even if it's a single item
-  // This is critical for the JSONB 'contains' (@>) queries in Cron jobs
   let currentAssignee = assignedTo.length > 0 ? [assignedTo[0]] : null
 
   if (shouldRotate && assignedTo.length > 1) {
@@ -555,7 +582,8 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
   const rawExactTime = formData.get('exactTime') as string
   const exactTime = rawExactTime && rawExactTime.trim() !== '' ? rawExactTime : null
   
-  const instanceCount = parseInt(formData.get('instances') as string || '1')
+  const isContinuous = formData.get('isContinuous') === 'true'
+  const instanceCount = isContinuous ? 1 : parseInt(formData.get('instances') as string || '1')
 
   if (!rawName) return { success: false, message: 'Chore name is required.' }
 
@@ -571,10 +599,10 @@ export async function createChore(formData: FormData): Promise<ActionResponse> {
         household_id: householdId,
         created_by: user.id,
         status: 'pending',
-        assigned_to: currentAssignee, // Saved as Array
+        assigned_to: currentAssignee,
         room_id: rawRoomId && rawRoomId !== '' ? Number(rawRoomId) : null,
         due_date: rawDueDate,
-        target_instances: 1, 
+        target_instances: isContinuous ? -1 : 1, 
         recurrence_type: rawRecurrence || 'none',
         completed_instances: 0,
         time_of_day: rawTimeOfDay || 'any',
@@ -642,6 +670,7 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   const rawExactTime = formData.get('exactTime') as string
   const exactTime = rawExactTime && rawExactTime.trim() !== '' ? rawExactTime : null
   const deadlineType = formData.get('deadlineType') as string || 'soft'
+  const isContinuous = formData.get('isContinuous') === 'true'
 
   const shouldRotate = formData.get('rotateAssignees') === 'true'
   const rawAssignedTo = formData.get('assignedTo') as string
@@ -651,7 +680,6 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
   if (rawAssignedTo) {
       try {
           assignedTo = JSON.parse(rawAssignedTo)
-          // FIXED: Save as ARRAY
           currentAssignee = assignedTo.length > 0 ? [assignedTo[0]] : null
       } catch {
           assignedTo = [rawAssignedTo]
@@ -679,7 +707,8 @@ export async function updateChore(formData: FormData): Promise<ActionResponse> {
       due_date: formData.get('dueDate') || null,
       assigned_to: currentAssignee,
       custom_recurrence: customRecurrence,
-      deadline_type: deadlineType
+      deadline_type: deadlineType,
+      target_instances: isContinuous ? -1 : 1
   }
 
   const { error } = await supabase
@@ -772,4 +801,51 @@ export async function incrementChoreInstance(chore: DbChore): Promise<ActionResp
 
 export async function decrementChoreInstance(chore: DbChore): Promise<ActionResponse> {
     return { success: true, message: "Use uncomplete action" }
+}
+
+export async function closeContinuousChore(choreId: number, completedBy: string[]): Promise<ActionResponse> {
+    const supabase: TypedSupabaseClient = await createSupabaseClient()
+    const { data: chore, error } = await supabase.from('chores').select('*').eq('id', choreId).single()
+
+    if (error || !chore) return { success: false, message: error?.message || 'Chore not found' }
+
+    const safeChore = chore as unknown as DbChore
+
+    if (completedBy.length > 0) {
+        await updateStreaks(supabase, completedBy)
+    }
+
+    let names = 'Someone'
+    if (completedBy.length > 0) {
+        const { data: completers } = await supabase.from('profiles').select('full_name').in('id', completedBy)
+        if (completers) {
+            names = completers.map(c => c.full_name?.split(' ')[0]).join(' & ')
+        }
+    }
+
+    await logActivity(safeChore.household_id, 'complete', safeChore.name, { completed_by: names })
+
+    await supabase.from('chores').update({
+        status: 'complete'
+    }).eq('id', choreId)
+
+    await notifyHousehold(
+        safeChore.household_id,
+        {
+          title: 'Project Finished! 🏆',
+          body: `${names} fully completed the ongoing project "${safeChore.name}".`,
+          url: '/feed'
+        }
+    )
+
+    revalidatePath('/', 'layout')
+    revalidatePath('/dashboard')
+    revalidatePath('/feed')
+    revalidatePath('/calendar')
+
+    return {
+        success: true,
+        message: 'Project closed!',
+        motivation: "Massive effort! Enjoy the accomplishment. 🥂"
+    }
 }

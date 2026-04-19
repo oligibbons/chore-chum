@@ -3,7 +3,7 @@
 
 import { Fragment, useState, FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check, Ban, Users, Save, Shield, Feather } from 'lucide-react'
+import { X, Loader2, User, Home, Calendar, Repeat, Clock, Coffee, Sun, Moon, Check, Ban, Users, Shield, Feather, Infinity } from 'lucide-react'
 import { updateChore } from '@/app/chore-actions'
 import { ChoreWithDetails, DbProfile, DbRoom } from '@/types/database'
 import { useRouter } from 'next/navigation'
@@ -60,6 +60,9 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
   const initialRotation = (chore.custom_recurrence as any)?.rotation;
   const [isRotating, setIsRotating] = useState(!!initialRotation)
 
+  // Continuous Task State
+  const [isContinuous, setIsContinuous] = useState(chore.target_instances === -1)
+
   // Date State
   const [dueDate, setDueDate] = useState(chore.due_date ? new Date(chore.due_date).toISOString().split('T')[0] : '')
   const [hasDueDate, setHasDueDate] = useState(!!chore.due_date)
@@ -91,6 +94,7 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
     formData.append('assignedTo', JSON.stringify(assignedIds))
     formData.append('rotateAssignees', String(isRotating)) 
     formData.append('deadlineType', deadlineType) // Include deadline type
+    formData.append('isContinuous', String(isContinuous)) // Pass ongoing flag
     
     // Serialize Recurrence
     let finalRecurrence = 'none'
@@ -426,6 +430,23 @@ function EditForm({ closeModal, chore, members, rooms }: EditFormProps) {
                 </div>
             )}
         </div>
+      </div>
+
+      {/* CONTINUOUS TASK TOGGLE */}
+      <div className="flex items-center gap-4 p-4 bg-brand/5 rounded-xl border border-brand/20 transition-all">
+          <div className="flex-shrink-0 p-2 bg-brand/10 text-brand rounded-lg">
+              <Infinity className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+              <h4 className="font-heading font-semibold text-sm text-brand-dark">Ongoing Project</h4>
+              <p className="text-xs text-text-secondary mt-0.5">Keep this task alive to log progress repeatedly.</p>
+          </div>
+          <div 
+              onClick={() => setIsContinuous(!isContinuous)}
+              className={`w-12 h-7 rounded-full relative cursor-pointer transition-colors ${isContinuous ? 'bg-brand' : 'bg-gray-300'}`}
+          >
+              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${isContinuous ? 'left-6' : 'left-1'}`} />
+          </div>
       </div>
 
       <div>

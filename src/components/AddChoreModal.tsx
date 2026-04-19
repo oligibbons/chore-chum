@@ -6,7 +6,7 @@ import { Dialog, Transition } from '@headlessui/react'
 import { 
   X, Loader2, User, Home, Calendar, Repeat, Wand2, Clock, 
   Coffee, Sun, Moon, PlusCircle, Check, Copy, Trash2, Ban, 
-  Sparkles, Save, Users, ShoppingCart, Shield, Feather, MoreVertical 
+  Sparkles, Save, Users, ShoppingCart, Shield, Feather, MoreVertical, Infinity 
 } from 'lucide-react'
 import { createChore } from '@/app/chore-actions'
 import { createTemplate, deleteTemplate } from '@/app/template-actions'
@@ -70,6 +70,9 @@ function ChoreForm({
   
   // Rotation State
   const [isRotating, setIsRotating] = useState(false)
+
+  // Continuous Task State
+  const [isContinuous, setIsContinuous] = useState(false)
 
   // Instance State
   const [instanceCount, setInstanceCount] = useState<number | string>(1)
@@ -254,7 +257,8 @@ function ChoreForm({
     formData.append('timeOfDay', timeOfDay)
     formData.append('assignedTo', JSON.stringify(assignedIds))
     formData.append('rotateAssignees', String(isRotating)) 
-    formData.append('deadlineType', deadlineType) // NEW: Hard vs Soft
+    formData.append('deadlineType', deadlineType) // Hard vs Soft
+    formData.append('isContinuous', String(isContinuous)) // Pass ongoing flag
     
     const finalInstances = instanceCount === '' ? 1 : Number(instanceCount)
     formData.append('instances', finalInstances.toString())
@@ -658,44 +662,63 @@ function ChoreForm({
             </div>
         </div>
 
-        {/* MULTIPLE INSTANCES */}
-        <div className="p-4 bg-gray-50 dark:bg-muted/20 rounded-xl border border-border space-y-2">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Copy className="h-5 w-5 text-brand" />
-                    <h4 className="font-heading font-semibold text-sm">Multiple Copies</h4>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button 
-                        type="button" 
-                        onClick={() => setInstanceCount(Math.max(1, (Number(instanceCount) || 1) - 1))}
-                        className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted"
-                    >
-                        -
-                    </button>
-                    <input 
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={instanceCount}
-                        onChange={(e) => setInstanceCount(e.target.value === '' ? '' : parseInt(e.target.value))}
-                        className="w-12 rounded-lg border-border bg-background p-1 text-center font-bold text-sm"
-                    />
-                    <button 
-                        type="button" 
-                        onClick={() => setInstanceCount(Math.min(10, (Number(instanceCount) || 1) + 1))}
-                        className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted"
-                    >
-                        +
-                    </button>
-                </div>
+        {/* CONTINUOUS TASK TOGGLE */}
+        <div className="flex items-center gap-4 p-4 bg-brand/5 dark:bg-brand/10 rounded-xl border border-brand/20 transition-all">
+            <div className="flex-shrink-0 p-2 bg-brand/10 text-brand rounded-lg">
+                <Infinity className="h-5 w-5" />
             </div>
-            {(Number(instanceCount) || 1) > 1 && (
-                <p className="text-xs text-text-secondary">
-                    Creates {instanceCount} separate chores named "{name} #1" to "#{instanceCount}"
-                </p>
-            )}
+            <div className="flex-1">
+                <h4 className="font-heading font-semibold text-sm text-brand-dark dark:text-brand-light">Ongoing Project</h4>
+                <p className="text-xs text-text-secondary mt-0.5">Keep this task alive to log progress repeatedly.</p>
+            </div>
+            <div 
+                onClick={() => setIsContinuous(!isContinuous)}
+                className={`w-12 h-7 rounded-full relative cursor-pointer transition-colors ${isContinuous ? 'bg-brand' : 'bg-gray-300 dark:bg-muted'}`}
+            >
+                <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${isContinuous ? 'left-6' : 'left-1'}`} />
+            </div>
         </div>
+
+        {/* MULTIPLE INSTANCES - ONLY SHOW IF NOT CONTINUOUS */}
+        {!isContinuous && (
+            <div className="p-4 bg-gray-50 dark:bg-muted/20 rounded-xl border border-border space-y-2 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Copy className="h-5 w-5 text-brand" />
+                        <h4 className="font-heading font-semibold text-sm">Multiple Copies</h4>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button 
+                            type="button" 
+                            onClick={() => setInstanceCount(Math.max(1, (Number(instanceCount) || 1) - 1))}
+                            className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted"
+                        >
+                            -
+                        </button>
+                        <input 
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={instanceCount}
+                            onChange={(e) => setInstanceCount(e.target.value === '' ? '' : parseInt(e.target.value))}
+                            className="w-12 rounded-lg border-border bg-background p-1 text-center font-bold text-sm"
+                        />
+                        <button 
+                            type="button" 
+                            onClick={() => setInstanceCount(Math.min(10, (Number(instanceCount) || 1) + 1))}
+                            className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted"
+                        >
+                            +
+                        </button>
+                    </div>
+                </div>
+                {(Number(instanceCount) || 1) > 1 && (
+                    <p className="text-xs text-text-secondary">
+                        Creates {instanceCount} separate chores named "{name} #1" to "#{instanceCount}"
+                    </p>
+                )}
+            </div>
+        )}
 
         {/* SUBTASKS UI */}
         <div className="space-y-2">
@@ -823,6 +846,8 @@ function ChoreForm({
                 >
                 {pending ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
+                ) : isContinuous ? (
+                    'Create Ongoing Project'
                 ) : (
                     `Create ${instanceCount === '' || Number(instanceCount) <= 1 ? '' : instanceCount + ' '} Chore${instanceCount === '' || Number(instanceCount) <= 1 ? '' : 's'}`
                 )}
