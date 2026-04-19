@@ -113,21 +113,6 @@ export default async function AppLayout({
               </form>
             </div>
           </div>
-
-          {/* Mobile Bottom Nav */}
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-[env(safe-area-inset-bottom)] z-50 flex justify-around items-center h-[60px] px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.mobileIcon || item.icon
-                return (
-                  <NavLink key={item.href} href={item.href}>
-                    <div data-tour={item.tourId} className="flex flex-col items-center justify-center w-full h-full py-1 px-2">
-                      <Icon className="h-5 w-5" />
-                      <span className="text-[10px] font-medium mt-0.5">{item.label}</span>
-                    </div>
-                  </NavLink>
-                )
-              })}
-          </nav>
         </header>
 
         <PullToRefresh>
@@ -135,6 +120,21 @@ export default async function AppLayout({
             {children}
           </main>
         </PullToRefresh>
+
+        {/* FIXED: Mobile Bottom Nav (Moved outside header, improved padding) */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] z-50 flex justify-around items-center min-h-[64px] px-2 shadow-[0_-8px_20px_-1px_rgba(0,0,0,0.05)]">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.mobileIcon || item.icon
+              return (
+                <NavLink key={item.href} href={item.href}>
+                  <div data-tour={item.tourId} className="flex flex-col items-center justify-center w-full h-full py-1 px-2">
+                    <Icon className="h-6 w-6 mb-1" />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </div>
+                </NavLink>
+              )
+            })}
+        </nav>
 
         <InstallPwaPrompt /> 
       </div>
