@@ -9,21 +9,40 @@ import { Json } from '@/types/supabase'
 export async function subscribeUserToPush(subscription: any) {
   const supabase: TypedSupabaseClient = await createSupabaseClient()
   
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Not authenticated' }
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    console.error('Auth error in push subscription:', authError)
+    return { success: false, message: 'Not authenticated' }
+  }
 
-  const { error } = await supabase
+  // Workaround for Postgres JSONB unique constraint limitations:
+  // 1. Check if this exact subscription JSON already exists for this user
+  const { data: existingSubs, error: searchError } = await supabase
     .from('push_subscriptions')
-    .upsert(
-      { 
-        user_id: user.id, 
-        subscription: subscription as Json
-      }, 
-      { onConflict: 'user_id, subscription' }
-    )
+    .select('id')
+    .eq('user_id', user.id)
+    .contains('subscription', subscription as Json)
 
-  if (error) {
-    console.error('Error saving subscription:', error)
+  if (searchError) {
+    console.error('Error searching for existing subscription:', searchError)
+    return { success: false, message: 'Failed to verify subscription' }
+  }
+
+  // If it exists, we don't need to do anything!
+  if (existingSubs && existingSubs.length > 0) {
+    return { success: true, message: 'Already subscribed' }
+  }
+
+  // 2. If it doesn't exist, insert it fresh
+  const { error: insertError } = await supabase
+    .from('push_subscriptions')
+    .insert({ 
+      user_id: user.id, 
+      subscription: subscription as Json
+    })
+
+  if (insertError) {
+    console.error('Database Error saving subscription:', insertError)
     return { success: false, message: 'Failed to save subscription' }
   }
 
@@ -55,7 +74,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
        await supabase
          .from('push_subscriptions')
          .delete()
-         .match({ user_id: userId, subscription: sub })
+         .match({ user_id: userId, subscription: sub as Json })
     }
   }
 }
